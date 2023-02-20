@@ -1,3 +1,15 @@
+Based on the great work of bphillips09 and by inspiration of johncarlson21 & Jyers UI some changes were applied to the Sovol SV04 Marlin firmware:
+
+ - added bed levelling map visualization for 8x8 grid
+ - added enable/disable button for auto power-off function (requires suicide switch that executes g-code command M81)
+ - added separate power off button
+ - preheat buttons labeled "PETG" instead of "ABS"
+ - corrected tramming pitch
+ - increased probing speed
+
+This SV04 Marlin firmware requires matching touchscreen software that is available here: 
+https://github.com/Bjoern70/SV04-Touchscreen
+
 # Introduction
 
 Sovol SV04 IDEX 3D Printer comes with dual independent direct drive extruders, both are metal titan style extruders,  
