@@ -77,14 +77,9 @@
       switch (dual_x_carriage_mode) {
 
         case DXC_FULL_CONTROL_MODE:
-          #if ENABLED(RTS_AVAILABLE)
-            SetExtruderMode(4, false);
-          #endif
-          break;
-
         case DXC_AUTO_PARK_MODE:
           #if ENABLED(RTS_AVAILABLE)
-            SetExtruderMode(1, false);
+            SetExtruderMode(1);
           #endif
           break;
 
@@ -95,7 +90,7 @@
           // Always switch back to tool 0
           if (active_extruder != 0) tool_change(0);
           #if ENABLED(RTS_AVAILABLE)
-            SetExtruderMode(2, false);
+            SetExtruderMode(2);
           #endif
           break;
 
@@ -115,7 +110,7 @@
             dest.x += 0.1f;
           }
           #if ENABLED(RTS_AVAILABLE)
-            SetExtruderMode(3, false);
+            SetExtruderMode(3);
           #endif
         } return;
 

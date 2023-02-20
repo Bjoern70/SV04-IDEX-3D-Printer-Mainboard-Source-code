@@ -162,6 +162,14 @@
 #define DISABLE_JTAG
 
 //
+// SuicidePin
+//
+#define SUICIDE_PIN                         PE4   // Connector J2
+#ifndef SUICIDE_PIN_STATE
+  #define SUICIDE_PIN_STATE                 LOW
+#endif
+
+//
 // Temperature Sensors
 //
 #define TEMP_0_PIN                          PA4   // TH0
@@ -196,6 +204,16 @@
 #if ENABLED(RET6_12864_LCD)
 
   // RET6 12864 LCD
+  /**
+  *    RET6 12864 LCD EXT3
+  *        ------
+  *  PC6  | 1  2 | PB2
+  *  PB10 | 3  4 | PE8
+  *  PB14   5  6 | PB13
+  *  PB12 | 7  8 | PB15
+  *   GND | 9 10 | 5V
+  *        ------
+  */
   #define LCD_PINS_RS                       PB12
   #define LCD_PINS_ENABLE                   PB15
   #define LCD_PINS_D4                       PB13
@@ -209,6 +227,16 @@
 #elif ENABLED(VET6_12864_LCD)
 
   // VET6 12864 LCD
+  /**
+  *    VET6 12864 LCD EXT3
+  *        ------
+  *  ?    | 1  2 | PC5
+  *  PB10 | 3  4 | ?
+  *  PA6    5  6 | PA5
+  *  PA4  | 7  8 | PA7
+  *   GND | 9 10 | 5V
+  *        ------
+  */
   #define LCD_PINS_RS                       PA4
   #define LCD_PINS_ENABLE                   PA7
   #define LCD_PINS_D4                       PA5

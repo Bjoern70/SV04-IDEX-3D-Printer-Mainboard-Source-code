@@ -74,6 +74,8 @@ bool pin_is_protected(const pin_t pin);
 
 #if HAS_SUICIDE
   inline void suicide() { OUT_WRITE(SUICIDE_PIN, SUICIDE_PIN_STATE); }
+  //suicide enable/disable function: global variable declaration
+  extern bool autoPowerOffEnabled;
 #endif
 
 #if HAS_KILL

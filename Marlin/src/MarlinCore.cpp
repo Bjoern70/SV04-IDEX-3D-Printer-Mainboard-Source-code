@@ -242,6 +242,11 @@
   #include "feature/power.h"
 #endif
 
+#if HAS_SUICIDE
+  //suicide enable/disable function: add global variable
+  bool autoPowerOffEnabled = true;
+#endif
+
 PGMSTR(M112_KILL_STR, "M112 Shutdown");
 
 MarlinState marlin_state = MF_INITIALIZING;

@@ -3,7 +3,7 @@
 
 #include "../../../sd/cardreader.h"
 #include "string.h"
-#include <arduino.h>
+#include <Arduino.h>
 
 #include "../../../inc/MarlinConfig.h"
 
@@ -70,22 +70,7 @@ extern int power_off_type_yes;
 #define TWO_EXTRUDER_HOTEND_YOFFSET_VP     0x1094
 #define TWO_EXTRUDER_HOTEND_ZOFFSET_VP     0x1096
 
-#define AUTO_BED_LEVEL_1POINT_VP           0x1100
-// #define AUTO_BED_LEVEL_2POINT_VP           0x1102
-// #define AUTO_BED_LEVEL_3POINT_VP           0x1104
-// #define AUTO_BED_LEVEL_4POINT_VP           0x1106
-// #define AUTO_BED_LEVEL_5POINT_VP           0x1108
-// #define AUTO_BED_LEVEL_6POINT_VP           0x110A
-// #define AUTO_BED_LEVEL_7POINT_VP           0x110C
-// #define AUTO_BED_LEVEL_8POINT_VP           0x110E
-// #define AUTO_BED_LEVEL_9POINT_VP           0x1110
-// #define AUTO_BED_LEVEL_10POINT_VP          0x1112
-// #define AUTO_BED_LEVEL_11POINT_VP          0x1114
-// #define AUTO_BED_LEVEL_12POINT_VP          0x1116
-// #define AUTO_BED_LEVEL_13POINT_VP          0x1118
-// #define AUTO_BED_LEVEL_14POINT_VP          0x111A
-// #define AUTO_BED_LEVEL_15POINT_VP          0x111C
-// #define AUTO_BED_LEVEL_16POINT_VP          0x111E
+#define AUTO_BED_LEVEL_1POINT_VP           0x4000
 
 #define AUTO_TRAM_1TEXT_VP                 0x1120
 //#define AUTO_TRAM_2TEXT_VP                 0x1138
@@ -96,6 +81,13 @@ extern int power_off_type_yes;
 #define PRINT_SURPLUS_TIME_MIN_VP          0x1164
 #define SELECT_MODE_ICON_VP                0x1166
 #define CHANGE_SDCARD_ICON_VP              0x1168
+
+//suicide enable/disable function
+//SuicideKey on 0x2220
+#define AUTO_POWER_OFF_ICON_VP             0x116A
+
+//Mesh visualization 0x4100 - 0x417F
+#define MESH_VISUAL_ICON_VP                0x4100
 
 #define MOTOR_FREE_ICON_VP                 0x1200
 #define FILE1_SELECT_ICON_VP               0x1225
@@ -148,7 +140,7 @@ extern int power_off_type_yes;
 #define EXCHANGE_NOZZLE_ICON_VP            0x21BC
 #define PRINT_MODE_ICON_VP                 0x21BD
 #define PRINT_FILE_TEXT_VP                 0x21C0
-#define Screen_Version_VP                  0X2200
+#define Screen_Version_VP                  0x2200
 #define FilenameNature                     0x6003
 #define	Beep       					               ((unsigned long)0x02AF0100)
 /************struct**************/
@@ -163,7 +155,7 @@ typedef struct DataBuf
   unsigned char reserv[4];
 } DB;
 
-typedef struct 
+typedef struct
 {
   char currentDir[MAXPATHNAMELENGTH];
   char currentFilePath[MAXPATHNAMELENGTH];
@@ -254,10 +246,11 @@ enum PROC_COM
   PrintFileKey,
   SelectFileKey,
   SaveEEPROM,
+  SuicideKey,
   ChangePageKey
 };
 
-const unsigned long Addrbuf[] = 
+const unsigned long Addrbuf[] =
 {
   0x1002,
   0x1004,
@@ -292,16 +285,19 @@ const unsigned long Addrbuf[] =
   0x1098,
   0x2198,
   0x2199,
-  0X2202,
-  0x110E,
+  0x2202,
+  0x2220,
+  0x2300,
   0
 };
 
 extern int EndsWith(const char*, const char*);
-extern void SetExtruderMode(unsigned int, bool);
+extern void SetExtruderMode(unsigned int);
 extern void RTSUpdate();
 extern void RTSInit();
 
+extern uint8_t active_extruder_font;
+extern uint8_t dualXPrintingModeStatus;
 extern int Update_Time_Value;
 extern bool PoweroffContinue;
 extern bool sdcard_pause_check;

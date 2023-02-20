@@ -141,7 +141,7 @@ static bool ensure_safe_temperature(const bool wait=true, const PauseMode mode=P
       thermalManager.setTargetHotend(thermalManager.extrude_min_temp, active_extruder);
   #endif
 
-  ui.pause_show_message(PAUSE_MESSAGE_HEATING, mode); UNUSED(mode);//加热喷嘴等待界面
+  ui.pause_show_message(PAUSE_MESSAGE_HEATING, mode); UNUSED(mode);//heat the nozzle and wait for the interface
   rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
   rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
 
@@ -192,15 +192,15 @@ bool load_filament(const_float_t slow_load_length/*=0*/, const_float_t fast_load
   if (pause_for_user) {
     if (show_lcd)
     {
-      ui.pause_show_message(PAUSE_MESSAGE_INSERT, mode);//插入丝料并继续
+      ui.pause_show_message(PAUSE_MESSAGE_INSERT, mode);//insert the silk stock and continue
       // rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
       // rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
       // rtscheck.RTS_SndData(ExchangePageBase + 17, ExchangepageAddr);
-    } 
+    }
     SERIAL_ECHO_MSG(_PMSG(STR_FILAMENT_CHANGE_INSERT));
 
     first_impatient_beep(max_beep_count);
-    
+
 
     KEEPALIVE_STATE(PAUSED_FOR_USER);
     wait_for_user = true;    // LCD click or M108 will clear this
@@ -278,7 +278,7 @@ bool load_filament(const_float_t slow_load_length/*=0*/, const_float_t fast_load
         // "Wait for filament purge"
         if (show_lcd)
         {
-          ui.pause_show_message(PAUSE_MESSAGE_PURGE);//等待清理喷嘴
+          ui.pause_show_message(PAUSE_MESSAGE_PURGE);//Wait for the nozzle to be cleaned
           rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
           rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
         }
@@ -356,9 +356,9 @@ bool unload_filament(const_float_t unload_length, const bool show_lcd/*=false*/,
     return false;
   }
 
-  if (show_lcd) 
+  if (show_lcd)
   {
-    ui.pause_show_message(PAUSE_MESSAGE_UNLOAD, mode);//等待卸下丝料
+    ui.pause_show_message(PAUSE_MESSAGE_UNLOAD, mode);//Wait for the filament to be removed
     rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
     rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
   }
@@ -554,7 +554,7 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
     // Wait for the user to press the button to re-heat the nozzle, then
     // re-heat the nozzle, re-show the continue prompt, restart idle timers, start over
     if (nozzle_timed_out) {
-      ui.pause_show_message(PAUSE_MESSAGE_HEAT);//按下确认，加热喷嘴
+      ui.pause_show_message(PAUSE_MESSAGE_HEAT);//Press to confirm to heat the nozzle
       rtscheck.RTS_SndData(ExchangePageBase + 39, ExchangepageAddr);
       rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
       rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
@@ -566,7 +566,7 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
 
       TERN_(HAS_RESUME_CONTINUE, wait_for_user_response(0, true)); // Wait for LCD click or M108
 
-      queue.enqueue_now_P(PSTR("M117 Reheating..."));
+      queue.enqueue_one_P(PSTR("M117 Reheating..."));
 
       TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_INFO, GET_TEXT(MSG_REHEATING)));
 
@@ -588,7 +588,7 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
 
       HOTEND_LOOP() thermalManager.heater_idle[e].start(nozzle_timeout);
 
-      queue.enqueue_now_P(PSTR("M117 Reheat Done."));
+      queue.enqueue_one_P(PSTR("M117 Reheat Done."));
       rtscheck.RTS_SndData(ExchangePageBase + 8, ExchangepageAddr);
       TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, GET_TEXT(MSG_REHEATDONE), CONTINUE_STR));
       TERN_(EXTENSIBLE_UI, ExtUI::onUserConfirmRequired_P(GET_TEXT(MSG_REHEATDONE)));
@@ -630,7 +630,7 @@ void resume_print(const_float_t slow_load_length/*=0*/, const_float_t fast_load_
   DEBUG_SECTION(rp, "resume_print", true);
   DEBUG_ECHOLNPGM("... slowlen:", slow_load_length, " fastlen:", fast_load_length, " purgelen:", purge_length, " maxbeep:", max_beep_count, " targetTemp:", targetTemp DXC_SAY);
 
-  
+
   SERIAL_ECHOLNPGM(
     "resume_print: dual_x_carriage_mode:", dual_x_carriage_mode,
     "\nextruder_duplication_enabled:", extruder_duplication_enabled,
@@ -652,7 +652,7 @@ void resume_print(const_float_t slow_load_length/*=0*/, const_float_t fast_load_
   // Load the new filament
   load_filament(slow_load_length, fast_load_length, purge_length, max_beep_count, true, nozzle_timed_out, PAUSE_MODE_SAME DXC_PASS);
 
-  queue.enqueue_now_P(PSTR("M117 Loading filament..."));
+  queue.enqueue_one_P(PSTR("M117 Loading filament..."));
 
   if (targetTemp > 0) {
     thermalManager.setTargetHotend(targetTemp, active_extruder);

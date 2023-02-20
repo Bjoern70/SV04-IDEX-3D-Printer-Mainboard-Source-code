@@ -90,7 +90,10 @@ void GcodeSuite::M81() {
   safe_delay(1000); // Wait 1 second before switching off
 
   #if HAS_SUICIDE
-    suicide();
+    if (autoPowerOffEnabled) 
+    {  //suicide enable/disable function: check suicide condition
+      suicide();
+    }
   #elif ENABLED(PSU_CONTROL)
     powerManager.power_off_soon();
   #endif
