@@ -1,4 +1,4 @@
-Based on the great work of bphillips09 and by inspiration of johncarlson21 & Jyers UI some changes were applied to the Sovol SV04 Marlin firmware:
+Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jyers UI some changes were applied to the Sovol SV04 Marlin firmware:
 
  - added bed levelling map visualization for 8x8 grid
  - added enable/disable button for auto power-off function (requires suicide switch that executes g-code command M81)
