@@ -309,5 +309,5 @@ extern float current_position_x1_axis;
 void RTS_PauseMoveAxisPage();
 void RTS_AutoBedLevelPage();
 void RTS_MoveAxisHoming();
-
+extern void RTS_Buzz(const uint16_t, const uint16_t);
 #endif

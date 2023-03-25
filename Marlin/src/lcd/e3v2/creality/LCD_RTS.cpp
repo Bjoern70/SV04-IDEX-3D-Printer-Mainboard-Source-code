@@ -2676,18 +2676,27 @@ void SetExtruderMode(unsigned int mode) {
     dualXPrintingModeStatus = 4;
     rtscheck.RTS_SndData(5, PRINT_MODE_ICON_VP);
     rtscheck.RTS_SndData(5, SELECT_MODE_ICON_VP);
-  } else if (mode == 6)
+  }
+  else if (mode == 6)
   {
-    if (dualXPrintingModeStatus == 4) {
+    //return key; keep previous print mode
+    if (dualXPrintingModeStatus == 4)
+    {
       save_dual_x_carriage_mode = 5;
-    } else if (dualXPrintingModeStatus == 0) {
+    }
+    else if (dualXPrintingModeStatus == 0)
+    {
       save_dual_x_carriage_mode = 4;
-    } else {
+    }
+    else
+    {
       save_dual_x_carriage_mode = dualXPrintingModeStatus;
     }
     settings.save();
     rtscheck.RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
-  } else {
+  }
+  else
+  {
     //single 1 mode
     rtscheck.RTS_SndData(0, MIRROR_MODE_ICON_VP);
     rtscheck.RTS_SndData(0, TWO_COLOR_MODE_ICON_VP);
@@ -2863,4 +2872,10 @@ void RTS_MoveAxisHoming()
   rtscheck.RTS_SndData(10*current_position[Z_AXIS], AXIS_Z_COORD_VP);
 }
 
+void RTS_Buzz(const uint16_t duration, const uint16_t frequency) //plays single beep tone on DWIN DGUS TL5 display onboard buzzer
+{
+  uint16_t foo = duration;
+  foo =  foo + frequency; //unneeded operation just to supress compiler warning
+  rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
+}
 #endif

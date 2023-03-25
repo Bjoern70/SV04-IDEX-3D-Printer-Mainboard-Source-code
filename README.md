@@ -1,16 +1,18 @@
+# Introduction
+
 Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jyers UI some changes were applied to the Sovol SV04 Marlin firmware:
 
  - added bed levelling map visualization for 8x8 grid
- - added enable/disable button for auto power-off function (requires suicide switch that executes g-code command M81)
- - added separate power off button
- - preheat buttons labeled "PETG" instead of "ABS"
+ - added soft power off button functionality (supports separate suicide switch to execute g-code command M81)
+ - hanged preheat settings from filament type ABS to PETG
  - corrected tramming pitch
  - increased probing speed
+ - added simple DGUS display onboard buzzer handling: g-code command M300 will play beep sound omitting parameters.
 
 This SV04 Marlin firmware requires matching touchscreen software that is available here: 
 https://github.com/Bjoern70/SV04-Touchscreen
 
-# Introduction
+# About the SV04 IDEX 3D Printer
 
 Sovol SV04 IDEX 3D Printer comes with dual independent direct drive extruders, both are metal titan style extruders,  
 which make it to print with two materials very easily such as TPU, TPE, HIPS, ABS, PETG, WOOD, PC, PA, PVA, ASA. 

@@ -115,11 +115,16 @@
   // Buzz directly via the BEEPER pin tone queue
   #define BUZZ(d,f) buzzer.tone(d, f)
 
-#elif HAS_BUZZER
+#elif HAS_BUZZER && DISABLED(RTS_AVAILABLE)
 
   // Buzz indirectly via the MarlinUI instance
   #include "../lcd/marlinui.h"
   #define BUZZ(d,f) ui.buzz(d,f)
+
+#elif ENABLED(RTS_AVAILABLE)
+  #include "../lcd/e3v2/creality/LCD_RTS.h"
+  //Play standard beep sound without parameters keeping S and P as dummy data
+  #define BUZZ(d,f) RTS_Buzz(d,f)
 
 #else
 
