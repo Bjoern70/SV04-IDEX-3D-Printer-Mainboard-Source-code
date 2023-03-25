@@ -10,7 +10,7 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
  - added simple DGUS display onboard buzzer handling: g-code command M300 will play beep sound omitting parameters.
 
 This SV04 Marlin firmware requires matching touchscreen software that is available here: 
-https://github.com/Bjoern70/SV04-Touchscreen
+https://github.com/Bjoern70/SV04-Touchscreen/releases/tag/v1.1.B3.6
 
 # About the SV04 IDEX 3D Printer
 
