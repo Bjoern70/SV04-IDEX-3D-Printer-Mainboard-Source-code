@@ -12,6 +12,9 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
 This SV04 Marlin firmware requires matching touchscreen software that is available here: 
 https://github.com/Bjoern70/SV04-Touchscreen/releases/tag/v1.1.B3.6
 
+Leveling map screen:
+![BedLeveling](https://user-images.githubusercontent.com/72707632/219985619-2219b7f9-08b4-4207-ab1e-c8c373784af7.JPG)
+
 # About the SV04 IDEX 3D Printer
 
 Sovol SV04 IDEX 3D Printer comes with dual independent direct drive extruders, both are metal titan style extruders,  
