@@ -292,7 +292,7 @@ const unsigned long Addrbuf[] =
 };
 
 extern int EndsWith(const char*, const char*);
-extern void SetExtruderMode(unsigned int);
+extern void SetExtruderMode(unsigned int, bool);
 extern void RTSUpdate();
 extern void RTSInit();
 

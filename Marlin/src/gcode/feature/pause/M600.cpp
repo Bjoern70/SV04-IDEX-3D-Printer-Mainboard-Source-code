@@ -78,7 +78,7 @@ void GcodeSuite::M600() {
     const int8_t target_extruder = active_extruder;
   #else
     const int8_t target_extruder = get_target_extruder_from_command();
-    
+
     if (target_extruder < 0) return;
   #endif
 
@@ -87,8 +87,8 @@ void GcodeSuite::M600() {
     if (!parser.seen_test('T')) {  // If no tool index is specified, M600 was (probably) sent in response to filament runout.
                                    // In this case, for duplicating modes set DXC_ext to the extruder that ran out.
       #if MULTI_FILAMENT_SENSOR
-        if (idex_is_duplicating())
-          DXC_ext = (READ(FIL_RUNOUT2_PIN) == FIL_RUNOUT2_STATE) ? 1 : 0;
+        if (READ(FIL_RUNOUT_PIN) == FIL_RUNOUT_STATE) {DXC_ext = 0;}
+        if (READ(FIL_RUNOUT2_PIN) == FIL_RUNOUT_STATE) {DXC_ext = 1;}
       #else
         DXC_ext = active_extruder;
       #endif
@@ -99,7 +99,7 @@ void GcodeSuite::M600() {
   #if DISABLED(MMU2_MENUS)
     ui.pause_show_message(PAUSE_MESSAGE_CHANGING, PAUSE_MODE_PAUSE_PRINT, target_extruder);
   #endif
- 
+
   #if ENABLED(HOME_BEFORE_FILAMENT_CHANGE)
     // If needed, home before parking for filament change
     home_if_needed(true);

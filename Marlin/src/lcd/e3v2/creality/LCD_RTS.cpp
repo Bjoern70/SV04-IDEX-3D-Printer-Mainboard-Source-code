@@ -325,13 +325,8 @@ void RTSSHOW::RTS_Init()
   AxisUnitMode = 3;
   active_extruder = active_extruder_font;
   #if ENABLED(DUAL_X_CARRIAGE)
-    if (dualXPrintingModeStatus == 4) {
-      save_dual_x_carriage_mode = 5;
-    } else if (dualXPrintingModeStatus == 0) {
-      save_dual_x_carriage_mode = 4;
-    } else {
-      save_dual_x_carriage_mode = dualXPrintingModeStatus;
-    }
+    save_dual_x_carriage_mode = dualXPrintingModeStatus;
+
     if(save_dual_x_carriage_mode == 1)
     {
       RTS_SndData(1, PRINT_MODE_ICON_VP);
@@ -708,8 +703,8 @@ void RTSSHOW::RTS_SDcard_Stop()
       card.removeJobRecoveryFile();
     #endif
   }
-  #ifdef EVENT_GCODE_SD_STOP
-    queue.inject_P(PSTR(EVENT_GCODE_SD_STOP));
+  #ifdef EVENT_GCODE_SD_ABORT
+    queue.inject_P(PSTR(EVENT_GCODE_SD_ABORT));
   #endif
 
   // shut down the stepper motor.
@@ -818,15 +813,8 @@ void RTSSHOW::RTS_HandleData()
       else if(recdat.data[0] == 5)
       {
         #if ENABLED(DUAL_X_CARRIAGE)
-          if (dualXPrintingModeStatus == 4) {
-            save_dual_x_carriage_mode = 5;
-          } else if (dualXPrintingModeStatus == 0) {
-            save_dual_x_carriage_mode = 4;
-          } else {
-            save_dual_x_carriage_mode = dualXPrintingModeStatus;
-          }
-          SetExtruderMode(save_dual_x_carriage_mode);
-
+          save_dual_x_carriage_mode = dualXPrintingModeStatus;
+          SetExtruderMode(save_dual_x_carriage_mode, true);
           RTS_SndData(ExchangePageBase + 34, ExchangepageAddr);
         #endif
       }
@@ -906,7 +894,7 @@ void RTSSHOW::RTS_HandleData()
         RTS_SDcard_Stop();
         Update_Time_Value = 0;
         PrintFlag = 0;
-        queue.enqueue_one_P(PSTR("M77"));
+        queue.inject_P(PSTR("M77"));
         TERN_(HOST_PAUSE_M76, host_action_cancel());
       }
       else if(recdat.data[0] == 0xF0)
@@ -976,7 +964,7 @@ void RTSSHOW::RTS_HandleData()
         sdcard_pause_check = true;
         PrintFlag = 2;
         RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
-        queue.enqueue_one_P(PSTR("M75"));
+        //queue.enqueue_one_P(PSTR("M75"));
         TERN_(HOST_PAUSE_M76, host_action_resume());
       }
       else if(recdat.data[0] == 3)
@@ -1347,10 +1335,11 @@ void RTSSHOW::RTS_HandleData()
       break;
 
     case SettingBackKey:
+      SERIAL_ECHOLNPGM("Settings Button ID: ", recdat.data[0]);
       if (recdat.data[0] == 1)
       {
         Update_Time_Value = RTS_UPDATE_VALUE;
-        SetExtruderMode(save_dual_x_carriage_mode);
+        SetExtruderMode(save_dual_x_carriage_mode, true);
         if (stepper.is_awake() == true)
         {
           RTS_SndData(0, MOTOR_FREE_ICON_VP); //motors enabled
@@ -1807,7 +1796,7 @@ void RTSSHOW::RTS_HandleData()
         if(!planner.has_blocks_queued())
         {
           #if ENABLED(CHECKFILEMENT)
-            if(0 == READ(FIL_RUNOUT_PIN))
+            if(0 == READ(FIL_RUNOUT2_PIN))
             {
               RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
             }
@@ -1833,7 +1822,7 @@ void RTSSHOW::RTS_HandleData()
         if(!planner.has_blocks_queued())
         {
           #if ENABLED(CHECKFILEMENT)
-            if(0 == READ(FIL_RUNOUT2_PIN))
+            if(0 == READ(FIL_RUNOUT_PIN))
             {
               RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
             }
@@ -1951,15 +1940,11 @@ void RTSSHOW::RTS_HandleData()
       if (recdat.data[0] == 1)
       {
         #if ENABLED(CHECKFILEMENT)
-          if((0 == READ(FIL_RUNOUT_PIN)) && (active_extruder == 0))
+          if((0 == READ(FIL_RUNOUT_PIN)) || (0 == READ(FIL_RUNOUT2_PIN)))
           {
             RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
           }
-          else if((0 == READ(FIL_RUNOUT2_PIN)) && (active_extruder == 1))
-          {
-            RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
-          }
-          else
+           else
           {
             RTS_SndData(ExchangePageBase + 23, ExchangepageAddr);
           }
@@ -1985,13 +1970,7 @@ void RTSSHOW::RTS_HandleData()
       if (recdat.data[0] == 1) // yes to resume print
       {
         #if ENABLED(DUAL_X_CARRIAGE)
-          if (dualXPrintingModeStatus == 4) {
-            save_dual_x_carriage_mode = 5;
-          } else if (dualXPrintingModeStatus == 0) {
-            save_dual_x_carriage_mode = 4;
-          } else {
-            save_dual_x_carriage_mode = dualXPrintingModeStatus;
-          }
+          save_dual_x_carriage_mode = dualXPrintingModeStatus;
           switch(save_dual_x_carriage_mode)
           {
             case 1:
@@ -2157,13 +2136,9 @@ void RTSSHOW::RTS_HandleData()
         memset(cmdbuf, 0, sizeof(cmdbuf));
         strcpy(cmdbuf, cmd);
 
-        if (dualXPrintingModeStatus == 4) {
-          save_dual_x_carriage_mode = 5;
-        } else if (dualXPrintingModeStatus == 0) {
-          save_dual_x_carriage_mode = 4;
-        } else {
-          save_dual_x_carriage_mode = dualXPrintingModeStatus;
-        }
+        save_dual_x_carriage_mode = dualXPrintingModeStatus;
+        //SERIAL_ECHOLNPGM("dualXPrintingModeStatus: ", dualXPrintingModeStatus);
+
         switch(save_dual_x_carriage_mode)
         {
           case 1:
@@ -2213,7 +2188,7 @@ void RTSSHOW::RTS_HandleData()
       break;
 
     case PrintSelectModeKey:
-      SetExtruderMode(recdat.data[0]);
+      SetExtruderMode(recdat.data[0], false);
       break;
 
     case StoreMemoryKey:
@@ -2620,7 +2595,16 @@ void EachMomentUpdate()
   }
 }
 
-void SetExtruderMode(unsigned int mode) {
+void SetExtruderMode(unsigned int mode, bool isDirect) {
+  SERIAL_ECHOLNPGM("Selected extruder mode: ", mode);
+  if (isDirect && mode == 4)
+  {
+    mode = 5;
+  }
+  else if (isDirect && mode == 0)
+  {
+    mode = 4;
+  }
   SERIAL_ECHOLNPGM("Select new extruder mode: ", mode);
   if (mode == 1)
   {
@@ -2680,18 +2664,8 @@ void SetExtruderMode(unsigned int mode) {
   else if (mode == 6)
   {
     //return key; keep previous print mode
-    if (dualXPrintingModeStatus == 4)
-    {
-      save_dual_x_carriage_mode = 5;
-    }
-    else if (dualXPrintingModeStatus == 0)
-    {
-      save_dual_x_carriage_mode = 4;
-    }
-    else
-    {
-      save_dual_x_carriage_mode = dualXPrintingModeStatus;
-    }
+    save_dual_x_carriage_mode = dualXPrintingModeStatus;
+    //SERIAL_ECHOLNPGM("save_dual_x_carriage_mode: ", save_dual_x_carriage_mode);
     settings.save();
     rtscheck.RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
   }

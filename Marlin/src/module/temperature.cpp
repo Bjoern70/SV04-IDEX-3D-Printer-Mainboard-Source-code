@@ -735,20 +735,20 @@ volatile bool Temperature::raw_temps_ready = false;
               else if (ELAPSED(ms, temp_change_ms))                   // Watch timer expired
               {
                 #if ENABLED(RTS_AVAILABLE)
-                 
+
                     rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
-                  
+
                 #endif
                  _temp_error(heater_id, str_t_heating_failed, GET_TEXT(MSG_HEATING_FAILED_LCD));
               }
-               
+
             }
             else if (current_temp < target - (MAX_OVERSHOOT_PID_AUTOTUNE)) // Heated, then temperature fell too far?
             {
               #if ENABLED(RTS_AVAILABLE)
-                
+
                     rtscheck.RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
-                  
+
               #endif
               _temp_error(heater_id, str_t_thermal_runaway, GET_TEXT(MSG_THERMAL_RUNAWAY));
             }
@@ -765,9 +765,9 @@ volatile bool Temperature::raw_temps_ready = false;
         TERN_(DWIN_CREALITY_LCD_ENHANCED, DWIN_PidTuning(PID_TUNING_TIMEOUT));
         TERN_(EXTENSIBLE_UI, ExtUI::onPidTuning(ExtUI::result_t::PID_TUNING_TIMEOUT));
         #if ENABLED(RTS_AVAILABLE)
-          
+
             rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
-          
+
         #endif
         SERIAL_ECHOLNPGM(STR_PID_TIMEOUT);
         break;
@@ -1050,18 +1050,18 @@ void Temperature::_temp_error(const heater_id_t heater_id, PGM_P const serial_ms
 
 void Temperature::max_temp_error(const heater_id_t heater_id) {
   #if HAS_DWIN_E3V2_BASIC && (HAS_HOTEND || HAS_HEATED_BED)
-    
+
       rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
-    
+
   #endif
   _temp_error(heater_id, PSTR(STR_T_MAXTEMP), GET_TEXT(MSG_ERR_MAXTEMP));
 }
 
 void Temperature::min_temp_error(const heater_id_t heater_id) {
   #if HAS_DWIN_E3V2_BASIC && (HAS_HOTEND || HAS_HEATED_BED)
-    
+
       rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
-    
+
   #endif
   _temp_error(heater_id, PSTR(STR_T_MINTEMP), GET_TEXT(MSG_ERR_MINTEMP));
 }
@@ -1353,9 +1353,9 @@ void Temperature::manage_heater() {
         if (degHotend(e) > temp_range[e].maxtemp)
         {
           #if ENABLED(RTS_AVAILABLE)
-            
+
               rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
-            
+
           #endif
            max_temp_error((heater_id_t)e);
         }
@@ -1377,9 +1377,9 @@ void Temperature::manage_heater() {
             start_watching_hotend(e);               // If temp reached, turn off elapsed check
           else {
             #if ENABLED(RTS_AVAILABLE)
-              
+
                 rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
-              
+
             #endif
             _temp_error((heater_id_t)e, str_t_heating_failed, GET_TEXT(MSG_HEATING_FAILED_LCD));
           }
@@ -1417,12 +1417,12 @@ void Temperature::manage_heater() {
       if (degBed() > BED_MAXTEMP)
       {
         #if ENABLED(RTS_AVAILABLE)
-          
+
             rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
-          
+
         #endif
         max_temp_error(H_BED);
-      } 
+      }
     #endif
 
     #if WATCH_BED
@@ -1432,9 +1432,9 @@ void Temperature::manage_heater() {
           start_watching_bed();                 // If temp reached, turn off elapsed check
         else {
           #if ENABLED(RTS_AVAILABLE)
-           
+
               rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
-           
+
           #endif
           _temp_error(H_BED, str_t_heating_failed, GET_TEXT(MSG_HEATING_FAILED_LCD));
         }
@@ -2646,9 +2646,9 @@ void Temperature::init() {
 
       case TRRunaway:
         #if ENABLED(RTS_AVAILABLE)
-         
+
             rtscheck.RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
-          
+
         #endif
         _temp_error(heater_id, str_t_thermal_runaway, GET_TEXT(MSG_THERMAL_RUNAWAY));
     }
@@ -3592,7 +3592,7 @@ void Temperature::isr() {
     #endif
     SERIAL_CHAR(':');
     SERIAL_PRINT(c, SFP);
-    SERIAL_ECHOPGM(" /");
+    SERIAL_ECHOPGM(" / ");
     SERIAL_PRINT(t, SFP);
     #if ENABLED(SHOW_TEMP_ADC_VALUES)
       // Temperature MAX SPI boards do not have an OVERSAMPLENR defined
@@ -3605,7 +3605,7 @@ void Temperature::isr() {
   void Temperature::print_heater_states(const uint8_t target_extruder
     OPTARG(HAS_TEMP_REDUNDANT, const bool include_r/*=false*/)
   ) {
-    #if HAS_TEMP_HOTEND
+/*    #if HAS_TEMP_HOTEND
       print_heater_state(H_E0, degHotend(target_extruder), degTargetHotend(target_extruder) OPTARG(SHOW_TEMP_ADC_VALUES, rawHotendTemp(target_extruder)));
     #endif
     #if HAS_HEATED_BED
@@ -3646,6 +3646,17 @@ void Temperature::isr() {
         SERIAL_ECHO(getHeaterPower((heater_id_t)e));
       }
     #endif
+    */
+    //Custom report for Octoprint
+    print_heater_state(H_E0, degHotend(0), degTargetHotend(0) OPTARG(SHOW_TEMP_ADC_VALUES, rawHotendTemp(0)));
+    print_heater_state(H_E1, degHotend(1), degTargetHotend(1) OPTARG(SHOW_TEMP_ADC_VALUES, rawHotendTemp(1)));
+    print_heater_state(H_BED, degBed(), degTargetBed() OPTARG(SHOW_TEMP_ADC_VALUES, rawBedTemp()));
+    HOTEND_LOOP() {
+      SERIAL_ECHOPGM(" @", e);
+      SERIAL_CHAR(':');
+      SERIAL_ECHO(getHeaterPower((heater_id_t)e));
+    }
+    SERIAL_ECHOPGM(" @B:", getHeaterPower(H_BED));
   }
 
   #if ENABLED(AUTO_REPORT_TEMPERATURES)
@@ -3782,9 +3793,9 @@ void Temperature::isr() {
         wait_for_heatup = false;
         #if HAS_DWIN_E3V2_BASIC
           Update_Time_Value = RTS_UPDATE_VALUE;
-          
+
             rtscheck.RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
-          
+
         #endif
         ui.reset_status();
         TERN_(PRINTER_EVENT_LEDS, printerEventLEDs.onHeatingDone());

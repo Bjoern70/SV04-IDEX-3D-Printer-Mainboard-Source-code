@@ -7,7 +7,9 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
  - hanged preheat settings from filament type ABS to PETG
  - corrected tramming pitch
  - increased probing speed
- - added simple DGUS display onboard buzzer handling: g-code command M300 will play beep sound omitting parameters.
+ - added simple DGUS display onboard buzzer handling: g-code command M300 will play beep sound omitting parameters
+ - fixed print mode hickup when pausing / resuming
+ - cleaned console temperature report.
 
 This SV04 Marlin firmware requires matching touchscreen software that is available here: 
 https://github.com/Bjoern70/SV04-Touchscreen

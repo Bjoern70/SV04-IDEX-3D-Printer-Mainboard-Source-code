@@ -1198,7 +1198,7 @@ FORCE_INLINE void segment_idle(millis_t &next_idle_ms) {
           if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("idex_set_parked(false)");
         } break;
 
-        case DXC_MIRRORED_MODE:
+        case DXC_MIRRORED_MODE: break;
         case DXC_DUPLICATION_MODE:
           if (active_extruder == 0) {
             set_duplication_enabled(false); // Clear stale duplication state
