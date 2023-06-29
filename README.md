@@ -2,6 +2,8 @@
 
 Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jyers UI some changes were applied to the Sovol SV04 Marlin firmware:
 
+  SV04-IDEX-3D-Printer-Marlin-firmware-v1.1.B3.9.S "SIZZLING VERSION"
+
  - added bed levelling map visualization for 8x8 grid
  - added soft power off button functionality (supports separate suicide switch to execute g-code command M81)
  - hanged preheat settings from filament type ABS to PETG
@@ -9,7 +11,9 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
  - increased probing speed
  - added simple DGUS display onboard buzzer handling: g-code command M300 will play beep sound omitting parameters
  - fixed print mode hickup when pausing / resuming
- - cleaned console temperature report.
+ - cleaned console temperature report
+ - changed nozzle temperature limits to maximum 300°C - be sure to have a matching heat blocks & use at your own risk!
+
 
 This SV04 Marlin firmware requires matching touchscreen software that is available here: 
 https://github.com/Bjoern70/SV04-Touchscreen/releases/tag/v1.1.B3.6
