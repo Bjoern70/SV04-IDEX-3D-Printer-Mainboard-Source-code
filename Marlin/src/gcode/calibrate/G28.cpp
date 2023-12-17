@@ -456,6 +456,8 @@ void GcodeSuite::G28() {
    * IDEX specific commands in it.
    */
   #if ENABLED(DUAL_X_CARRIAGE)
+    //SERIAL_ECHOLNPGM("dualXPrintingModeStatus: ", dualXPrintingModeStatus);
+    //SERIAL_ECHOLNPGM("save_dual_x_carriage_mode: ", save_dual_x_carriage_mode);
     // added by John Carlson to fix single mode 2 for parking extruder 1 before printing.
     if (save_dual_x_carriage_mode > 4) {
       save_dual_x_carriage_mode = dualXPrintingModeStatus;
@@ -483,7 +485,8 @@ void GcodeSuite::G28() {
       set_duplication_enabled(IDEX_saved_duplication_state);
 
       TERN_(IMPROVE_HOMING_RELIABILITY, end_slow_homing(saved_motion_state));
-    } else if ((save_dual_x_carriage_mode == 4) && card.isPrinting()) {
+    }
+ else if ((save_dual_x_carriage_mode == 4) && card.isPrinting()) {
       // Home the 1st (left) extruder
       active_extruder = 0;
       homeaxis(X_AXIS);

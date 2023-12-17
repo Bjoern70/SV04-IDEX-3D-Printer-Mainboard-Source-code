@@ -143,6 +143,7 @@ extern int power_off_type_yes;
 #define Screen_Version_VP                  0x2200
 #define FilenameNature                     0x6003
 #define	Beep       					               ((unsigned long)0x02AF0100)
+#define	Beep1       				               ((unsigned long)0xFFFF0101)
 /************struct**************/
 typedef struct DataBuf
 {
