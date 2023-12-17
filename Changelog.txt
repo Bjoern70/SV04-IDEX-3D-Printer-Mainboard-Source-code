@@ -1,0 +1,17 @@
+10 JAN 2023: 
+Added PowerOff feature using suicide-pin connector J2: normal state is high (3,3V). g-code M81 switches suicide-pin to low (0 V).
+
+01 FEB 2023:
+Bilinear leveling grid altered to 8x8.
+
+18 FEB 2023:
+Corrected tramming distance M4 => 40
+
+25 MAR 2023:
+Added simple DGUS display onboard buzzer handling: g-code command M300 will play beep sound omitting parameters
+
+29 MAY 2023:
+Fixed print mode hickup when pausing / resuming. Cleaned console temperature report.
+
+17 DEC 2023:
+Fixed M1 stop wait loop bug.

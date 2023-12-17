@@ -366,7 +366,7 @@ void startOrResumeJob() {
     TERN_(POWER_LOSS_RECOVERY, recovery.purge());
 
     #ifdef EVENT_GCODE_SD_ABORT
-      queue.inject_P(PSTR(EVENT_GCODE_SD_ABORT));
+      queue.inject_P(PSTR((char*)EVENT_GCODE_SD_ABORT));
     #endif
 
     TERN_(PASSWORD_AFTER_SD_PRINT_ABORT, password.lock_machine());
@@ -724,7 +724,7 @@ inline void manage_inactivity(const bool no_stepper_sleep=false) {
   //   next_check_axes_ms = ms + 100UL;
   // }
   planner.check_axes_activity();
-  
+
   #if PIN_EXISTS(FET_SAFETY)
     static millis_t FET_next;
     if (ELAPSED(ms, FET_next)) {

@@ -2,8 +2,6 @@
 
 Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jyers UI some changes were applied to the Sovol SV04 Marlin firmware:
 
-  SV04-IDEX-3D-Printer-Marlin-firmware-v1.1.B3.9.S "SIZZLING VERSION"
-
  - added bed levelling map visualization for 8x8 grid
  - added soft power off button functionality (supports separate suicide switch to execute g-code command M81)
  - hanged preheat settings from filament type ABS to PETG
@@ -11,9 +9,9 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
  - increased probing speed
  - added simple DGUS display onboard buzzer handling: g-code command M300 will play beep sound omitting parameters
  - fixed print mode hickup when pausing / resuming
- - cleaned console temperature report
+ - cleaned host temperature report
+ - fixed M1 stop wait loop bug 
  - changed nozzle temperature limits to maximum 300°C - be sure to have a matching heat blocks & use at your own risk!
-
 
 This SV04 Marlin firmware requires matching touchscreen software that is available here: 
 https://github.com/Bjoern70/SV04-Touchscreen/releases/tag/v1.1.B3.7
@@ -21,6 +19,7 @@ https://github.com/Bjoern70/SV04-Touchscreen/releases/tag/v1.1.B3.7
 Leveling map screen:
 
 ![BedLeveling](https://user-images.githubusercontent.com/72707632/219985619-2219b7f9-08b4-4207-ab1e-c8c373784af7.JPG)
+
 
 # About the SV04 IDEX 3D Printer
 
@@ -41,15 +40,6 @@ There are  4 print modes，single-mode，dual-mode, duplicate mode, and mirror m
 
 on Sovol Official Website:  https://sovol3d.com/products/sv04
 
-# Source code
-
-This is the official source code for Sovol SV04 mainboard, the touch screen source code is not included. 
-
-The damage caused by modifying firmware also using the third party firmware will lose the 1 year warranty. 
-
-Sovol doesn’t provide tech help for help users to modify source code, but if you need us to add more functions, you are welcome to send us your suggestions via facebook massager here https://www.facebook.com/sovol3d/ or email 
-info@sovol3d.com 
-
 # Code Editor
 
 PlatformIO IDE for VSCode
@@ -67,18 +57,13 @@ PlatformIO IDE for VSCode
 - Supported Print Materials: PLA, TPU, TPE,HIPS, ABS, PETG, WOOD, PC, PA, PVA, ASA.
 - Print Speed: 20~120mm/s(suggested 60mm/s)
 - Stock Nozzle Diameter: 0.4 mm
-- Operational Extruder Temperature: Max 260ºC
+- Operational Extruder Temperature: Max 260ºC <=== PLEASE ENSURE THAT YOUR HARDWARE SUPPORTS TEMPERATURES ABOVE!
 - Input Formats: .STL, .OBJ, DAE, AMF
 - Ambient Operating Temperature:8ºC - 40ºC
 - Connectivity: SD Card or Data Cable
 - 7 Step Motors: 42-40 Step Motor*1 42-34 Step Motor*4 42-28 *2
 
-# Join Sovol Community
+# Sovol Community
 
-- Sovol Facebook page:  https://www.facebook.com/sovol3d/
-- Sovol Youtube Channel:  https://www.youtube.com/channel/UCsKntuwh7dhAGep8R6kasog/videos
-- Sovol Offcial User Group:  https://www.facebook.com/groups/sovol3d
-- Sovol SV04 Users Group:  https://www.facebook.com/groups/849799798957261
 - Sovol Forum website:  https://forum.sovol3d.com/
-
-
+- German Sovol users forum website:  https://forum.drucktipps3d.de/forum/board/42-sovol/

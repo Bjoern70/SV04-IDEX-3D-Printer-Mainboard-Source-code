@@ -37,11 +37,14 @@
   #include "../../lcd/extui/ui_api.h"
 #elif ENABLED(DWIN_CREALITY_LCD_ENHANCED)
   #include "../../lcd/e3v2/enhanced/dwin.h"
+#elif ENABLED(RTS_AVAILABLE)
+  #include "../../lcd/e3v2/creality/LCD_RTS.h"
 #endif
 
 #if ENABLED(HOST_PROMPT_SUPPORT)
   #include "../../feature/host_actions.h"
 #endif
+
 
 /**
  * M0: Unconditional stop - Wait for user button press on LCD
@@ -72,6 +75,33 @@ void GcodeSuite::M0_M1() {
       ExtUI::onUserConfirmRequired_P(GET_TEXT(MSG_USERWAIT));
   #elif ENABLED(DWIN_CREALITY_LCD_ENHANCED)
     DWIN_Popup_Confirm(ICON_BLTouch, parser.string_arg ?: GET_TEXT(MSG_STOPPED), GET_TEXT(MSG_USERWAIT));
+
+  #elif ENABLED(RTS_AVAILABLE)
+     /*
+      * //show user dialog to stop/resume after pause
+    rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
+    for (int j = 0; j < 20; j ++)
+    {
+      rtscheck.RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
+    }
+    if (parser.string_arg)
+       rtscheck.RTS_SndData(parser.string_arg, PRINT_FILE_TEXT_VP);
+    else
+      rtscheck.RTS_SndData(PSTR("PRESS [NO] TO STOP"), PRINT_FILE_TEXT_VP);
+
+    rtscheck.RTS_SndData(ExchangePageBase + 36, ExchangepageAddr);
+    */
+    //skip display screen call to prevent blocking when M0 is called without a running print file
+    rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
+    dwell(250);
+    rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
+    dwell(250);
+    rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
+    if (parser.string_arg) {
+      SERIAL_ECHO_START();
+      SERIAL_ECHOLN(parser.string_arg);
+    }
+
   #else
 
     if (parser.string_arg) {

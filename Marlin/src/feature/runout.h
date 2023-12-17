@@ -133,7 +133,19 @@ class TFilamentMonitor : public FilamentMonitorBase {
               }
             }
           #else
-            const bool ran_out = TEST(runout_flags, active_extruder);  // suppress non active extruders
+            //SERIAL_ECHOLNPGM("Active extruder: ", active_extruder);
+            //SERIAL_ECHOLNPGM("dualXPrintingModeStatus: ", dualXPrintingModeStatus);
+            uint8_t test_extruder = active_extruder;
+            if (dualXPrintingModeStatus == 4)
+            {
+              //SERIAL_ECHOLNPGM("setting test extruder to 1");
+              test_extruder = 1;
+            }
+            
+            const bool ran_out = TEST(runout_flags, test_extruder);  // suppress non active extruders
+            //SERIAL_ECHOLNPGM("test runout on extruder ", test_extruder);
+            //SERIAL_ECHOLNPGM("ran_out: ", ran_out);
+
             uint8_t extruder = active_extruder;
           #endif
         #else
@@ -152,6 +164,7 @@ class TFilamentMonitor : public FilamentMonitorBase {
         #endif
 
         if (ran_out) {
+          //SERIAL_ECHOLNPGM("filament runout on extruder: ", extruder);
           filament_ran_out = true;
           event_filament_runout(extruder);
           planner.synchronize();

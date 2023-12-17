@@ -704,11 +704,20 @@ void RTSSHOW::RTS_SDcard_Stop()
     #endif
   }
   #ifdef EVENT_GCODE_SD_ABORT
-    queue.inject_P(PSTR(EVENT_GCODE_SD_ABORT));
+    char abtcmd[21] = "";
+    queue.inject(PSTR((char*)EVENT_GCODE_SD_ABORT));
+    queue.inject(PSTR((char*)"G90"));
+    sprintf_P(abtcmd, PSTR("G1 Y%i F300\nM84"), Y_BED_SIZE);
+    queue.inject(abtcmd);
+
+    //queue.inject_P(PSTR(EVENT_GCODE_SD_ABORT));
+    //queue.inject_P(PSTR(abtcmd));
   #endif
 
+  planner.finish_and_disable();
+
   // shut down the stepper motor.
-  queue.inject_P(PSTR("M84"));
+  // queue.enqueue_now_P(PSTR("M84"));
   RTS_SndData(0, MOTOR_FREE_ICON_VP);
 
   RTS_SndData(0, PRINT_PROCESS_ICON_VP);
@@ -894,8 +903,8 @@ void RTSSHOW::RTS_HandleData()
         RTS_SDcard_Stop();
         Update_Time_Value = 0;
         PrintFlag = 0;
-        queue.inject_P(PSTR("M77"));
         TERN_(HOST_PAUSE_M76, host_action_cancel());
+        queue.inject_P(PSTR("M77"));
       }
       else if(recdat.data[0] == 0xF0)
       {
@@ -944,6 +953,7 @@ void RTSSHOW::RTS_HandleData()
       if(recdat.data[0] == 1)
       {
         //resume from paused
+
         RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
         card.startOrResumeFilePrinting();
         Update_Time_Value = 0;
@@ -957,7 +967,7 @@ void RTSSHOW::RTS_HandleData()
       else if(recdat.data[0] == 2)
       {
         //change filament and resume
-        RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
+         RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
         //card.startOrResumeFilePrinting();
         Update_Time_Value = 0;
         pause_action_flag = false;
@@ -973,7 +983,6 @@ void RTSSHOW::RTS_HandleData()
         if(PoweroffContinue == true)
         {
           RTS_SndData(ExchangePageBase + 8, ExchangepageAddr);
-          PoweroffContinue = false; // added by John Carlson to reset the flag
         }
         else if(PoweroffContinue == false)
         {
@@ -983,9 +992,9 @@ void RTSSHOW::RTS_HandleData()
           for (c = &cmd[4]; *c; c++)
             *c = tolower(*c);
 
-          queue.inject(cmd);
+          queue.enqueue_one_now(cmd);
           delay(20);
-          queue.inject_P(PSTR("M24"));
+          queue.enqueue_now_P(PSTR("M24"));
           // clean screen.
           for (int j = 0; j < 20; j ++)
           {
@@ -1001,7 +1010,7 @@ void RTSSHOW::RTS_HandleData()
           zprobe_zoffset = last_zoffset;
           RTS_SndData(probe.offset.z * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
           PoweroffContinue = true;
-          RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
+           RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
           sdcard_pause_check = true;
         }
       }
@@ -1221,6 +1230,7 @@ void RTSSHOW::RTS_HandleData()
       break;
 
     case SettingScreenKey: //'Settings' screen #21
+      SERIAL_ECHOLNPGM("Settings Button ID: ", recdat.data[0]);
       if(recdat.data[0] == 1) //'Levelling' button
       {
         // Motor Icon
@@ -1796,7 +1806,7 @@ void RTSSHOW::RTS_HandleData()
         if(!planner.has_blocks_queued())
         {
           #if ENABLED(CHECKFILEMENT)
-            if(0 == READ(FIL_RUNOUT2_PIN))
+            if(0 == READ(FIL_RUNOUT_PIN))
             {
               RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
             }
@@ -1822,7 +1832,7 @@ void RTSSHOW::RTS_HandleData()
         if(!planner.has_blocks_queued())
         {
           #if ENABLED(CHECKFILEMENT)
-            if(0 == READ(FIL_RUNOUT_PIN))
+            if(0 == READ(FIL_RUNOUT2_PIN))
             {
               RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
             }
@@ -1940,7 +1950,11 @@ void RTSSHOW::RTS_HandleData()
       if (recdat.data[0] == 1)
       {
         #if ENABLED(CHECKFILEMENT)
-          if((0 == READ(FIL_RUNOUT_PIN)) || (0 == READ(FIL_RUNOUT2_PIN)))
+          if((0 == READ(FIL_RUNOUT_PIN)) && (active_extruder == 0))
+          {
+            RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
+          }
+          else if((0 == READ(FIL_RUNOUT2_PIN)) && (active_extruder == 1))
           {
             RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
           }
@@ -1967,44 +1981,64 @@ void RTSSHOW::RTS_HandleData()
       break;
 
     case PowerContinuePrintKey:
-      if (recdat.data[0] == 1) // yes to resume print
+      if (recdat.data[0] == 1) //resume print after pause
       {
-        #if ENABLED(DUAL_X_CARRIAGE)
-          save_dual_x_carriage_mode = dualXPrintingModeStatus;
-          switch(save_dual_x_carriage_mode)
-          {
-            case 1:
-              queue.enqueue_now_P(PSTR("M605 S1"));
-              break;
-            case 2:
-              queue.enqueue_now_P(PSTR("M605 S2"));
-              break;
-            case 3:
-              queue.enqueue_now_P(PSTR("M605 S2 X150 R0"));
-              queue.enqueue_now_P(PSTR("M605 S3"));
-              break;
-            default:
-              queue.enqueue_now_P(PSTR("M605 S0"));
-              break;
-          }
-        #endif
-        if (recovery.info.recovery_flag)
+        if (print_job_timer.isRunning) // added to resume from pause
         {
-          power_off_type_yes = 1;
+          rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
+          queue.enqueue_one_P(PSTR("M117 Resuming..."));
+          #if BOTH(M600_PURGE_MORE_RESUMABLE, ADVANCED_PAUSE_FEATURE)
+            pause_menu_response = PAUSE_RESPONSE_RESUME_PRINT;  // Simulate menu selection
+          #endif
+          wait_for_user = false;
+          card.startOrResumeFilePrinting();
           Update_Time_Value = 0;
-          RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
-          // recovery.resume();
-          queue.enqueue_now_P(PSTR("M1000"));
-
-          PoweroffContinue = true;
           sdcard_pause_check = true;
-          zprobe_zoffset = probe.offset.z;
-          RTS_SndData(probe.offset.z * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
-          RTS_SndData(feedrate_percentage, PRINT_SPEED_RATE_VP);
+          pause_action_flag = false;
+          RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
           PrintFlag = 2;
+          queue.enqueue_now_P(PSTR("M75"));
+          TERN_(HOST_PAUSE_M76, host_action_resume());
+        }
+        else //resume after power loss
+        {
+          #if ENABLED(DUAL_X_CARRIAGE)
+            save_dual_x_carriage_mode = dualXPrintingModeStatus;
+            switch(save_dual_x_carriage_mode)
+            {
+              case 1:
+                queue.enqueue_now_P(PSTR("M605 S1"));
+                break;
+              case 2:
+                queue.enqueue_now_P(PSTR("M605 S2"));
+                break;
+              case 3:
+                queue.enqueue_now_P(PSTR("M605 S2 X150 R0"));
+                queue.enqueue_now_P(PSTR("M605 S3"));
+                break;
+              default:
+                queue.enqueue_now_P(PSTR("M605 S0"));
+                break;
+            }
+          #endif
+          if (recovery.info.recovery_flag)
+          {
+            power_off_type_yes = 1;
+            Update_Time_Value = 0;
+            RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
+            // recovery.resume();
+            queue.enqueue_now_P(PSTR("M1000"));
+
+            PoweroffContinue = true;
+            sdcard_pause_check = true;
+            zprobe_zoffset = probe.offset.z;
+            RTS_SndData(probe.offset.z * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
+            RTS_SndData(feedrate_percentage, PRINT_SPEED_RATE_VP);
+            PrintFlag = 2;
+          }
         }
       }
-      else if (recdat.data[0] == 2) // no to stop print
+      else if (recdat.data[0] == 2) //no to stop print & stop after pause
       {
         Update_Time_Value = RTS_UPDATE_VALUE;
         #if ENABLED(DUAL_X_CARRIAGE)
@@ -2535,7 +2569,7 @@ void EachMomentUpdate()
           }
           rtscheck.RTS_SndData((unsigned char)card.percentDone(), PRINT_PROCESS_VP);
           last_cardpercentValue = card.percentDone();
-          rtscheck.RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
+          //rtscheck.RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
         }
       }
 
@@ -2852,4 +2886,5 @@ void RTS_Buzz(const uint16_t duration, const uint16_t frequency) //plays single 
   foo =  foo + frequency; //unneeded operation just to supress compiler warning
   rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
 }
+
 #endif
