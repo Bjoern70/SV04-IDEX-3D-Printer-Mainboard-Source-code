@@ -599,6 +599,7 @@ void GCodeQueue::get_serial_commands() {
         // the printing results
         if (card_eof)
         {
+          /*cleanup toolchange problem close to end of file
           rtscheck.RTS_SndData(100, PRINT_PROCESS_VP);
           delay(1);
           rtscheck.RTS_SndData(100, PRINT_PROCESS_ICON_VP);
@@ -606,9 +607,9 @@ void GCodeQueue::get_serial_commands() {
           rtscheck.RTS_SndData(0, PRINT_SURPLUS_TIME_HOUR_VP);
           delay(1);
           rtscheck.RTS_SndData(0, PRINT_SURPLUS_TIME_MIN_VP);
-          delay(1);  
+          delay(1);
           rtscheck.RTS_SndData(ExchangePageBase + 9, ExchangepageAddr);
-          
+          */
           card.fileHasFinished();         // Handle end of file reached
         }
       #endif

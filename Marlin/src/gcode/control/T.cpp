@@ -67,5 +67,5 @@ void GcodeSuite::T(const int8_t tool_index) {
       || parser.boolval('S')
     #endif
   );
-  active_extruder_font = parser.boolval('S');
+  active_extruder_font = tool_index;
 }
