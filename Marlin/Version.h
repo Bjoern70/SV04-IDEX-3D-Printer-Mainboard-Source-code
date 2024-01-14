@@ -21,14 +21,14 @@
  */
 #pragma once
 
-////////////////////////////
+/////////////////////////////
 // VENDOR VERSION EXAMPLE //
 ////////////////////////////
 
 /**
  * Marlin release version identifier
  */
-#define SHORT_BUILD_VERSION "v1.1.B3.12"
+#define SHORT_BUILD_VERSION "v1.14.0"
 
 /**
  * Verbose version identifier which should contain a reference to the location

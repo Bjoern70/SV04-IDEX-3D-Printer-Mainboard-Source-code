@@ -246,7 +246,7 @@ void PrintJobRecovery::save(const bool force/*=false*/, const float zraise/*=POW
 
         #if POWER_LOSS_RETRACT_LEN
           // Retract filament now
-          gcode.process_subcommands_now_P(PSTR("G1 F3000 E-" STRINGIFY(POWER_LOSS_RETRACT_LEN)));
+          gcode.process_subcommands_now_P(PSTR("G1 F2000 E-" STRINGIFY(POWER_LOSS_RETRACT_LEN)));
         #endif
 
         #if POWER_LOSS_ZRAISE
@@ -384,7 +384,7 @@ void PrintJobRecovery::resume() {
     // If Z homing goes to max then just move back to the "raised" position
     sprintf_P(cmd, PSTR(
             "G28R0\n"     // Home all axes (no raise)
-            "G1Z%sF1200"  // Move Z down to (raised) height
+            "G1Z%sF600"  // Move Z down to (raised) height
           ), dtostrf(z_now, 1, 3, str_1));
     gcode.process_subcommands_now(cmd);
 
@@ -419,7 +419,7 @@ void PrintJobRecovery::resume() {
   #if HOMING_Z_DOWN
     // Move to a safe XY position and home Z while avoiding the print.
     constexpr xy_pos_t p = POWER_LOSS_ZHOME_POS;
-    sprintf_P(cmd, PSTR("G1X%sY%sF1000\nG28Z"), dtostrf(p.x, 1, 3, str_1), dtostrf(p.y, 1, 3, str_2));
+    sprintf_P(cmd, PSTR("G1X%sY%sF2000\nG28Z"), dtostrf(p.x, 1, 3, str_1), dtostrf(p.y, 1, 3, str_2));
     gcode.process_subcommands_now(cmd);
   #endif
 
@@ -480,7 +480,7 @@ void PrintJobRecovery::resume() {
       }
     }
   #endif
-  if((dualXPrintingModeStatus == 0) || (dualXPrintingModeStatus == 4)) 
+  if((dualXPrintingModeStatus == 0) || (dualXPrintingModeStatus == 4))
   {
       sprintf_P(cmd, PSTR("T%i"), info.active_extruder);
       gcode.process_subcommands_now(cmd);
@@ -519,12 +519,12 @@ void PrintJobRecovery::resume() {
 
   // Un-retract if there was a retract at outage
   #if ENABLED(BACKUP_POWER_SUPPLY) && POWER_LOSS_RETRACT_LEN > 0
-    gcode.process_subcommands_now_P(PSTR("G1E" STRINGIFY(POWER_LOSS_RETRACT_LEN) "F3000"));
+    gcode.process_subcommands_now_P(PSTR("G1E" STRINGIFY(POWER_LOSS_RETRACT_LEN) "F1500"));
   #endif
 
   // Additional purge on resume if configured
   #if POWER_LOSS_PURGE_LEN
-    sprintf_P(cmd, PSTR("G1 E%d F3000"), (POWER_LOSS_PURGE_LEN) + (POWER_LOSS_RETRACT_LEN));
+    sprintf_P(cmd, PSTR("G1 E%d F2000"), (POWER_LOSS_PURGE_LEN) + (POWER_LOSS_RETRACT_LEN));
     gcode.process_subcommands_now(cmd);
   #endif
 
@@ -558,7 +558,7 @@ void PrintJobRecovery::resume() {
       dualXPrintingModeStatus = 0;
     }
 
-    gcode.process_subcommands_now_P(PSTR("G1 E3 F3000"));
+    gcode.process_subcommands_now_P(PSTR("G1 E3 F2000"));
 
     save_dual_x_carriage_mode = dualXPrintingModeStatus;
     if(save_dual_x_carriage_mode == 1)
@@ -572,7 +572,7 @@ void PrintJobRecovery::resume() {
     }
   #endif
   // Move back over to the saved XY
-  sprintf_P(cmd, PSTR("G1X%sY%sF3000"),
+  sprintf_P(cmd, PSTR("G0 X%s Y%s F2000"),
     dtostrf(info.current_position.x, 1, 3, str_1),
     dtostrf(info.current_position.y, 1, 3, str_2)
   );

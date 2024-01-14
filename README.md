@@ -10,10 +10,16 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
  - added simple DGUS display onboard buzzer handling: g-code command M300 will play beep sound omitting parameters
  - fixed print mode hickup when pausing / resuming
  - cleaned host temperature report
- - fixed M1 stop wait loop bug.
+ - fixed M1 stop wait loop bug 
+ - fixed toolchange and dualmode override bug at end of file
+ - adjusted extruder movement speeds
+ - cleaned up STOP, PAUSE & FINISH PRINT processing
+ - merged "standard" and "SIZZLING" software version
+ - changed nozzle temperature limits to maximum 300°C - be sure to have a matching heat blocks & use at your own risk!
+ - temperatures above OEM maximum of 260°C will be highlighted red.
 
 This SV04 Marlin firmware requires matching touchscreen software that is available here: 
-https://github.com/Bjoern70/SV04-Touchscreen/releases/tag/v1.1.B3.6
+https://github.com/Bjoern70/SV04-Touchscreen/releases/tag/v1.14
 
 Leveling map screen:
 
@@ -56,7 +62,7 @@ PlatformIO IDE for VSCode
 - Supported Print Materials: PLA, TPU, TPE,HIPS, ABS, PETG, WOOD, PC, PA, PVA, ASA.
 - Print Speed: 20~120mm/s(suggested 60mm/s)
 - Stock Nozzle Diameter: 0.4 mm
-- Operational Extruder Temperature: Max 260ºC
+- Operational Extruder Temperature: Max 260ºC <=== PLEASE ENSURE THAT YOUR HARDWARE SUPPORTS TEMPERATURES ABOVE!
 - Input Formats: .STL, .OBJ, DAE, AMF
 - Ambient Operating Temperature:8ºC - 40ºC
 - Connectivity: SD Card or Data Cable

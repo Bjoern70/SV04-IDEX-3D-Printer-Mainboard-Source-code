@@ -51,7 +51,7 @@
  * M1: Conditional stop   - Wait for user button press on LCD
  */
 void GcodeSuite::M0_M1() {
-  millis_t ms = 100; //override wait for user
+  millis_t ms = 0;
   if (parser.seenval('P')) ms = parser.value_millis();              // Milliseconds to wait
   if (parser.seenval('S')) ms = parser.value_millis_from_seconds(); // Seconds to wait
 
@@ -77,45 +77,18 @@ void GcodeSuite::M0_M1() {
     DWIN_Popup_Confirm(ICON_BLTouch, parser.string_arg ?: GET_TEXT(MSG_STOPPED), GET_TEXT(MSG_USERWAIT));
 
   #elif ENABLED(RTS_AVAILABLE)
-     /*
-      * //show user dialog to stop/resume after pause
-    rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
-    for (int j = 0; j < 20; j ++)
-    {
-      rtscheck.RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
-    }
-    if (parser.string_arg)
-       rtscheck.RTS_SndData(parser.string_arg, PRINT_FILE_TEXT_VP);
-    else
-      rtscheck.RTS_SndData(PSTR("PRESS [NO] TO STOP"), PRINT_FILE_TEXT_VP);
-
-    rtscheck.RTS_SndData(ExchangePageBase + 36, ExchangepageAddr);
-    */
-    //skip display screen call to prevent blocking when M0 is called without a running print file
-    rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
-    dwell(250);
-    rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
-    dwell(250);
-    rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
-    if (parser.string_arg) {
-      SERIAL_ECHO_START();
-      SERIAL_ECHOLN(parser.string_arg);
-    }
-
+    rtscheck.RTS_SDcardStop();
+    TERN_(HOST_PROMPT_SUPPORT, host_prompt_open(PROMPT_USER_CONTINUE, GET_TEXT(MSG_PRINT_ABORTED), CONTINUE_STR));
+    TERN_(HAS_RESUME_CONTINUE, wait_for_user_response(ms));
   #else
-
     if (parser.string_arg) {
       SERIAL_ECHO_START();
       SERIAL_ECHOLN(parser.string_arg);
     }
-
+    TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, parser.codenum ? PSTR("M1 Stop") : PSTR("M0 Stop"), CONTINUE_STR));
+    TERN_(HAS_RESUME_CONTINUE, wait_for_user_response(ms));
+    TERN_(HAS_LCD_MENU, ui.reset_status());
   #endif
-
-  TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, parser.codenum ? PSTR("M1 Stop") : PSTR("M0 Stop"), CONTINUE_STR));
-
-  TERN_(HAS_RESUME_CONTINUE, wait_for_user_response(ms));
-
-  TERN_(HAS_LCD_MENU, ui.reset_status());
 }
 
 #endif // HAS_RESUME_CONTINUE

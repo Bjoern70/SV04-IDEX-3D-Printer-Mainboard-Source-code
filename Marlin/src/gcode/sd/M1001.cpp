@@ -50,6 +50,8 @@
   #include "../../lcd/extui/ui_api.h"
 #elif ENABLED(DWIN_CREALITY_LCD_ENHANCED)
   #include "../../lcd/e3v2/enhanced/dwin.h"
+#elif ENABLED(RTS_AVAILABLE)
+  #include "../../lcd/e3v2/creality/LCD_RTS.h"
 #endif
 
 #if ENABLED(HOST_ACTION_COMMANDS)
@@ -109,6 +111,14 @@ void GcodeSuite::M1001() {
 
   TERN_(EXTENSIBLE_UI, ExtUI::onPrintFinished());
   TERN_(DWIN_CREALITY_LCD_ENHANCED, DWIN_Print_Finished());
+  //cleanup toolchange problem close to end of file
+  #if ENABLED(RTS_AVAILABLE)
+    rtscheck.RTS_SDcardFinish();
+    #if ENABLED(HOST_ACTION_COMMANDS)
+      TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, GET_TEXT(MSG_PRINT_DONE), CONTINUE_STR));
+      TERN_(HAS_RESUME_CONTINUE, wait_for_user_response(3000));
+    #endif
+  #endif
 
   // Re-select the last printed file in the UI
   TERN_(SD_REPRINT_LAST_SELECTED_FILE, ui.reselect_last_file());

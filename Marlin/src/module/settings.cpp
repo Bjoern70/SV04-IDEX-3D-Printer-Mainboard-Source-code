@@ -3320,12 +3320,10 @@ void MarlinSettings::reset() {
       CONFIG_ECHO_START(); SERIAL_ECHO_SP(2); gcode.M554_report();
     #endif
     CONFIG_ECHO_HEADING("0:Single 1:Two-color 2:Copy 3:Mirror Dual X Printing Mode Status:");
-    CONFIG_ECHO_START();
-    SERIAL_ERROR_MSG("  M605 S", int(dualXPrintingModeStatus));
+    CONFIG_ECHO_MSG("  M605 S", int(dualXPrintingModeStatus), "\n");
 
     CONFIG_ECHO_HEADING("0:extruder0 1:extruder1 active extruder font:");
-    CONFIG_ECHO_START();
-    SERIAL_ERROR_MSG("  T", int(active_extruder_font));
+    CONFIG_ECHO_MSG("  T", int(active_extruder), "\n");
     TERN_(HAS_MULTI_LANGUAGE, gcode.M414_report(forReplay));
   }
 
