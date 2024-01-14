@@ -111,27 +111,13 @@ void GcodeSuite::M1001() {
 
   TERN_(EXTENSIBLE_UI, ExtUI::onPrintFinished());
   TERN_(DWIN_CREALITY_LCD_ENHANCED, DWIN_Print_Finished());
-
   //cleanup toolchange problem close to end of file
-    #if ENABLED(RTS_AVAILABLE)
-    rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
-    #if ENABLED(DUAL_X_CARRIAGE)
-      extruder_duplication_enabled = false;
-      dual_x_carriage_mode = DEFAULT_DUAL_X_CARRIAGE_MODE;
-      active_extruder = 0;
+  #if ENABLED(RTS_AVAILABLE)
+    rtscheck.RTS_SDcardFinish();
+    #if ENABLED(HOST_ACTION_COMMANDS)
+      TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, GET_TEXT(MSG_PRINT_DONE), CONTINUE_STR));
+      TERN_(HAS_RESUME_CONTINUE, wait_for_user_response(3000));
     #endif
-    PoweroffContinue = false;
-    //display print results
-    rtscheck.RTS_SndData(100, PRINT_PROCESS_VP);
-    delay(1);
-    rtscheck.RTS_SndData(100, PRINT_PROCESS_ICON_VP);
-    delay(1);
-    rtscheck.RTS_SndData(0, PRINT_SURPLUS_TIME_HOUR_VP);
-    delay(1);
-    rtscheck.RTS_SndData(0, PRINT_SURPLUS_TIME_MIN_VP);
-    delay(1);
-    rtscheck.RTS_SndData(ExchangePageBase + 9, ExchangepageAddr);
-    //TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, GET_TEXT(MSG_PRINT_DONE), CONTINUE_STR));
   #endif
 
   // Re-select the last printed file in the UI

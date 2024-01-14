@@ -64,6 +64,7 @@ extern int power_off_type_yes;
 #define PRINTER_VERSION_TEXT_VP            0x106A
 #define PRINTER_PRINTSIZE_TEXT_VP          0x1074
 #define PRINTER_WEBSITE_TEXT_VP            0x107E
+#define PRINTER_DISPLAY_VERSION_TEXT_VP    0x2320
 #define AUTO_BED_LEVEL_ICON_VP             0x108D
 #define CHANGE_FILAMENT_ICON_VP            0x108E
 #define TWO_EXTRUDER_HOTEND_XOFFSET_VP     0x1092
@@ -140,8 +141,11 @@ extern int power_off_type_yes;
 #define EXCHANGE_NOZZLE_ICON_VP            0x21BC
 #define PRINT_MODE_ICON_VP                 0x21BD
 #define PRINT_FILE_TEXT_VP                 0x21C0
-#define Screen_Version_VP                  0x2200
-#define FilenameNature                     0x6003
+#define FilenameNature                     0x8003
+#define HEAD0_SET_ICON_VP                  0x4200
+#define HEAD0_CURRENT_ICON_VP              0x4202
+#define HEAD1_SET_ICON_VP                  0x4204
+#define HEAD1_CURRENT_ICON_VP              0x4206
 #define	Beep       					               ((unsigned long)0x02AF0100)
 #define	Beep1       				               ((unsigned long)0xFFFF0101)
 /************struct**************/
@@ -197,7 +201,8 @@ class RTSSHOW
     void RTS_SndData(unsigned int,unsigned long, unsigned char = VarAddr_W);
     void RTS_SndData(long,unsigned long, unsigned char = VarAddr_W);
     void RTS_SndData(unsigned long,unsigned long, unsigned char = VarAddr_W);
-    void RTS_SDcard_Stop();
+    void RTS_SDcardStop();
+    void RTS_SDcardFinish();
     void RTS_HandleData();
     void RTS_Init();
     void InitCardList();
@@ -311,4 +316,5 @@ void RTS_PauseMoveAxisPage();
 void RTS_AutoBedLevelPage();
 void RTS_MoveAxisHoming();
 extern void RTS_Buzz(const uint16_t, const uint16_t);
+void wait_idle(millis_t);
 #endif

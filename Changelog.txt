@@ -16,5 +16,5 @@ Fixed print mode hickup when pausing / resuming. Cleaned console temperature rep
 17 DEC 2023:
 Fixed M1 stop wait loop bug.
 
-05 JAN 2024:
-Fixed toolchange and dualmode override at end of file.
+14 JAN 2024:
+Fixed toolchange and dualmode override bug at end of file. Adjusted extruder movement speeds. Cleaned up STOP, PAUSE & FINISH PRINT processing. Temperatures above OEM maximum of 260°C will be highlighted red. Merged with SIZZLING version.

@@ -3324,7 +3324,6 @@ void MarlinSettings::reset() {
 
     CONFIG_ECHO_HEADING("0:extruder0 1:extruder1 active extruder font:");
     CONFIG_ECHO_MSG("  T", int(active_extruder), "\n");
-
     TERN_(HAS_MULTI_LANGUAGE, gcode.M414_report(forReplay));
   }
 

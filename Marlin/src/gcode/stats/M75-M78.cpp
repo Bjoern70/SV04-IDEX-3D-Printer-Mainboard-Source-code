@@ -33,9 +33,9 @@
   #include "../../lcd/e3v2/enhanced/dwin.h"
 #endif
 
-#if ENABLED(RTS_AVAILABLE)
-  #include "../../lcd/e3v2/creality/LCD_RTS.h"
-#endif
+//#if ENABLED(RTS_AVAILABLE)
+//  #include "../../lcd/e3v2/creality/LCD_RTS.h"
+//#endif
 
 /**
  * M75: Start print timer
@@ -62,9 +62,6 @@ void GcodeSuite::M76() {
 void GcodeSuite::M77() {
   print_job_timer.stop();
   TERN_(DWIN_CREALITY_LCD_ENHANCED, DWIN_Print_Finished());
-  #if ENABLED(RTS_AVAILABLE)
-    rtscheck.RTS_SndData(ExchangePageBase + 9, ExchangepageAddr);
-  #endif
 }
 
 #if ENABLED(PRINTCOUNTER)

@@ -43,7 +43,7 @@
 float zprobe_zoffset;
 float last_zoffset = 0.0;
 
-const float manual_feedrate_mm_m[] = {50 * 60, 50 * 60, 4 * 60, 60};
+const float manual_feedrate_mm_m[] = {50 * 60, 40 * 60, 12 * 60, 60};
 
 int startprogress = 0;
 float pause_z = 0;
@@ -369,10 +369,16 @@ void RTSSHOW::RTS_Init()
   RTS_SndData(1, MOTOR_FREE_ICON_VP);
 
   /***************transmit temperature to screen*****************/
+  RTS_SndData(0, HEAD0_SET_ICON_VP);
   RTS_SndData(0, HEAD0_SET_TEMP_VP);
+  RTS_SndData(0, HEAD1_SET_ICON_VP);
   RTS_SndData(0, HEAD1_SET_TEMP_VP);
   RTS_SndData(0, BED_SET_TEMP_VP);
+  if (thermalManager.temp_hotend[0].celsius < 260.0) {RTS_SndData(0, HEAD0_CURRENT_ICON_VP);} //black
+  else {RTS_SndData(1, HEAD0_CURRENT_ICON_VP);} //red data background
   RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
+  if (thermalManager.temp_hotend[1].celsius < 260.0) {RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+  else {RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
   RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
   RTS_SndData(thermalManager.temp_bed.celsius, BED_CURRENT_TEMP_VP);
 
@@ -380,8 +386,8 @@ void RTSSHOW::RTS_Init()
   // turn off fans
   thermalManager.set_fan_speed(0, 0);
   thermalManager.set_fan_speed(1, 0);
-  RTS_SndData(1, HEAD0_FAN_ICON_VP);
-  RTS_SndData(1, HEAD1_FAN_ICON_VP);
+  RTS_SndData(0, HEAD0_FAN_ICON_VP);
+  RTS_SndData(0, HEAD1_FAN_ICON_VP);
   delay(5);
 
   /*********transmit SD card filename to screen***************/
@@ -390,7 +396,7 @@ void RTSSHOW::RTS_Init()
   /***************transmit Printer information to screen*****************/
   char sizebuf[20] = {0};
   sprintf(sizebuf, "%d X %d X %d", X_MAX_POS - 2, Y_MAX_POS - 2, Z_MAX_POS);
-  RTS_SndData(MACVERSION, PRINTER_MACHINE_TEXT_VP);
+  RTS_SndData(MACHINE_NAME, PRINTER_MACHINE_TEXT_VP);
   RTS_SndData(SOFTVERSION, PRINTER_VERSION_TEXT_VP);
   RTS_SndData(sizebuf, PRINTER_PRINTSIZE_TEXT_VP);
   RTS_SndData(CORP_WEBSITE, PRINTER_WEBSITE_TEXT_VP);
@@ -671,65 +677,130 @@ void RTSSHOW::RTS_SndData(unsigned long n, unsigned long addr, unsigned char cmd
   RTS_SndData();
 }
 
-void RTSSHOW::RTS_SDcard_Stop()
+void RTSSHOW::RTS_SDcardStop()
 {
-  waitway = 7;
-  change_page_number = 1;
+  waitway = 0;
+  PrintFlag = 0;
+  #if ENABLED(REALTIME_REPORTING_COMMANDS)
+    planner.quick_pause();
+    print_job_timer.stop();
+    queue.clear();
+    planner.clear_block_buffer();
+    planner.quick_resume();
+  #else
+    planner.quick_stop();
+    print_job_timer.stop();
+    queue.clear();
+    planner.clear_block_buffer();
+  #endif
+  /*
+  //triple beep stop notification
+  RTS_SndData(StartSoundSet, SoundAddr);
+  wait_idle(250);
+  RTS_SndData(StartSoundSet, SoundAddr);
+  wait_idle(250);
+  RTS_SndData(StartSoundSet, SoundAddr)
+  */
+  PoweroffContinue = false;
+  card.flag.abort_sd_printing = true;
+  print_job_timer.reset();
+  RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
+  change_page_number = 0;
   #if ENABLED(DUAL_X_CARRIAGE)
     extruder_duplication_enabled = false;
     dual_x_carriage_mode = DEFAULT_DUAL_X_CARRIAGE_MODE;
     active_extruder = 0;
   #endif
-  card.flag.abort_sd_printing = true;
-
-  #if DISABLED(SD_ABORT_NO_COOLDOWN)
-    thermalManager.disable_all_heaters();
+  #if ENABLED(SDSUPPORT) && ENABLED(POWER_LOSS_RECOVERY)
+    if(CardReader::flag.mounted)
+    {
+      card.removeJobRecoveryFile();
+    }
   #endif
-  print_job_timer.reset();
-
+  #ifdef EVENT_GCODE_SD_ABORT
+    queue.enqueue_now_P(PSTR(EVENT_GCODE_SD_ABORT));
+  #endif
+  //cooldown
   thermalManager.setTargetHotend(0, 0);
+  RTS_SndData(0, HEAD0_SET_ICON_VP);
   RTS_SndData(0, HEAD0_SET_TEMP_VP);
   thermalManager.setTargetHotend(0, 1);
+  RTS_SndData(0, HEAD1_SET_ICON_VP);
   RTS_SndData(0, HEAD1_SET_TEMP_VP);
+  if (thermalManager.temp_hotend[0].celsius < 260.0) {RTS_SndData(0, HEAD0_CURRENT_ICON_VP);} //black
+  else {RTS_SndData(1, HEAD0_CURRENT_ICON_VP);} //red data background
+  if (thermalManager.temp_hotend[1].celsius < 260.0) {RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+  else {RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
   thermalManager.setTargetBed(0);
   RTS_SndData(0, BED_SET_TEMP_VP);
   thermalManager.zero_fan_speeds();
   wait_for_heatup = wait_for_user = false;
-  PoweroffContinue = false;
   sd_printing_autopause = false;
-  if(CardReader::flag.mounted)
-  {
-    #if ENABLED(SDSUPPORT) && ENABLED(POWER_LOSS_RECOVERY)
-      card.removeJobRecoveryFile();
-    #endif
-  }
-  #ifdef EVENT_GCODE_SD_ABORT
-    char abtcmd[21] = "";
-    queue.inject(PSTR((char*)EVENT_GCODE_SD_ABORT));
-    queue.inject(PSTR((char*)"G90"));
-    sprintf_P(abtcmd, PSTR("G1 Y%i F300\nM84"), Y_BED_SIZE);
-    queue.inject(abtcmd);
-
-    //queue.inject_P(PSTR(EVENT_GCODE_SD_ABORT));
-    //queue.inject_P(PSTR(abtcmd));
-  #endif
-
-  planner.finish_and_disable();
-
+  wait_idle(2);
   // shut down the stepper motor.
-  // queue.enqueue_now_P(PSTR("M84"));
+  queue.enqueue_now_P(PSTR("M84"));
   RTS_SndData(0, MOTOR_FREE_ICON_VP);
-
   RTS_SndData(0, PRINT_PROCESS_ICON_VP);
   RTS_SndData(0, PRINT_PROCESS_VP);
-  delay(2);
-  for(int j = 0;j < 20;j ++)
-  {
-    // clean screen.
-    RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
-    // clean filename
-    RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
-  }
+  RTS_SndData(0, PRINT_TIME_HOUR_VP);
+  RTS_SndData(0, PRINT_TIME_MIN_VP);
+  RTS_SndData(0, PRINT_SURPLUS_TIME_HOUR_VP);
+  RTS_SndData(0, PRINT_SURPLUS_TIME_MIN_VP);
+  wait_idle(2);
+  startprogress = 0;
+  power_off_type_yes = 0;
+  recovery.info.recovery_flag = false;
+  RTS_SndData(ExchangePageBase, ExchangepageAddr);
+}
+
+void RTSSHOW::RTS_SDcardFinish()
+{
+  waitway = 0;
+  PrintFlag = 0;
+  RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
+  change_page_number = 1;
+  planner.synchronize();
+  queue.exhaust();
+  PoweroffContinue = false;
+  card.flag.abort_sd_printing = true;
+  sd_printing_autopause = false;
+  print_job_timer.reset();
+  queue.clear();
+  #if ENABLED(DUAL_X_CARRIAGE)
+    extruder_duplication_enabled = false;
+    dual_x_carriage_mode = DEFAULT_DUAL_X_CARRIAGE_MODE;
+    active_extruder = 0;
+  #endif
+  //cooldown
+  thermalManager.setTargetHotend(0, 0);
+  RTS_SndData(0, HEAD0_SET_ICON_VP);
+  RTS_SndData(0, HEAD0_SET_TEMP_VP);
+  thermalManager.setTargetHotend(0, 1);
+  RTS_SndData(0, HEAD1_SET_ICON_VP);
+  RTS_SndData(0, HEAD1_SET_TEMP_VP);
+  if (thermalManager.temp_hotend[0].celsius < 260.0) {RTS_SndData(0, HEAD0_CURRENT_ICON_VP);} //black
+  else {RTS_SndData(1, HEAD0_CURRENT_ICON_VP);} //red data background
+  if (thermalManager.temp_hotend[1].celsius < 260.0) {RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+  else {RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
+  thermalManager.setTargetBed(0);
+  RTS_SndData(0, BED_SET_TEMP_VP);
+  thermalManager.zero_fan_speeds();
+  wait_for_heatup = wait_for_user = false;
+  queue.enqueue_now_P(PSTR("M77"));
+  // shut down the stepper motor.
+  queue.enqueue_now_P(PSTR("M84"));
+  RTS_SndData(0, MOTOR_FREE_ICON_VP);
+  RTS_SndData(0, PRINT_PROCESS_ICON_VP);
+  RTS_SndData(0, PRINT_PROCESS_VP);
+  RTS_SndData(0, PRINT_TIME_HOUR_VP);
+  RTS_SndData(0, PRINT_TIME_MIN_VP);
+  RTS_SndData(0, PRINT_SURPLUS_TIME_HOUR_VP);
+  RTS_SndData(0, PRINT_SURPLUS_TIME_MIN_VP);
+  wait_idle(2);
+  startprogress = 0;
+  power_off_type_yes = 0;
+  recovery.info.recovery_flag = false;
+  RTS_SndData(ExchangePageBase, ExchangepageAddr);
 }
 
 void RTSSHOW::RTS_HandleData()
@@ -782,7 +853,7 @@ void RTSSHOW::RTS_HandleData()
           RTS_SndData(ExchangePageBase + 47, ExchangepageAddr);
         }
       }
-      else if(recdat.data[0] == 2)
+      else if(recdat.data[0] == 2) //from page #9 print finished
       {
         card.flag.abort_sd_printing = true;
         print_job_timer.reset();
@@ -893,20 +964,11 @@ void RTSSHOW::RTS_HandleData()
       break;
 
     case StopPrintKey:
-      if((recdat.data[0] == 1) || (recdat.data[0] == 0xF1))
+      if((recdat.data[0] == 1) || (recdat.data[0] == 0xF1)) //stop from change filament page #8 OR "yes, stop" from page #13
       {
-        RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
-        RTS_SndData(0, PRINT_TIME_HOUR_VP);
-        RTS_SndData(0, PRINT_TIME_MIN_VP);
-        RTS_SndData(0, PRINT_SURPLUS_TIME_HOUR_VP);
-        RTS_SndData(0, PRINT_SURPLUS_TIME_MIN_VP);
-        RTS_SDcard_Stop();
-        Update_Time_Value = 0;
-        PrintFlag = 0;
-        TERN_(HOST_PAUSE_M76, host_action_cancel());
-        queue.inject_P(PSTR("M77"));
+        RTS_SDcardStop();
       }
-      else if(recdat.data[0] == 0xF0)
+      else if(recdat.data[0] == 0xF0) //"no stop"
       {
         if(card.isPrinting)
         {
@@ -924,11 +986,11 @@ void RTSSHOW::RTS_HandleData()
       break;
 
     case PausePrintKey:
-      if(recdat.data[0] == 0xF0)
+      if(recdat.data[0] == 0xF0) //"no pause"
       {
         break;
       }
-      else if(recdat.data[0] == 0xF1)
+      else if(recdat.data[0] == 0xF1) //"yes, pause"
       {
         RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
         //pause command
@@ -967,22 +1029,23 @@ void RTSSHOW::RTS_HandleData()
       else if(recdat.data[0] == 2)
       {
         //change filament and resume
-         RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
-        //card.startOrResumeFilePrinting();
+        RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
+        card.startOrResumeFilePrinting();
         Update_Time_Value = 0;
         pause_action_flag = false;
         sdcard_pause_check = true;
         PrintFlag = 2;
         RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
-        //queue.enqueue_one_P(PSTR("M75"));
+        queue.enqueue_now_P(PSTR("M75"));
         TERN_(HOST_PAUSE_M76, host_action_resume());
       }
-      else if(recdat.data[0] == 3)
+      else if(recdat.data[0] == 3) //from page #39 heat up
       {
         //heat and change filament, and resume
         if(PoweroffContinue == true)
         {
           RTS_SndData(ExchangePageBase + 8, ExchangepageAddr);
+          PoweroffContinue = false; // added by John Carlson to reset the flag
         }
         else if(PoweroffContinue == false)
         {
@@ -1014,7 +1077,7 @@ void RTSSHOW::RTS_HandleData()
           sdcard_pause_check = true;
         }
       }
-      else if(recdat.data[0] == 4)
+      else if(recdat.data[0] == 4) //from page #46 SDcard removed
       {
         //replaced SD card and continue
         if(!CardReader::flag.mounted)
@@ -1088,9 +1151,11 @@ void RTSSHOW::RTS_HandleData()
         #endif
 
         thermalManager.setTargetHotend(0, 0);
+        RTS_SndData(0, HEAD0_SET_ICON_VP);
         RTS_SndData(0, HEAD0_SET_TEMP_VP);
         delay(1);
         thermalManager.setTargetHotend(0, 1);
+        RTS_SndData(0, HEAD1_SET_ICON_VP);
         RTS_SndData(0, HEAD1_SET_TEMP_VP);
         delay(1);
         thermalManager.setTargetBed(0);
@@ -1109,6 +1174,7 @@ void RTSSHOW::RTS_HandleData()
       if (recdat.data[0] == 1)
       {
         thermalManager.setTargetHotend(0, 0);
+        RTS_SndData(0, HEAD0_SET_ICON_VP);
         RTS_SndData(0, HEAD0_SET_TEMP_VP);
         thermalManager.fan_speed[0] = 255;
         RTS_SndData(0, HEAD0_FAN_ICON_VP);
@@ -1121,6 +1187,7 @@ void RTSSHOW::RTS_HandleData()
       else if (recdat.data[0] == 3)
       {
         thermalManager.setTargetHotend(0, 1);
+        RTS_SndData(0, HEAD1_SET_ICON_VP);
         RTS_SndData(0, HEAD1_SET_TEMP_VP);
         thermalManager.fan_speed[1] = 255;
         RTS_SndData(0, HEAD1_FAN_ICON_VP);
@@ -1133,6 +1200,8 @@ void RTSSHOW::RTS_HandleData()
       {
         thermalManager.temp_hotend[0].target = PREHEAT_1_TEMP_HOTEND;
         thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
+        if (thermalManager.temp_hotend[0].target < 260.0) {RTS_SndData(0, HEAD0_SET_ICON_VP);}
+        else {RTS_SndData(1, HEAD0_SET_ICON_VP);}
         RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
         thermalManager.temp_bed.target = PREHEAT_1_TEMP_BED;
         thermalManager.setTargetBed(thermalManager.temp_bed.target);
@@ -1142,6 +1211,8 @@ void RTSSHOW::RTS_HandleData()
       {
         thermalManager.temp_hotend[0].target = PREHEAT_2_TEMP_HOTEND;
         thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
+        if (thermalManager.temp_hotend[0].target < 260.0) {RTS_SndData(0, HEAD0_SET_ICON_VP);}
+        else {RTS_SndData(1, HEAD0_SET_ICON_VP);}
         RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
         thermalManager.temp_bed.target = PREHEAT_2_TEMP_BED;
         thermalManager.setTargetBed(thermalManager.temp_bed.target);
@@ -1151,6 +1222,8 @@ void RTSSHOW::RTS_HandleData()
       {
         thermalManager.temp_hotend[1].target = PREHEAT_1_TEMP_HOTEND;
         thermalManager.setTargetHotend(thermalManager.temp_hotend[1].target, 1);
+        if (thermalManager.temp_hotend[1].target < 260.0) {RTS_SndData(0, HEAD1_SET_ICON_VP);}
+        else {RTS_SndData(1, HEAD1_SET_ICON_VP);}
         RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
         thermalManager.temp_bed.target = PREHEAT_1_TEMP_BED;
         thermalManager.setTargetBed(thermalManager.temp_bed.target);
@@ -1160,6 +1233,8 @@ void RTSSHOW::RTS_HandleData()
       {
         thermalManager.temp_hotend[1].target = PREHEAT_2_TEMP_HOTEND;
         thermalManager.setTargetHotend(thermalManager.temp_hotend[1].target, 1);
+        if (thermalManager.temp_hotend[1].target < 260.0) {RTS_SndData(0, HEAD1_SET_ICON_VP);}
+        else {RTS_SndData(1, HEAD1_SET_ICON_VP);}
         RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
         thermalManager.temp_bed.target = PREHEAT_2_TEMP_BED;
         thermalManager.setTargetBed(thermalManager.temp_bed.target);
@@ -1170,12 +1245,16 @@ void RTSSHOW::RTS_HandleData()
     case Heater0TempEnterKey:
       thermalManager.temp_hotend[0].target = recdat.data[0];
       thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
+      if (thermalManager.temp_hotend[0].target < 260.0) {RTS_SndData(0, HEAD0_SET_ICON_VP);}
+      else {RTS_SndData(1, HEAD0_SET_ICON_VP);}
       RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
       break;
 
     case Heater1TempEnterKey:
       thermalManager.temp_hotend[1].target = recdat.data[0];
       thermalManager.setTargetHotend(thermalManager.temp_hotend[1].target, 1);
+      if (thermalManager.temp_hotend[1].target < 260.0) {RTS_SndData(0, HEAD1_SET_ICON_VP);}
+      else {RTS_SndData(1, HEAD1_SET_ICON_VP);}
       RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
       break;
 
@@ -1242,9 +1321,8 @@ void RTSSHOW::RTS_HandleData()
         active_extruder_flag = false;
         active_extruder_font = active_extruder;
         Update_Time_Value = 0;
-        queue.enqueue_now_P(PSTR("G28"));
-        queue.enqueue_now_P(PSTR("G1 F1000 Y150.0")); // added to move nozzle to probe position - John Carlson
-        queue.enqueue_now_P(PSTR("G1 F200 Z0.0"));
+        queue.enqueue_now_P(PSTR("G28 0"));
+        queue.enqueue_now_P(PSTR("G1 F600 Z0.0"));
         RTS_SndData(ExchangePageBase + 32, ExchangepageAddr);
 
         if (active_extruder == 0)
@@ -1262,12 +1340,20 @@ void RTSSHOW::RTS_HandleData()
         Filament1LOAD = 10;
         RTS_SndData(10 * Filament0LOAD, HEAD0_FILAMENT_LOAD_DATA_VP);
         RTS_SndData(10 * Filament1LOAD, HEAD1_FILAMENT_LOAD_DATA_VP);
+        if (thermalManager.temp_hotend[0].celsius < 260.0) {RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
+        else {RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
         RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
         thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
+        if (thermalManager.temp_hotend[0].target < 260.0) {RTS_SndData(0, HEAD0_SET_ICON_VP);}
+        else {RTS_SndData(1, HEAD0_SET_ICON_VP);}
         RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
 
+        if (thermalManager.temp_hotend[1].celsius < 260.0) {RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+        else {RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
         RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
         thermalManager.setTargetHotend(thermalManager.temp_hotend[1].target, 1);
+        if (thermalManager.temp_hotend[1].target < 260.0) {RTS_SndData(0, HEAD1_SET_ICON_VP);}
+        else {RTS_SndData(1, HEAD1_SET_ICON_VP);}
         RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
 
         delay(2);
@@ -1330,6 +1416,7 @@ void RTSSHOW::RTS_HandleData()
       {
         RTS_SndData(CORP_WEBSITE, PRINTER_WEBSITE_TEXT_VP);
         //RTS_SndData(Screen_version, Screen_Version_VP);
+        RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
         RTS_SndData(ExchangePageBase + 33, ExchangepageAddr); //call 'Printer info' screen
       }
       else if (recdat.data[0] == 6) //'Disable motor' button
@@ -1455,8 +1542,8 @@ void RTSSHOW::RTS_HandleData()
         {
           queue.enqueue_now_P(PSTR("G28 Z0"));
         }
-        queue.enqueue_now_P(PSTR("G1 F1000 Y150.0")); // added to move nozzle to probe position - John Carlson
-        queue.enqueue_now_P(PSTR("G1 F200 Z0.0"));
+        //queue.enqueue_now_P(PSTR("G1 F1500 Y150.0")); // added to move nozzle to probe position - John Carlson
+        queue.enqueue_now_P(PSTR("G1 F600 Z0.0"));
       }
       else if (recdat.data[0] == 2) //'+Z' arrow button
       {
@@ -1506,7 +1593,7 @@ void RTSSHOW::RTS_HandleData()
           RTS_SndData(0, AUTO_BED_LEVEL_ICON_VP); //prepare 'Auto levelling, wait...' screen
           RTS_SndData(ExchangePageBase + 38, ExchangepageAddr); //call 'Auto levelling, wait...' screen
           if (!all_axes_trusted()) {
-            queue.enqueue_now_P(PSTR("G28"));
+            queue.enqueue_now_P(PSTR("G28 0"));
           }
           queue.enqueue_now_P(PSTR("G29"));
         #endif
@@ -1518,7 +1605,7 @@ void RTSSHOW::RTS_HandleData()
         {
           waitway = 4;
           queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-          queue.enqueue_now_P(PSTR("G1 X150 Y150 F3000"));
+          queue.enqueue_now_P(PSTR("G1 X150 Y150 F2000"));
           queue.enqueue_now_P(PSTR("G1 F600 Z0"));
           waitway = 0;
         }
@@ -1530,7 +1617,7 @@ void RTSSHOW::RTS_HandleData()
         {
           waitway = 4;
           queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-          queue.enqueue_now_P(PSTR("G1 X30 Y30 F3000"));
+          queue.enqueue_now_P(PSTR("G1 X30 Y30 F2000"));
           queue.enqueue_now_P(PSTR("G1 F600 Z0"));
           waitway = 0;
         }
@@ -1542,7 +1629,7 @@ void RTSSHOW::RTS_HandleData()
         {
           waitway = 4;
           queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-          queue.enqueue_now_P(PSTR("G1 X275 Y30 F3000"));
+          queue.enqueue_now_P(PSTR("G1 X275 Y30 F2000"));
           queue.enqueue_now_P(PSTR("G1 F600 Z0"));
           waitway = 0;
         }
@@ -1554,7 +1641,7 @@ void RTSSHOW::RTS_HandleData()
         {
           waitway = 4;
           queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-          queue.enqueue_now_P(PSTR("G1 X275 Y275 F3000"));
+          queue.enqueue_now_P(PSTR("G1 X275 Y275 F2000"));
           queue.enqueue_now_P(PSTR("G1 F600 Z0"));
           waitway = 0;
         }
@@ -1566,7 +1653,7 @@ void RTSSHOW::RTS_HandleData()
         {
           waitway = 4;
           queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-          queue.enqueue_now_P(PSTR("G1 X30 Y275 F3000"));
+          queue.enqueue_now_P(PSTR("G1 X30 Y275 F2000"));
           queue.enqueue_now_P(PSTR("G1 F600 Z0"));
           waitway = 0;
         }
@@ -1884,8 +1971,12 @@ void RTSSHOW::RTS_HandleData()
       {
         if(!planner.has_blocks_queued())
         {
+          if (thermalManager.temp_hotend[0].celsius < 260.0) {RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
+          else {RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
           RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
           thermalManager.setTargetHotend(ChangeFilament0Temp, 0);
+          if (ChangeFilament0Temp < 260.0) {RTS_SndData(0, HEAD0_SET_ICON_VP);}
+          else {RTS_SndData(1, HEAD0_SET_ICON_VP);}
           RTS_SndData(ChangeFilament0Temp, HEAD0_SET_TEMP_VP);
           RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
           heatway = 1;
@@ -1906,8 +1997,12 @@ void RTSSHOW::RTS_HandleData()
       {
         if(!planner.has_blocks_queued())
         {
+          if (thermalManager.temp_hotend[1].celsius < 260.0) {RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+          else {RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
           RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
           thermalManager.setTargetHotend(ChangeFilament1Temp, 1);
+          if (ChangeFilament1Temp < 260.0) {RTS_SndData(0, HEAD1_SET_ICON_VP);}
+          else {RTS_SndData(1, HEAD1_SET_ICON_VP);}
           RTS_SndData(ChangeFilament1Temp, HEAD1_SET_TEMP_VP);
           RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
           heatway = 2;
@@ -1930,6 +2025,8 @@ void RTSSHOW::RTS_HandleData()
         {
           thermalManager.temp_hotend[0].target = 0;
           thermalManager.temp_hotend[1].target = 0;
+          RTS_SndData(0, HEAD0_SET_ICON_VP);
+          RTS_SndData(0, HEAD1_SET_ICON_VP);
           RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
           RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
           RTS_SndData(ExchangePageBase + 23, ExchangepageAddr);
@@ -1981,7 +2078,7 @@ void RTSSHOW::RTS_HandleData()
       break;
 
     case PowerContinuePrintKey:
-      if (recdat.data[0] == 1) //resume print after pause
+      if (recdat.data[0] == 1) //page # 36 resume print "yes"
       {
         if (print_job_timer.isRunning) // added to resume from pause
         {
@@ -2013,7 +2110,7 @@ void RTSSHOW::RTS_HandleData()
                 queue.enqueue_now_P(PSTR("M605 S2"));
                 break;
               case 3:
-                queue.enqueue_now_P(PSTR("M605 S2 X150 R0"));
+                queue.enqueue_now_P(PSTR("M605 S2 X68 R0"));
                 queue.enqueue_now_P(PSTR("M605 S3"));
                 break;
               default:
@@ -2038,7 +2135,7 @@ void RTSSHOW::RTS_HandleData()
           }
         }
       }
-      else if (recdat.data[0] == 2) //no to stop print & stop after pause
+      else if (recdat.data[0] == 2) //page # 36 resume print "no"
       {
         Update_Time_Value = RTS_UPDATE_VALUE;
         #if ENABLED(DUAL_X_CARRIAGE)
@@ -2065,7 +2162,6 @@ void RTSSHOW::RTS_HandleData()
             recovery.close();
           #endif
         }
-
         wait_for_heatup = wait_for_user = false;
         sd_printing_autopause = false;
         PrintFlag = 0;
@@ -2182,7 +2278,7 @@ void RTSSHOW::RTS_HandleData()
             queue.enqueue_now_P(PSTR("M605 S2"));
             break;
           case 3:
-            queue.enqueue_now_P(PSTR("M605 S2 X150 R0"));
+            queue.enqueue_now_P(PSTR("M605 S2 X68 R0"));
             queue.enqueue_now_P(PSTR("M605 S3"));
             break;
           default:
@@ -2277,7 +2373,7 @@ void RTSSHOW::RTS_HandleData()
         sprintf_P(commandbuf, PSTR("M218 T1 Z%4.1f"), hotend_offset[1].z);
         queue.enqueue_now_P(commandbuf);
         //settings.save();
-        rtscheck.RTS_SndData(ExchangePageBase + 35, ExchangepageAddr);
+        RTS_SndData(ExchangePageBase + 35, ExchangepageAddr);
       }
       break;
 
@@ -2326,6 +2422,7 @@ void RTSSHOW::RTS_HandleData()
       }
       else if(change_page_number == 11)
       {
+        RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
         RTS_SndData(change_page_number + ExchangePageBase, ExchangepageAddr);
         if((0 != dualXPrintingModeStatus) && (4 != dualXPrintingModeStatus))
         {
@@ -2342,6 +2439,7 @@ void RTSSHOW::RTS_HandleData()
       }
       else if(change_page_number == 12)
       {
+        RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
         RTS_SndData(change_page_number + ExchangePageBase, ExchangepageAddr);
         if((0 != dualXPrintingModeStatus) && (4 != dualXPrintingModeStatus))
         {
@@ -2358,6 +2456,7 @@ void RTSSHOW::RTS_HandleData()
       }
       else
       {
+        RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
         RTS_SndData(change_page_number + ExchangePageBase, ExchangepageAddr);
         change_page_number = 1;
       }
@@ -2411,10 +2510,11 @@ void RTSSHOW::RTS_HandleData()
 
       char sizeBuf[20];
       sprintf(sizeBuf, "%d X %d X %d", X_MAX_POS - 2, Y_MAX_POS - 2, Z_MAX_POS);
-      RTS_SndData(MACVERSION, PRINTER_MACHINE_TEXT_VP);
-      RTS_SndData(SOFTVERSION, PRINTER_VERSION_TEXT_VP);
+      RTS_SndData(MACHINE_NAME , PRINTER_MACHINE_TEXT_VP);
       RTS_SndData(sizeBuf, PRINTER_PRINTSIZE_TEXT_VP);
 
+      RTS_SndData(SOFTVERSION, PRINTER_VERSION_TEXT_VP);
+      RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
       RTS_SndData(CORP_WEBSITE, PRINTER_WEBSITE_TEXT_VP);
       //RTS_SndData(Screen_version, Screen_Version_VP);
 
@@ -2444,7 +2544,11 @@ void RTSSHOW::RTS_HandleData()
       RTS_SndData(probe.offset.z * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
 
       RTS_SndData(feedrate_percentage, PRINT_SPEED_RATE_VP);
+      if (thermalManager.temp_hotend[0].target < 260.0) {RTS_SndData(0, HEAD0_SET_ICON_VP);}
+      else {RTS_SndData(1, HEAD0_SET_ICON_VP);}
       RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
+      if (thermalManager.temp_hotend[1].target < 260.0) {RTS_SndData(0, HEAD1_SET_ICON_VP);}
+      else {RTS_SndData(1, HEAD1_SET_ICON_VP);}
       RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
       RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
       if (autoPowerOffEnabled == true)
@@ -2484,12 +2588,13 @@ void EachMomentUpdate()
     // print the file before the power is off.
     if((power_off_type_yes == 0) && lcd_sd_status && (recovery.info.recovery_flag == true))
     {
+      rtscheck.RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
       rtscheck.RTS_SndData(ExchangePageBase, ExchangepageAddr);
       if(startprogress < 100)
       {
         rtscheck.RTS_SndData(startprogress, START1_PROCESS_ICON_VP);
       }
-      delay(30);
+      delay(15);
       if((startprogress += 1) > 100)
       {
         rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
@@ -2506,12 +2611,13 @@ void EachMomentUpdate()
     }
     else if((power_off_type_yes == 0) && (recovery.info.recovery_flag == false))
     {
+      rtscheck.RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
       rtscheck.RTS_SndData(ExchangePageBase, ExchangepageAddr);
       if(startprogress < 100)
       {
         rtscheck.RTS_SndData(startprogress, START1_PROCESS_ICON_VP);
       }
-      delay(30);
+      delay(15);
       if((startprogress += 1) > 100)
       {
         rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
@@ -2576,17 +2682,23 @@ void EachMomentUpdate()
       if(pause_action_flag && (false == sdcard_pause_check) && printingIsPaused() && !planner.has_blocks_queued())
       {
         pause_action_flag = false;
-        if((1 == active_extruder) && (1 == save_dual_x_carriage_mode))
+        if(TEST(axis_trusted, X_AXIS) && (1 == save_dual_x_carriage_mode))
         {
-          queue.enqueue_now_P(PSTR("G0 F3000 X362 Y0"));
-        }
-        else
-        {
-          queue.enqueue_now_P(PSTR("G0 F3000 X-62 Y0"));
+          if (1 == active_extruder)
+          {
+            queue.enqueue_now_P(PSTR("G0 F2000 X362"));
+          }
+          else
+          {
+            queue.enqueue_now_P(PSTR("G0 F2000 X-62"));
+          }
         }
       }
-
+      if (thermalManager.temp_hotend[0].celsius < 260.0) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
+      else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
       rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
+      if (thermalManager.temp_hotend[1].celsius < 260.0) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+      else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
       rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
       rtscheck.RTS_SndData(thermalManager.temp_bed.celsius, BED_CURRENT_TEMP_VP);
 
@@ -2595,7 +2707,11 @@ void EachMomentUpdate()
         thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
         thermalManager.setTargetHotend(thermalManager.temp_hotend[1].target, 1);
         thermalManager.setTargetBed(thermalManager.temp_bed.target);
+        if (thermalManager.temp_hotend[0].target < 260.0) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
+        else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
         rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
+        if (thermalManager.temp_hotend[1].target < 260.0) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
+        else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
         rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
         rtscheck.RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
         last_target_temperature[0] = thermalManager.temp_hotend[0].target;
@@ -2699,7 +2815,7 @@ void SetExtruderMode(unsigned int mode, bool isDirect) {
   {
     //return key; keep previous print mode
     save_dual_x_carriage_mode = dualXPrintingModeStatus;
-    //SERIAL_ECHOLNPGM("save_dual_x_carriage_mode: ", save_dual_x_carriage_mode);
+    SERIAL_ECHOLNPGM("save_dual_x_carriage_mode: ", save_dual_x_carriage_mode);
     settings.save();
     rtscheck.RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
   }
@@ -2860,12 +2976,6 @@ void RTS_MoveAxisHoming()
     #endif
     waitway = 0;
   }
-  else if(waitway == 7)
-  {
-    // Click Print finish
-    rtscheck.RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
-    waitway = 0;
-  }
   if(active_extruder == 0)
   {
     rtscheck.RTS_SndData(0, EXCHANGE_NOZZLE_ICON_VP);
@@ -2885,6 +2995,11 @@ void RTS_Buzz(const uint16_t duration, const uint16_t frequency) //plays single 
   uint16_t foo = duration;
   foo =  foo + frequency; //unneeded operation just to supress compiler warning
   rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
+}
+
+void wait_idle(millis_t time) {
+  time += millis();
+  while (PENDING(millis(), time)) idle();
 }
 
 #endif
