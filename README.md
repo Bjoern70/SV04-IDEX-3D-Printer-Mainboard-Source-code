@@ -17,7 +17,11 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
  - merged "standard" and "SIZZLING" software version
  - changed nozzle temperature limits to maximum 300°C - be sure to have a matching heat blocks & use at your own risk!
 <<<<<<< HEAD
+<<<<<<< HEAD
  - temperatures above OEM maximum of 260°C will be highlighted red
+=======
+ - temperatures above OEM maximum of 260°C will be highlighted red.
+>>>>>>> sizzling
 =======
  - temperatures above OEM maximum of 260°C will be highlighted red.
 >>>>>>> sizzling
