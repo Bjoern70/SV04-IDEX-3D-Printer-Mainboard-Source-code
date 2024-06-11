@@ -37,6 +37,9 @@
   #include "../../feature/bedlevel/bedlevel.h"
 #endif
 
+#if ENABLED(RTS_AVAILABLE)
+  #include "../../lcd/e3v2/creality/LCD_RTS.h"
+#endif
 #if ENABLED(BABYSTEP_ZPROBE_OFFSET)
 
   FORCE_INLINE void mod_probe_offset(const_float_t offs) {
@@ -129,6 +132,9 @@ void GcodeSuite::M290() {
     }
     #endif
   }
+  #if ENABLED(RTS_AVAILABLE)
+    RTS_PauseMoveAxisPage();
+  #endif
 }
 
 #endif // BABYSTEPPING

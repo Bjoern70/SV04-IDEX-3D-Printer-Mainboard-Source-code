@@ -25,7 +25,7 @@
  * Release version. Leave the Marlin version or apply a custom scheme.
  */
 #ifndef SHORT_BUILD_VERSION
-  #define SHORT_BUILD_VERSION "v1.14.0"
+  #define SHORT_BUILD_VERSION "v1.14.1"
 #endif
 
 /**
@@ -43,7 +43,7 @@
  * version was tagged.
  */
 #ifndef STRING_DISTRIBUTION_DATE
-  #define STRING_DISTRIBUTION_DATE "2024-01-14"
+  #define STRING_DISTRIBUTION_DATE "2024-06-12"
 #endif
 
 /**
@@ -74,7 +74,7 @@
  * Define a generic printer name to be output to the LCD after booting Marlin.
  */
 #ifndef MACHINE_NAME
-  #define MACHINE_NAME "Sovol SV04"
+  #define MACHINE_NAME "SV04"
 #endif
 
 /**

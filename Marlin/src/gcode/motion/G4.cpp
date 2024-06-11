@@ -23,6 +23,9 @@
 #include "../gcode.h"
 #include "../../module/stepper.h"
 #include "../../lcd/marlinui.h"
+#if ENABLED(RTS_AVAILABLE)
+  #include "../../lcd/e3v2/creality/LCD_RTS.h"
+#endif
 
 /**
  * G4: Dwell S<seconds> or P<milliseconds>
@@ -41,4 +44,7 @@ void GcodeSuite::G4() {
   if (!ui.has_status()) LCD_MESSAGEPGM(MSG_DWELL);
 
   dwell(dwell_ms);
+  #if ENABLED(RTS_AVAILABLE)
+    if (parser.seenval('S')) RTS_PauseMoveAxisPage();
+  #endif
 }

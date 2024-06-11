@@ -22,6 +22,9 @@
 
 #include "../../inc/MarlinConfig.h"
 
+#if ENABLED(RTS_AVAILABLE)
+  #include "../../lcd/e3v2/creality/LCD_RTS.h"
+#endif
 #if ENABLED(ARC_SUPPORT)
 
 #include "../gcode.h"
@@ -435,6 +438,9 @@ void GcodeSuite::G2_G3(const bool clockwise) {
       SERIAL_ERROR_MSG(STR_ERR_ARC_ARGS);
 
     TERN_(FULL_REPORT_TO_HOST_FEATURE, set_and_report_grblstate(M_IDLE));
+    #if ENABLED(RTS_AVAILABLE)
+      RTS_PauseMoveAxisPage();
+    #endif
   }
 }
 

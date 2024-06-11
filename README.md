@@ -16,15 +16,7 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
  - cleaned up STOP, PAUSE & FINISH PRINT processing
  - merged "standard" and "SIZZLING" software version
  - changed nozzle temperature limits to maximum 300°C - be sure to have a matching heat blocks & use at your own risk!
-<<<<<<< HEAD
-<<<<<<< HEAD
- - temperatures above OEM maximum of 260°C will be highlighted red
-=======
  - temperatures above OEM maximum of 260°C will be highlighted red.
->>>>>>> sizzling
-=======
- - temperatures above OEM maximum of 260°C will be highlighted red.
->>>>>>> sizzling
 
 This SV04 Marlin firmware requires matching touchscreen software that is available here: 
 https://github.com/Bjoern70/SV04-Touchscreen/releases/tag/v1.14

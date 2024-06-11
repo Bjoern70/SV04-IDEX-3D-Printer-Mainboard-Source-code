@@ -51,6 +51,7 @@ void GcodeSuite::M117() {
         // clean print file
         rtscheck.RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
       }
+    RTS_PauseMoveAxisPage();
   #else
     if (parser.string_arg && parser.string_arg[0])
       ui.set_status(parser.string_arg);

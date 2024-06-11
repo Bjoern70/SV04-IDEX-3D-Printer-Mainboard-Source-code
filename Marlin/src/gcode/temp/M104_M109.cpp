@@ -30,6 +30,9 @@
 
 #if HAS_EXTRUDERS
 
+  #if ENABLED(RTS_AVAILABLE)
+    #include "../../lcd/e3v2/creality/LCD_RTS.h"
+  #endif
 #include "../gcode.h"
 #include "../../module/temperature.h"
 #include "../../module/motion.h"
@@ -133,6 +136,9 @@ void GcodeSuite::M104_M109(const bool isM109) {
 
   if (isM109 && got_temp)
     (void)thermalManager.wait_for_hotend(target_extruder, no_wait_for_cooling);
+  #if ENABLED(RTS_AVAILABLE)
+    RTS_PauseMoveAxisPage();
+  #endif
 }
 
 #endif // EXTRUDERS

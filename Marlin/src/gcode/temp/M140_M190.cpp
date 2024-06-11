@@ -30,6 +30,9 @@
 
 #if HAS_HEATED_BED
 
+  #if ENABLED(RTS_AVAILABLE)
+    #include "../../lcd/e3v2/creality/LCD_RTS.h"
+  #endif
 #include "../gcode.h"
 #include "../../module/temperature.h"
 #include "../../lcd/marlinui.h"
@@ -90,6 +93,9 @@ void GcodeSuite::M140_M190(const bool isM190) {
 
   if (isM190)
     thermalManager.wait_for_bed(no_wait_for_cooling);
+  #if ENABLED(RTS_AVAILABLE)
+    RTS_PauseMoveAxisPage();
+  #endif
 }
 
 #endif // HAS_HEATED_BED
