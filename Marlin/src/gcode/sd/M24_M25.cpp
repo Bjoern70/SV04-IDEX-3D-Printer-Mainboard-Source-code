@@ -45,6 +45,10 @@
   #include "../../lcd/extui/dgus/DGUSDisplayDef.h"
 #endif
 
+#if ENABLED(RTS_AVAILABLE)
+  #include "../../lcd/e3v2/creality/LCD_RTS.h"
+#endif
+
 #include "../../MarlinCore.h" // for startOrResumeJob
 
 /**
@@ -55,6 +59,10 @@ void GcodeSuite::M24() {
   #if ENABLED(DGUS_LCD_UI_MKS)
     if ((print_job_timer.isPaused() || print_job_timer.isRunning()) && !parser.seen("ST"))
       MKS_resume_print_move();
+  #endif
+
+  #if ENABLED(RTS_AVAILABLE)
+    rtscheck.RTS_ProcessResume();
   #endif
 
   #if ENABLED(POWER_LOSS_RECOVERY)
@@ -96,8 +104,12 @@ void GcodeSuite::M25() {
 
   #if ENABLED(PARK_HEAD_ON_PAUSE)
 
-    M125();
-
+    #if ENABLED(RTS_AVAILABLE)
+      rtscheck.RTS_ProcessPause();
+      //RTS_PauseMoveAxisPage(); //enable display pause processing
+    #else
+      M125();
+    #endif
   #else
 
     // Set initial pause flag to prevent more commands from landing in the queue while we try to pause

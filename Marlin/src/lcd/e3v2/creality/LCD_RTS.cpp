@@ -41,7 +41,10 @@
 float zprobe_zoffset;
 float last_zoffset = 0.0;
 
-const float manual_feedrate_mm_m[] = {50 * 60, 40 * 60, 12 * 60, 60};
+const float manual_feedrate_X = MMM_TO_MMS(XY_PROBE_FEEDRATE);      //180*60 mm/min
+const float manual_feedrate_Y = MMM_TO_MMS(XY_PROBE_FEEDRATE);      //180*60 mm/min
+const float manual_feedrate_Z = MMM_TO_MMS(Z_PROBE_FEEDRATE_FAST);  // 16*60 mm/min
+const float manual_feedrate_E = FILAMENT_CHANGE_FAST_LOAD_FEEDRATE; //     6 mm/s
 
 int startprogress = 0;
 float pause_z = 0;
@@ -75,11 +78,10 @@ extern CardReader card;
 // represents SD-card status, true means SD is available, false means opposite.
 bool lcd_sd_status;
 
-char Checkfilenum = 0;
 char cmdbuf[20] = {0};
 float Filament0LOAD = 10;
 float Filament1LOAD = 10;
-float XoffsetValue ;
+float XoffsetValue;
 
 // 1 for 0.1mm, 2 for 1mm, 3 for 10mm, 4 for 100mm
 unsigned char AxisUnitMode;
@@ -103,11 +105,11 @@ bool card_insert_st;
 bool sd_printing;
 bool sd_printing_autopause;
 
-inline void RTS_line_to_current(AxisEnum axis)
+inline void RTS_line_to_current(AxisEnum axis, float manual_feedrate_mms)
 {
   if (!planner.is_full())
   {
-    planner.buffer_line(current_position, MMM_TO_MMS(manual_feedrate_mm_m[(int8_t)axis]), active_extruder);
+    planner.buffer_line(current_position, manual_feedrate_mms, active_extruder);
   }
 }
 
@@ -148,8 +150,8 @@ void RTSSHOW::ShowFilesOnCardPage(int page) {
     max = fileInfo.fileCount;
   }
 
-  for (int i = 0; i < 100; i += 20) {
-    for (int j = 0; j < 20; j++) {
+  for (int i = 0; i < 5*FileNameLen; i += FileNameLen) {
+    for (int j = 0; j < FileNameLen; j++) {
       RTS_SndData(0, FILE1_TEXT_VP + i + j);
     }
   }
@@ -160,8 +162,8 @@ void RTSSHOW::ShowFilesOnCardPage(int page) {
   //enumerate files
   for (int k = min-1; k < max; k++) {
     card.selectFileByIndex(k);
-    char shortFileName[20];
-    strncpy(shortFileName, card.longest_filename(), 20);
+    char shortFileName[FileNameLen];
+    strncpy(shortFileName, card.longest_filename(), FileNameLen);
 
     RTS_SndData(shortFileName, buttonIndex);
 
@@ -175,7 +177,7 @@ void RTSSHOW::ShowFilesOnCardPage(int page) {
     }
 
     textIndex++;
-    buttonIndex += 20;
+    buttonIndex += FileNameLen;
   }
 }
 
@@ -186,15 +188,15 @@ void RTSSHOW::InitCardList() {
   }
 
   card.getAbsFilenameInCWD(fileInfo.currentDir);
-  char shortDirName[20];
-  for(int j = 0; j < 20; j++)
+  char shortDirName[FileNameLen];
+  for(int j = 0; j < FileNameLen; j++)
   {
     RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
   }
 
   hasSelected = false;
 
-  strncpy(shortDirName, fileInfo.currentDir, 20);
+  strncpy(shortDirName, fileInfo.currentDir, FileNameLen);
   RTS_SndData(shortDirName, SELECT_FILE_TEXT_VP);
 
   fileInfo.fileCount = card.get_num_Files();
@@ -204,9 +206,7 @@ void RTSSHOW::InitCardList() {
   {
     delay(3);
     RTS_SndData((unsigned long)0xA514, FilenameNature + (i + 5) * 16);
-    RTS_SndData(0, FILE1_SELECT_ICON_VP + i);
   }
-
   ShowFilesOnCardPage(1);
 }
 
@@ -231,7 +231,7 @@ void RTSSHOW::RTS_SDCardInit(void)
     }
     else
     {
-      for(int j = 0;j < 20;j ++)
+      for(int j = 0;j < FileNameLen;j ++)
       {
         // clean screen.
         RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
@@ -295,7 +295,7 @@ void RTSSHOW::RTS_SDCardUpate(void)
       }
       else
       {
-        for(int j = 0;j < 20;j ++)
+        for(int j = 0;j < FileNameLen;j ++)
         {
           // clean screen.
           RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
@@ -356,7 +356,7 @@ void RTSSHOW::RTS_Init()
   RTS_SndData(probe.offset.z * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
   RTS_SndData((hotend_offset[1].x - X2_MAX_POS) * 100, TWO_EXTRUDER_HOTEND_XOFFSET_VP);
   RTS_SndData(hotend_offset[1].y * 100, TWO_EXTRUDER_HOTEND_YOFFSET_VP);
-  RTS_SndData(hotend_offset[1].z * 100, TWO_EXTRUDER_HOTEND_ZOFFSET_VP);
+  //RTS_SndData(hotend_offset[1].z * 100, TWO_EXTRUDER_HOTEND_ZOFFSET_VP);
 
   last_target_temperature_bed = thermalManager.temp_bed.target;
   last_target_temperature[0] = thermalManager.temp_hotend[0].target;
@@ -678,7 +678,7 @@ void RTSSHOW::RTS_SndData(unsigned long n, unsigned long addr, unsigned char cmd
 
 void RTSSHOW::RTS_SDcardStop()
 {
-  waitway = 0;
+  waitway = 7;
   #if ENABLED(REALTIME_REPORTING_COMMANDS)
     planner.quick_pause();
     print_job_timer.stop();
@@ -697,11 +697,11 @@ void RTSSHOW::RTS_SDcardStop()
   wait_idle(250);
   RTS_SndData(StartSoundSet, SoundAddr);
   wait_idle(250);
-  RTS_SndData(StartSoundSet, SoundAddr)
+  RTS_SndData(StartSoundSet, SoundAddr);
   */
   PoweroffContinue = false;
   RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
-  waitway = 7;
+  //waitway = 7;
   Update_Time_Value = 0;
   PrintFlag = 0;
   //queue.enqueue_one_P(PSTR("M77"));//will be called when executing M77
@@ -752,12 +752,12 @@ void RTSSHOW::RTS_SDcardStop()
   startprogress = 0;
   power_off_type_yes = 0;
   recovery.info.recovery_flag = false;
-  RTS_SndData(ExchangePageBase, ExchangepageAddr);
+  //RTS_SndData(ExchangePageBase, ExchangepageAddr);
 }
 
 void RTSSHOW::RTS_SDcardFinish()
 {
-  waitway = 0;
+  waitway = 7;
   PrintFlag = 0;
   RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
   change_page_number = 1;
@@ -766,6 +766,8 @@ void RTSSHOW::RTS_SDcardFinish()
   PoweroffContinue = false;
   card.flag.abort_sd_printing = true;
   sd_printing_autopause = false;
+  print_job_timer.stop();
+  planner.clear_block_buffer();
   print_job_timer.reset();
   queue.clear();
   #if ENABLED(DUAL_X_CARRIAGE)
@@ -788,6 +790,7 @@ void RTSSHOW::RTS_SDcardFinish()
   RTS_SndData(0, BED_SET_TEMP_VP);
   thermalManager.zero_fan_speeds();
   wait_for_heatup = wait_for_user = false;
+  wait_idle(2);
   //queue.enqueue_one_P(PSTR("M77"));
   //shut off stepper motors
   //queue.enqueue_now_P(PSTR("M84"));
@@ -799,7 +802,7 @@ void RTSSHOW::RTS_SDcardFinish()
   RTS_SndData(0, PRINT_SURPLUS_TIME_HOUR_VP);
   RTS_SndData(0, PRINT_SURPLUS_TIME_MIN_VP);
   wait_idle(2);
-  startprogress = 0;
+  startprogress = 100;
   power_off_type_yes = 0;
   #if ENABLED(SDSUPPORT) && ENABLED(POWER_LOSS_RECOVERY)
     if(CardReader::flag.mounted)
@@ -808,13 +811,61 @@ void RTSSHOW::RTS_SDcardFinish()
     }
   #endif
   recovery.info.recovery_flag = false;
-  RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
+  //RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
+}
+
+void RTSSHOW::RTS_ProcessPause()
+{
+  waitway = 1;
+  RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
+  //pause command
+  pause_z = current_position[Z_AXIS];
+  card.pauseSDPrint();
+  pause_action_flag = true;
+  Update_Time_Value = 0;
+  sdcard_pause_check = false;
+  PrintFlag = 1;
+  change_page_number = 12;
+  queue.enqueue_one_P(PSTR("M76"));
+}
+
+void RTSSHOW::RTS_ProcessResume()
+{
+  waitway = 0;
+  //queue.enqueue_one_P(PSTR("M117 Resuming..."));
+  RTS_SndData(fileInfo.currentDisplayFilename, PRINT_FILE_TEXT_VP);
+  #if BOTH(M600_PURGE_MORE_RESUMABLE, ADVANCED_PAUSE_FEATURE)
+    pause_menu_response = PAUSE_RESPONSE_RESUME_PRINT;  // Simulate menu selection
+  #endif
+  wait_for_user = false;
+  //RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
+  card.startOrResumeFilePrinting();
+  //print_job_timer.start();
+  Update_Time_Value = 0;
+  sdcard_pause_check = true;
+  pause_action_flag = false;
+  RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
+  PrintFlag = 2;
+  queue.enqueue_one_P(PSTR("M75"));
+  TERN_(HOST_PAUSE_M76, host_action_resume());
 }
 
 void RTSSHOW::RTS_HandleData()
 {
   int Checkkey = -1;
   // for waiting
+  /* list of waitway states:
+  0: no waiting
+  1: wait while pause                          => back to #11
+  2: wait while auto-levelling                 => back to #81
+  3: wait while tramming/aligning              => back to #22
+  4: wait while homing or moving axis          => back to #29,#30,#31 or #58
+  5: unused
+  6: wait while levelling menu                 => back to #22
+  7: wait while stopping or finishing SD card  => back to #1
+
+
+  */
   if(waitway > 0)
   {
     memset(&recdat, 0, sizeof(recdat));
@@ -850,7 +901,7 @@ void RTSSHOW::RTS_HandleData()
         CardUpdate = true;
         if(CardReader::flag.mounted)
         {
-          for (int j = 0; j < 20; j ++)
+          for (int j = 0; j < FileNameLen; j ++)
             {
               RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
             }
@@ -1000,42 +1051,23 @@ void RTSSHOW::RTS_HandleData()
       }
       else if(recdat.data[0] == 0xF1) //"yes, pause"
       {
-        RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
-        //pause command
-        waitway = 1;
-        pause_z = current_position[Z_AXIS];
-        card.pauseSDPrint();
-        pause_action_flag = true;
-        Update_Time_Value = 0;
-        sdcard_pause_check = false;
-        PrintFlag = 1;
-        change_page_number = 12;
-        queue.enqueue_one_P(PSTR("M76"));
+        RTS_ProcessPause();
       }
       break;
 
     case ResumePrintKey:
-      queue.enqueue_one_P(PSTR("M117 Resuming..."));
-      #if BOTH(M600_PURGE_MORE_RESUMABLE, ADVANCED_PAUSE_FEATURE)
-        pause_menu_response = PAUSE_RESPONSE_RESUME_PRINT;  // Simulate menu selection
-      #endif
-      wait_for_user = false;
       if(recdat.data[0] == 1)
       {
         //resume from paused
-        RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
-        card.startOrResumeFilePrinting();
-        //print_job_timer.start();
-        Update_Time_Value = 0;
-        sdcard_pause_check = true;
-        pause_action_flag = false;
-        RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
-        PrintFlag = 2;
-        queue.enqueue_one_P(PSTR("M75"));
-        TERN_(HOST_PAUSE_M76, host_action_resume());
+        RTS_ProcessResume();
       }
       else if(recdat.data[0] == 2)
       {
+        queue.enqueue_one_P(PSTR("M117 Resuming..."));
+        #if BOTH(M600_PURGE_MORE_RESUMABLE, ADVANCED_PAUSE_FEATURE)
+          pause_menu_response = PAUSE_RESPONSE_RESUME_PRINT;  // Simulate menu selection
+        #endif
+        wait_for_user = false;
         //change filament and resume
         RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
         //card.startOrResumeFilePrinting();
@@ -1055,6 +1087,11 @@ void RTSSHOW::RTS_HandleData()
       }
       else if(recdat.data[0] == 3) //from page #39 heat up
       {
+        queue.enqueue_one_P(PSTR("M117 Resuming..."));
+        #if BOTH(M600_PURGE_MORE_RESUMABLE, ADVANCED_PAUSE_FEATURE)
+          pause_menu_response = PAUSE_RESPONSE_RESUME_PRINT;  // Simulate menu selection
+        #endif
+        wait_for_user = false;
         //heat and change filament, and resume
         if(PoweroffContinue == true)
         {
@@ -1073,7 +1110,7 @@ void RTSSHOW::RTS_HandleData()
           delay(20);
           queue.enqueue_now_P(PSTR("M24"));
           // clean screen.
-          for (int j = 0; j < 20; j ++)
+          for (int j = 0; j < FileNameLen; j ++)
           {
             RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
           }
@@ -1093,6 +1130,11 @@ void RTSSHOW::RTS_HandleData()
       }
       else if(recdat.data[0] == 4) //from page #46 SDcard removed
       {
+        queue.enqueue_one_P(PSTR("M117 Resuming..."));
+        #if BOTH(M600_PURGE_MORE_RESUMABLE, ADVANCED_PAUSE_FEATURE)
+          pause_menu_response = PAUSE_RESPONSE_RESUME_PRINT;  // Simulate menu selection
+        #endif
+        wait_for_user = false;
         //replaced SD card and continue
         if(!CardReader::flag.mounted)
         {
@@ -1312,7 +1354,7 @@ void RTSSHOW::RTS_HandleData()
         axis_unit = 0.1;
         RTS_SndData(ExchangePageBase + 31, ExchangepageAddr);
       }
-      else if(recdat.data[0] == 4)
+      else if(recdat.data[0] == 4) //'Home'-Button from screen #29, #30, #31 or #58
       {
         waitway = 4;
         AutoHomeIconNum = 0;
@@ -1336,8 +1378,8 @@ void RTSSHOW::RTS_HandleData()
         active_extruder_flag = false;
         active_extruder_font = active_extruder;
         Update_Time_Value = 0;
-        queue.enqueue_now_P(PSTR("G28 O"));
-        queue.enqueue_now_P(PSTR("G1 F600 Z0.0"));
+        queue.enqueue_now_P(PSTR("G28"));
+        queue.enqueue_now_P(PSTR("G0 F600 Z0.0"));
         RTS_SndData(ExchangePageBase + 32, ExchangepageAddr);
 
         if (active_extruder == 0)
@@ -1381,14 +1423,25 @@ void RTSSHOW::RTS_HandleData()
           RTS_SndData(0, EXCHANGE_NOZZLE_ICON_VP);
           active_extruder_flag = false;
         }
-        else if(active_extruder == 1)
+        else
         {
           RTS_SndData(1, EXCHANGE_NOZZLE_ICON_VP);
           active_extruder_flag = true;
         }
-
         AxisUnitMode = 3;
-        if(active_extruder == 0)
+        if (all_axes_trusted())
+        {
+          //Hide hazard warning
+          RTS_SndData(0, COLLISION_HAZARD_ICON_VP);
+        }
+        else
+        {
+          //Show hazard warning
+          RTS_SndData(1, COLLISION_HAZARD_ICON_VP);
+          //home x axis in order to avoid damage
+          queue.enqueue_now_P(PSTR("G28 X"));
+        }
+        if (!active_extruder_flag)
         {
           if(TEST(axis_trusted, X_AXIS))
           {
@@ -1403,7 +1456,7 @@ void RTSSHOW::RTS_HandleData()
           sprintf_P(commandbuf, PSTR("G92.9 X%6.3f"), current_position_x0_axis);
           queue.enqueue_one_now(commandbuf);
         }
-        else if(active_extruder == 1)
+        else
         {
           if(TEST(axis_trusted, X_AXIS))
           {
@@ -1420,7 +1473,6 @@ void RTSSHOW::RTS_HandleData()
         }
         RTS_SndData(10 * current_position[Y_AXIS], AXIS_Y_COORD_VP);
         RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
-
         RTS_SndData(ExchangePageBase + 29, ExchangepageAddr); //call 'Move' screen
       }
       else if (recdat.data[0] == 4) //'Set hotend offset' button
@@ -1430,8 +1482,7 @@ void RTSSHOW::RTS_HandleData()
       else if (recdat.data[0] == 5) //'Printer info' button
       {
         RTS_SndData(CORP_WEBSITE, PRINTER_WEBSITE_TEXT_VP);
-        //RTS_SndData(Screen_version, Screen_Version_VP);
-        RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
+        //RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
         RTS_SndData(ExchangePageBase + 33, ExchangepageAddr); //call 'Printer info' screen
       }
       else if (recdat.data[0] == 6) //'Disable motor' button
@@ -1497,22 +1548,6 @@ void RTSSHOW::RTS_HandleData()
         queue.enqueue_now_P(commandbuf);
         //settings.save();
       }
-      else if (recdat.data[0] == 4)
-      {
-          #if ENABLED(HAS_LEVELING)
-            RTS_SndData(ExchangePageBase + 28, ExchangepageAddr);
-          #else
-            if (stepper.is_awake() == true)
-            {
-              RTS_SndData(0, MOTOR_FREE_ICON_VP); //motors enabled
-            }
-            else
-            {
-              RTS_SndData(1, MOTOR_FREE_ICON_VP); //motors disabled
-            }
-            RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
-          #endif
-      }
       else if (recdat.data[0] == 5) //Return button fom mesh view
       {
         RTS_SndData(ExchangePageBase + 22, ExchangepageAddr);
@@ -1555,10 +1590,10 @@ void RTSSHOW::RTS_HandleData()
         }
         else
         {
-          queue.enqueue_now_P(PSTR("G28 Z0"));
+          queue.enqueue_now_P(PSTR("G28 Z"));
         }
-        //queue.enqueue_now_P(PSTR("G1 F1500 Y150.0")); // added to move nozzle to probe position - John Carlson
-        queue.enqueue_now_P(PSTR("G1 F600 Z0.0"));
+        queue.enqueue_now_P(PSTR("G0 F1500 Y150.0")); // added to move nozzle to probe position - John Carlson
+        queue.enqueue_now_P(PSTR("G0 F600 Z0.0"));
       }
       else if (recdat.data[0] == 2) //'+Z' arrow button
       {
@@ -1601,79 +1636,79 @@ void RTSSHOW::RTS_HandleData()
         }
         queue.enqueue_now_P(PSTR("M420 S0"));
       }
-      else if (recdat.data[0] == 5) //'Auto levelling' button
+      else if (recdat.data[0] == 5) //'Auto levelling' button, screen #22
       {
         #if ENABLED(BLTOUCH)
-          waitway = 3;
+          waitway = 2;
           RTS_SndData(0, AUTO_BED_LEVEL_ICON_VP); //prepare 'Auto levelling, wait...' screen
           RTS_SndData(ExchangePageBase + 38, ExchangepageAddr); //call 'Auto levelling, wait...' screen
           if (!all_axes_trusted()) {
-            queue.enqueue_now_P(PSTR("G28 O"));
+            queue.enqueue_now_P(PSTR("G28"));
           }
           queue.enqueue_now_P(PSTR("G29"));
         #endif
       }
-      if (recdat.data[0] == 6) //'1' button
+      if (recdat.data[0] == 6) //'1' button, AUX levelling, screen #28
       {
         // Assitant Level ,  Centre 1
         if(!planner.has_blocks_queued())
         {
           waitway = 4;
-          queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-          queue.enqueue_now_P(PSTR("G1 X150 Y150 F2000"));
-          queue.enqueue_now_P(PSTR("G1 F600 Z0"));
+          queue.enqueue_now_P(PSTR("G0 F600 Z3"));
+          queue.enqueue_now_P(PSTR("G0 X150 Y150 F3000"));
+          queue.enqueue_now_P(PSTR("G0 F600 Z0"));
           waitway = 0;
         }
       }
-      else if (recdat.data[0] == 7) //'2' button
+      else if (recdat.data[0] == 7) //'2' button, AUX levelling, screen #28
       {
         // Assitant Level , Front Left 2
         if(!planner.has_blocks_queued())
         {
           waitway = 4;
-          queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-          queue.enqueue_now_P(PSTR("G1 X30 Y30 F2000"));
-          queue.enqueue_now_P(PSTR("G1 F600 Z0"));
+          queue.enqueue_now_P(PSTR("G0 F600 Z3"));
+          queue.enqueue_now_P(PSTR("G0 X30 Y30 F3000"));
+          queue.enqueue_now_P(PSTR("G0 F600 Z0"));
           waitway = 0;
         }
       }
-      else if (recdat.data[0] == 8) //'3' button
+      else if (recdat.data[0] == 8) //'3' button, AUX levelling, screen #28
       {
         // Assitant Level , Front Right 3
         if(!planner.has_blocks_queued())
         {
           waitway = 4;
-          queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-          queue.enqueue_now_P(PSTR("G1 X275 Y30 F2000"));
-          queue.enqueue_now_P(PSTR("G1 F600 Z0"));
+          queue.enqueue_now_P(PSTR("G0 F600 Z3"));
+          queue.enqueue_now_P(PSTR("G0 X275 Y30 F3000"));
+          queue.enqueue_now_P(PSTR("G0 F600 Z0"));
           waitway = 0;
         }
       }
-      else if (recdat.data[0] == 9) //'4' button
+      else if (recdat.data[0] == 9) //'4' button, AUX levelling, screen #28
       {
         // Assitant Level , Back Right 4
         if(!planner.has_blocks_queued())
         {
           waitway = 4;
-          queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-          queue.enqueue_now_P(PSTR("G1 X275 Y275 F2000"));
-          queue.enqueue_now_P(PSTR("G1 F600 Z0"));
+          queue.enqueue_now_P(PSTR("G0 F600 Z3"));
+          queue.enqueue_now_P(PSTR("G0 X275 Y275 F3000"));
+          queue.enqueue_now_P(PSTR("G0 F600 Z0"));
           waitway = 0;
         }
       }
-      else if (recdat.data[0] == 10) //'5' button
+      else if (recdat.data[0] == 10) //'5' button, AUX levelling, screen #28
       {
         // Assitant Level , Back Left 5
         if(!planner.has_blocks_queued())
         {
           waitway = 4;
-          queue.enqueue_now_P(PSTR("G1 F600 Z3"));
-          queue.enqueue_now_P(PSTR("G1 X30 Y275 F2000"));
-          queue.enqueue_now_P(PSTR("G1 F600 Z0"));
+          queue.enqueue_now_P(PSTR("G0 F600 Z3"));
+          queue.enqueue_now_P(PSTR("G0 X30 Y275 F3000"));
+          queue.enqueue_now_P(PSTR("G0 F600 Z0"));
           waitway = 0;
         }
       }
-      else if (recdat.data[0] == 11) //'Auto Z-align' button
+      else if (recdat.data[0] == 11) //'Auto Z-align' button from screen #22
       {
         waitway = 3;
         RTS_SndData(ExchangePageBase + 40, ExchangepageAddr); //call 'Processing, wait...' screen
@@ -1684,6 +1719,7 @@ void RTSSHOW::RTS_HandleData()
       }
       else if (recdat.data[0] == 12) //'Tramming' key or 'Run Again' key
       {
+        waitway = 3;
         RTS_SndData(ExchangePageBase + 40, ExchangepageAddr); //call 'Processing, wait...' screen
         queue.enqueue_now_P(PSTR("G28 X"));
         queue.enqueue_now_P(PSTR("T0"));
@@ -1693,10 +1729,11 @@ void RTSSHOW::RTS_HandleData()
         RTS_SndData(0, EXCHANGE_NOZZLE_ICON_VP);
         RTS_SndData(10 * current_position[X_AXIS], AXIS_X_COORD_VP);
         queue.enqueue_now_P(PSTR("G35"));
+        waitway = 0;
       }
       else if (recdat.data[0] == 13) //'Mesh viewer' button
       {
-        waitway = 0;
+        waitway = 2;
         RTS_AutoBedLevelPage();
       }
       break;
@@ -1733,9 +1770,9 @@ void RTSSHOW::RTS_HandleData()
           {
             current_position_x1_axis = current_position_x0_axis - X_MIN_POS;
           }
-          else if(current_position_x1_axis < (X_MIN_POS - X_MIN_POS))
+          else if(current_position_x1_axis < (0))
           {
-            current_position_x1_axis = X_MIN_POS - X_MIN_POS;
+            current_position_x1_axis = 0;
           }
           current_position[X_AXIS] = current_position_x1_axis;
         }
@@ -1764,7 +1801,7 @@ void RTSSHOW::RTS_HandleData()
           }
           current_position[X_AXIS] = current_position_x0_axis;
         }
-        RTS_line_to_current(X_AXIS);
+        RTS_line_to_current(X_AXIS, manual_feedrate_X);
         RTS_SndData(10 * current_position[X_AXIS], AXIS_X_COORD_VP);
         RTS_SndData(0, MOTOR_FREE_ICON_VP);
         waitway = 0;
@@ -1787,7 +1824,7 @@ void RTSSHOW::RTS_HandleData()
         {
           current_position[Y_AXIS] = y_max;
         }
-        RTS_line_to_current(Y_AXIS);
+        RTS_line_to_current(Y_AXIS, manual_feedrate_Y);
         RTS_SndData(10 * current_position[Y_AXIS], AXIS_Y_COORD_VP);
         RTS_SndData(0, MOTOR_FREE_ICON_VP);
         waitway = 0;
@@ -1810,14 +1847,15 @@ void RTSSHOW::RTS_HandleData()
         {
           current_position[Z_AXIS] = z_max;
         }
-        RTS_line_to_current(Z_AXIS);
+        RTS_line_to_current(Z_AXIS, manual_feedrate_Z);
         RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
         RTS_SndData(0, MOTOR_FREE_ICON_VP);
         waitway = 0;
       }
       break;
+
     case SelectExtruderKey:
-      if(recdat.data[0] == 1)
+      if(recdat.data[0] == 1) //from screen #29,#30,#31 or #58
       {
         if(!planner.has_blocks_queued())
         {
@@ -1847,9 +1885,9 @@ void RTSSHOW::RTS_HandleData()
       }
       else if (recdat.data[0] == 2)
       {
-        if(!planner.has_blocks_queued())
+        if(!planner.has_blocks_queued())  //from Aux levelling, screen #28
         {
-          waitway = 4;
+          waitway = 6;
           if(active_extruder == 0)
           {
             queue.enqueue_now_P(PSTR("G28 X"));
@@ -1896,7 +1934,7 @@ void RTSSHOW::RTS_HandleData()
           }
           else
           {
-            RTS_line_to_current(E_AXIS);
+            RTS_line_to_current(E_AXIS, manual_feedrate_E);
             RTS_SndData(10 * Filament0LOAD, HEAD0_FILAMENT_LOAD_DATA_VP);
           }
         }
@@ -1920,7 +1958,7 @@ void RTSSHOW::RTS_HandleData()
           }
           else
           {
-            RTS_line_to_current(E_AXIS);
+            RTS_line_to_current(E_AXIS, manual_feedrate_E);
             RTS_SndData(10 * Filament0LOAD, HEAD0_FILAMENT_LOAD_DATA_VP);
           }
         }
@@ -1945,7 +1983,7 @@ void RTSSHOW::RTS_HandleData()
           }
           else
           {
-            RTS_line_to_current(E_AXIS);
+            RTS_line_to_current(E_AXIS, manual_feedrate_E);
             RTS_SndData(10 * Filament1LOAD, HEAD1_FILAMENT_LOAD_DATA_VP);
           }
         }
@@ -1969,7 +2007,7 @@ void RTSSHOW::RTS_HandleData()
           }
           else
           {
-            RTS_line_to_current(E_AXIS);
+            RTS_line_to_current(E_AXIS, manual_feedrate_E);
             RTS_SndData(10 * Filament1LOAD, HEAD1_FILAMENT_LOAD_DATA_VP);
           }
         }
@@ -2181,7 +2219,7 @@ void RTSSHOW::RTS_HandleData()
         }
 
         card.selectFileByIndex(index);
-        strncpy(fileInfo.currentDisplayFilename, card.longest_filename(), 20);
+        strncpy(fileInfo.currentDisplayFilename, card.longest_filename(), FileNameLen);
         for (int j = 0; j < MAXPATHNAMELENGTH; j ++)
         {
           fileInfo.currentFilePath[j] = 0;
@@ -2197,7 +2235,7 @@ void RTSSHOW::RTS_HandleData()
           break;
         }
 
-        for (int j = 0; j < 10; j ++)
+        for (int j = 0; j < FileNameLen; j ++)
         {
           RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
         }
@@ -2213,7 +2251,6 @@ void RTSSHOW::RTS_HandleData()
         hasSelected = true;
 
         RTS_SndData((unsigned long)0x073F, FilenameNature + recdat.data[0] * 16);
-        RTS_SndData(1, FILE1_SELECT_ICON_VP + (recdat.data[0] - 1));
       }
 
       break;
@@ -2290,7 +2327,7 @@ void RTSSHOW::RTS_HandleData()
         delay(20);
         queue.enqueue_now_P(PSTR("M24"));
         // clean screen.
-        for (int j = 0; j < 20; j ++)
+        for (int j = 0; j < FileNameLen; j ++)
         {
           RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
         }
@@ -2362,7 +2399,7 @@ void RTSSHOW::RTS_HandleData()
         RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
         RTS_SndData((hotend_offset[1].x - X2_MAX_POS) * 100, TWO_EXTRUDER_HOTEND_XOFFSET_VP);
         RTS_SndData(hotend_offset[1].y * 100, TWO_EXTRUDER_HOTEND_YOFFSET_VP);
-        RTS_SndData(hotend_offset[1].z * 100, TWO_EXTRUDER_HOTEND_ZOFFSET_VP);
+        //RTS_SndData(hotend_offset[1].z * 100, TWO_EXTRUDER_HOTEND_ZOFFSET_VP);
       }
       else if (recdat.data[0] == 0xF0)
       {
@@ -2423,7 +2460,7 @@ void RTSSHOW::RTS_HandleData()
       }
       else if(change_page_number == 11)
       {
-        RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
+//        RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
         RTS_SndData(change_page_number + ExchangePageBase, ExchangepageAddr);
         if((0 != dualXPrintingModeStatus) && (4 != dualXPrintingModeStatus))
         {
@@ -2440,7 +2477,7 @@ void RTSSHOW::RTS_HandleData()
       }
       else if(change_page_number == 12)
       {
-        RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
+//        RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
         RTS_SndData(change_page_number + ExchangePageBase, ExchangepageAddr);
         if((0 != dualXPrintingModeStatus) && (4 != dualXPrintingModeStatus))
         {
@@ -2457,7 +2494,7 @@ void RTSSHOW::RTS_HandleData()
       }
       else
       {
-        RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
+//        RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
         RTS_SndData(change_page_number + ExchangePageBase, ExchangepageAddr);
         change_page_number = 1;
       }
@@ -2476,9 +2513,9 @@ void RTSSHOW::RTS_HandleData()
 
       for (int i = 0; i < card.get_num_Files(); i ++)
       {
-        for (int j = 0; j < 20; j ++)
+        for (int j = 0; j < FileNameLen; j ++)
         {
-          RTS_SndData(0, FILE1_TEXT_VP + i * 20 + j);
+          RTS_SndData(0, FILE1_TEXT_VP + i * FileNameLen + j);
         }
       }
 
@@ -2487,17 +2524,12 @@ void RTSSHOW::RTS_HandleData()
         RTS_SndData((unsigned long)0xA514, FilenameNature + (i + 4) * 16);
       }
 
-      for (int j = 0; j < 20; j ++)
+      for (int j = 0; j < FileNameLen; j ++)
       {
         // clean screen.
         RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
         // clean filename
         RTS_SndData(0, SELECT_FILE_TEXT_VP + j);
-      }
-      // clean filename Icon
-      for (int j = 0; j < 20; j ++)
-      {
-        RTS_SndData(10, FILE1_SELECT_ICON_VP + j);
       }
 
       RTS_SndData(fileInfo.currentDisplayFilename, PRINT_FILE_TEXT_VP);
@@ -2515,7 +2547,7 @@ void RTSSHOW::RTS_HandleData()
       RTS_SndData(sizeBuf, PRINTER_PRINTSIZE_TEXT_VP);
 
       RTS_SndData(SOFTVERSION, PRINTER_VERSION_TEXT_VP);
-      RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
+//      RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
       RTS_SndData(CORP_WEBSITE, PRINTER_WEBSITE_TEXT_VP);
       //RTS_SndData(Screen_version, Screen_Version_VP);
 
@@ -2589,7 +2621,7 @@ void EachMomentUpdate()
     // print the file before the power is off.
     if((power_off_type_yes == 0) && lcd_sd_status && (recovery.info.recovery_flag == true))
     {
-      rtscheck.RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
+//      rtscheck.RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
       rtscheck.RTS_SndData(ExchangePageBase, ExchangepageAddr);
       if(startprogress < 100)
       {
@@ -2612,7 +2644,7 @@ void EachMomentUpdate()
     }
     else if((power_off_type_yes == 0) && (recovery.info.recovery_flag == false))
     {
-      rtscheck.RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
+//      rtscheck.RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
       rtscheck.RTS_SndData(ExchangePageBase, ExchangepageAddr);
       if(startprogress < 100)
       {
@@ -2870,21 +2902,22 @@ void RTSUpdate()
 
 void RTS_PauseMoveAxisPage()
 {
-  if(waitway == 1)
+  if(waitway == 1) //enable display pause processing
   {
     rtscheck.RTS_SndData(ExchangePageBase + 12, ExchangepageAddr);
-    waitway = 0;
-  }
-  else if(waitway == 5)
-  {
-    rtscheck.RTS_SndData(ExchangePageBase + 39, ExchangepageAddr);
     waitway = 0;
   }
 }
 
 void RTS_AutoBedLevelPage()
 {
-  #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
+  if(waitway == 3) //wait while tramming/alingning
+  {
+    rtscheck.RTS_SndData(ExchangePageBase + 22, ExchangepageAddr);
+    waitway = 0;
+  }
+  if(waitway == 2) //wait while auto-levelling
+  {
     //Mesh visualization
     int8_t x, y, color;
     float z_val, max_bed_delta, min_bed_delta, delta;
@@ -2943,13 +2976,23 @@ void RTS_AutoBedLevelPage()
     }
     rtscheck.RTS_SndData(ExchangePageBase + 81, ExchangepageAddr); //call 'Mesh view' page
     waitway = 0;
-  #endif
+  }
 }
 
 void RTS_MoveAxisHoming()
 {
   if(waitway == 4)
   {
+    if (all_axes_trusted())
+    {
+      //Hide hazard warning
+      rtscheck.RTS_SndData(0, COLLISION_HAZARD_ICON_VP);
+    }
+    else
+    {
+      //Show hazard warning
+      rtscheck.RTS_SndData(1, COLLISION_HAZARD_ICON_VP);
+    }
     if(AxisUnitMode == 4)
     {
       rtscheck.RTS_SndData(ExchangePageBase + 58, ExchangepageAddr);
@@ -2970,11 +3013,7 @@ void RTS_MoveAxisHoming()
   }
   else if(waitway == 6)
   {
-    #if ENABLED(HAS_LEVELING)
-      rtscheck.RTS_SndData(ExchangePageBase + 22, ExchangepageAddr);
-    #else
-      rtscheck.RTS_SndData(ExchangePageBase + 28, ExchangepageAddr);
-    #endif
+    rtscheck.RTS_SndData(ExchangePageBase + 22, ExchangepageAddr);
     waitway = 0;
   }
   else if(waitway == 7)

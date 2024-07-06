@@ -617,7 +617,7 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
 
         TERN_(HAS_RESUME_CONTINUE, wait_for_user_response(0, true)); // Wait for LCD click or M108
 
-      queue.enqueue_one_P(PSTR("M117 Reheating..."));
+        queue.enqueue_one_P(PSTR("M117 Reheating..."));
 
         TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_INFO, GET_TEXT(MSG_REHEATING)));
 

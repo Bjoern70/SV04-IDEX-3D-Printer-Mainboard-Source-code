@@ -112,7 +112,7 @@ void GcodeSuite::M106() {
       if (speed == 0) {rtscheck.RTS_SndData(0, HEAD1_FAN_ICON_VP);}
       else {rtscheck.RTS_SndData(1, HEAD1_FAN_ICON_VP);}
     }
-    RTS_PauseMoveAxisPage();
+    RTS_PauseMoveAxisPage(); //enable display pause processing
   #endif
 }
 
