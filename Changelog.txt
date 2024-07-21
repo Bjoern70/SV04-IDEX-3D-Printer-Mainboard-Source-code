@@ -21,3 +21,9 @@ Fixed toolchange and dualmode override bug at end of file. Adjusted extruder mov
 
 12 JUN 2024:
 Fixed deadlock bug after filament runout and resume. Fixed pause deadlock bug.
+
+06 JUL 2024:
+Fixed user interface deadlock bug. Fixed unpredictable movement behaviour in move menu & added warning in case of moving axes uncalibrated axes. Longer filenames supported.
+
+21 JUL 2024:
+Fixed toolhead selection issue: selecting single mode will activate corresponding toolhead. Cleaned up filename + directory colors. Added basic M423 "X Twist Compensation" implementation: process is currently not supported via touchdisplay.

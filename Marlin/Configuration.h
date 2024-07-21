@@ -71,11 +71,11 @@
 // Author info of this build printed to the host during boot and M115
 #define STRING_CONFIG_H_AUTHOR "Bjoern70" // Who made the changes.
 #define CUSTOM_VERSION_FILE Version.h // Path from the root directory (no quotes)
-#define MACHINE_NAME "Sovol SV04"
+#define MACHINE_NAME    "Sovol SV04"
 #define MACVERSION      STRING_CONFIG_H_AUTHOR
 #define SOFTVERSION     SHORT_BUILD_VERSION
 #define CORP_WEBSITE    "forum.sovol3d.com"
-#define DISPLAY_VERSION  "v1.14"
+#define DISPLAY_VERSION "v1.14.3"
 
 /**
  * *** VENDORS PLEASE READ ***

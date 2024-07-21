@@ -133,7 +133,7 @@ void GcodeSuite::M290() {
     #endif
   }
   #if ENABLED(RTS_AVAILABLE)
-    RTS_PauseMoveAxisPage();
+    RTS_PauseMoveAxisPage(); //enable display pause processing
   #endif
 }
 

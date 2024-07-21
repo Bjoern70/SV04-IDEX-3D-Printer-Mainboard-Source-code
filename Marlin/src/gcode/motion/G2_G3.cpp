@@ -439,7 +439,7 @@ void GcodeSuite::G2_G3(const bool clockwise) {
 
     TERN_(FULL_REPORT_TO_HOST_FEATURE, set_and_report_grblstate(M_IDLE));
     #if ENABLED(RTS_AVAILABLE)
-      RTS_PauseMoveAxisPage();
+      RTS_PauseMoveAxisPage(); //enable display pause processing
     #endif
   }
 }

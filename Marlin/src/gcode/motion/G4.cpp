@@ -45,6 +45,6 @@ void GcodeSuite::G4() {
 
   dwell(dwell_ms);
   #if ENABLED(RTS_AVAILABLE)
-    if (parser.seenval('S')) RTS_PauseMoveAxisPage();
+    if (parser.seenval('S')) RTS_PauseMoveAxisPage(); //enable display pause processing
   #endif
 }

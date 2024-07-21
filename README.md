@@ -17,16 +17,16 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
  - merged "standard" and "SIZZLING" software version
  - changed nozzle temperature limits to maximum 300°C - be sure to have a matching heat blocks & use at your own risk!
  - temperatures above OEM maximum of 260°C will be highlighted red
- - fixed deadlock bug after filament runout and resume.
- - fixed pause deadlock bug.
+ - fixed deadlock bug after filament runout and resume
+ - fixed pause + user interface deadlock bugs
+ - fixed unpredictable movement behaviour in move menu & added warning in case of moving axes uncalibrated axes
+ - longer filenames supported
+ - added basic M423 "X Twist Compensation" implementation: compensation process is currently not supported via display
+ - fixed toolhead selection issue: selecting single mode will activate corresponding toolhead
+ - cleaned up filename + directory colors.
 
-This SV04 Marlin firmware requires matching touchscreen software that is available here: 
-https://github.com/Bjoern70/SV04-Touchscreen/releases/tag/v1.14
-
-Leveling map screen:
-
-![BedLeveling](https://user-images.githubusercontent.com/72707632/219985619-2219b7f9-08b4-4207-ab1e-c8c373784af7.JPG)
-
+This SV04 Marlin firmware requires matching touchscreen software v1.14.3 that is available here:
+https://github.com/Bjoern70/SV04-Touchscreen/releases/tag/v1.14.3
 
 # About the SV04 IDEX 3D Printer
 
@@ -39,6 +39,7 @@ There are  4 print modes，single-mode，dual-mode, duplicate mode, and mirror m
 
 # Related tutorials 
 
+- Firmware wiki.  [Click here]https://github.com/Bjoern70/SV04-IDEX-3D-Printer-Mainboard-Source-code/wiki
 - User Manual.  [Click here](https://drive.google.com/file/d/1QpIDenqIKmsA2blAhKkOxhp2SKL8hwoI/view).
 - Firmware Download. [Click here](https://sovol3d.com/pages/download).
 - SD Card Content, including tutorials and stl files. [Click here](https://drive.google.com/drive/folders/1LNCtBA045Xo5z7Gd4n1M2aDEVry_wHCH?fbclid=IwAR3y-_OYa_VTG4Bz68GR5JdGMLE_ROVfIQRevPL4WpTEDLQ1nXzUEtDMaqs)

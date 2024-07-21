@@ -37,21 +37,16 @@
 void GcodeSuite::M117() {
 
   #if ENABLED(RTS_AVAILABLE)
+    for(int j = 0;j < FileNameLen;j ++)
+    {
+      // clean print file
+      rtscheck.RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
+    }
     if (parser.string_arg && parser.string_arg[0]) {
-      for(int j = 0;j < 20;j ++)
-      {
-        // clean print file
-        rtscheck.RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
-      }
+
       rtscheck.RTS_SndData(parser.string_arg, PRINT_FILE_TEXT_VP);
     }
-    else
-      for(int j = 0;j < 20;j ++)
-      {
-        // clean print file
-        rtscheck.RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
-      }
-    RTS_PauseMoveAxisPage();
+    RTS_PauseMoveAxisPage(); //enable display pause processing
   #else
     if (parser.string_arg && parser.string_arg[0])
       ui.set_status(parser.string_arg);

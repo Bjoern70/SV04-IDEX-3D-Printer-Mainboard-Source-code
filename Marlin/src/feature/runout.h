@@ -135,7 +135,14 @@ class TFilamentMonitor : public FilamentMonitorBase {
           #else
             //SERIAL_ECHOLNPGM("Active extruder: ", active_extruder);
             //SERIAL_ECHOLNPGM("dualXPrintingModeStatus: ", dualXPrintingModeStatus);
-            const bool ran_out = TEST(runout_flags, active_extruder);  // suppress non active extruders
+            uint8_t test_extruder = active_extruder;
+            if (dualXPrintingModeStatus == 4)
+            {
+              //SERIAL_ECHOLNPGM("setting test extruder to 1");
+              test_extruder = 1;
+            }
+            
+            const bool ran_out = TEST(runout_flags, test_extruder);  // suppress non active extruders
             //SERIAL_ECHOLNPGM("test runout on extruder ", test_extruder);
             //SERIAL_ECHOLNPGM("ran_out: ", ran_out);
 
