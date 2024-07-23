@@ -27,3 +27,6 @@ Fixed user interface deadlock bug. Fixed unpredictable movement behaviour in mov
 
 21 JUL 2024:
 Fixed toolhead selection issue: selecting single mode will activate corresponding toolhead. Cleaned up filename + directory colors. Added basic M423 "X Twist Compensation" implementation: process is currently not supported via touchdisplay.
+
+23 JUL 2024:
+Fixed M423 "X Twist Compensation" basic implementation. Process is supported via host terminal.

@@ -78,6 +78,14 @@ void serial_error_start() { static PGMSTR(errormagic, "Error:"); serialprintPGM(
 
 void serial_spaces(uint8_t count) { count *= (PROPORTIONAL_FONT_RATIO); while (count--) SERIAL_CHAR(' '); }
 
+void serial_offset(const_float_t v, const uint8_t sp/*=0*/) {
+  if (v == 0 && sp == 1)
+    SERIAL_CHAR(' ');
+  else if (v > 0 || (v == 0 && sp == 2))
+    SERIAL_CHAR('+');
+  SERIAL_ECHO(v);
+}
+
 void serial_ternary(const bool onoff, PGM_P const pre, PGM_P const on, PGM_P const off, PGM_P const post/*=nullptr*/) {
   if (pre) serialprintPGM(pre);
   serialprintPGM(onoff ? on : off);

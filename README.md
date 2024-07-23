@@ -23,7 +23,8 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
  - longer filenames supported
  - added basic M423 "X Twist Compensation" implementation: compensation process is currently not supported via display
  - fixed toolhead selection issue: selecting single mode will activate corresponding toolhead
- - cleaned up filename + directory colors.
+ - cleaned up filename + directory colors
+ - fixed M423 implementation: process is supported via host terminal.
 
 This SV04 Marlin firmware requires matching touchscreen software v1.14.3 that is available here:
 https://github.com/Bjoern70/SV04-Touchscreen/releases/tag/v1.14.3
