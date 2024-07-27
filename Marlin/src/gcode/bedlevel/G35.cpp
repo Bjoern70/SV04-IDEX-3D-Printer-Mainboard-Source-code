@@ -164,7 +164,6 @@ void GcodeSuite::G35() {
         rtscheck.RTS_SndData(str, addr);
       #endif
     }
-
     rtscheck.RTS_SndData(ExchangePageBase + 57, ExchangepageAddr);
   }
   else

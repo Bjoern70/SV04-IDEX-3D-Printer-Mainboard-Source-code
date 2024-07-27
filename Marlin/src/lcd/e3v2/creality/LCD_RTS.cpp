@@ -862,18 +862,16 @@ void RTSSHOW::RTS_HandleData()
 {
   int Checkkey = -1;
   // for waiting
-  /* list of waitway states:
+/*waitway states:
   0: no waiting
   1: wait while pause                          => back to #11
-  2: wait while auto-levelling                 => back to #81
-  3: wait while tramming/aligning              => back to #22
-  4: wait while homing or moving axis          => back to #29,#30,#31 or #58
+  2: unused
+  3: wait while auto lev./aligning             => back to #22
+  4: wait while homing or moving axes          => back to #29,#30,#31 or #58
   5: unused
-  6: wait while levelling menu                 => back to #22
+  6: wait while leveling menu                  => back to #22
   7: wait while stopping or finishing SD card  => back to #1
-
-
-  */
+*/
   if(waitway > 0)
   {
     memset(&recdat, 0, sizeof(recdat));
@@ -1385,7 +1383,7 @@ void RTSSHOW::RTS_HandleData()
 
     case SettingScreenKey: //'Settings' screen #21
       SERIAL_ECHOLNPGM("Settings Button ID: ", recdat.data[0]);
-      if(recdat.data[0] == 1) //'Levelling' button
+      if(recdat.data[0] == 1) //'Leveling' button
       {
         // Motor Icon
         RTS_SndData(0, MOTOR_FREE_ICON_VP);
@@ -1592,7 +1590,7 @@ void RTSSHOW::RTS_HandleData()
       }
       break;
 
-    case BedLevelFunKey: //'Levelling mode' screen #22
+    case BedLevelFunKey: //'Leveling mode' screen #22
       if (recdat.data[0] == 1) //Home button
       {
         waitway = 6;
@@ -1640,9 +1638,9 @@ void RTSSHOW::RTS_HandleData()
         }
         RTS_SndData(probe.offset.z * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
       }
-      else if (recdat.data[0] == 4) //'AUX levelling' button
+      else if (recdat.data[0] == 4) //'AUX leveling' button
       {
-        RTS_SndData(ExchangePageBase + 28, ExchangepageAddr); //call 'AUX levelling' screen
+        RTS_SndData(ExchangePageBase + 28, ExchangepageAddr); //call 'AUX leveling' screen
         if(active_extruder == 0)
         {
           RTS_SndData(0, EXCHANGE_NOZZLE_ICON_VP);
@@ -1653,19 +1651,19 @@ void RTSSHOW::RTS_HandleData()
         }
         queue.enqueue_now_P(PSTR("M420 S0"));
       }
-      else if (recdat.data[0] == 5) //'Auto levelling' button, screen #22
+      else if (recdat.data[0] == 5) //'Auto leveling' button, screen #22
       {
         #if ENABLED(BLTOUCH)
-          waitway = 2;
-          RTS_SndData(0, AUTO_BED_LEVEL_ICON_VP); //prepare 'Auto levelling, wait...' screen
-          RTS_SndData(ExchangePageBase + 38, ExchangepageAddr); //call 'Auto levelling, wait...' screen
+          waitway = 3;
+          RTS_SndData(0, AUTO_BED_LEVEL_ICON_VP); //prepare 'Auto leveling, wait...' screen
+          RTS_SndData(ExchangePageBase + 38, ExchangepageAddr); //call 'Auto leveling, wait...' screen
           if (!all_axes_trusted()) {
             queue.enqueue_now_P(PSTR("G28"));
           }
           queue.enqueue_now_P(PSTR("G29"));
         #endif
       }
-      if (recdat.data[0] == 6) //'1' button, AUX levelling, screen #28
+      if (recdat.data[0] == 6) //'1' button, AUX leveling, screen #28
       {
         // Assitant Level ,  Centre 1
         if(!planner.has_blocks_queued())
@@ -1677,7 +1675,7 @@ void RTSSHOW::RTS_HandleData()
           waitway = 0;
         }
       }
-      else if (recdat.data[0] == 7) //'2' button, AUX levelling, screen #28
+      else if (recdat.data[0] == 7) //'2' button, AUX leveling, screen #28
       {
         // Assitant Level , Front Left 2
         if(!planner.has_blocks_queued())
@@ -1689,7 +1687,7 @@ void RTSSHOW::RTS_HandleData()
           waitway = 0;
         }
       }
-      else if (recdat.data[0] == 8) //'3' button, AUX levelling, screen #28
+      else if (recdat.data[0] == 8) //'3' button, AUX leveling, screen #28
       {
         // Assitant Level , Front Right 3
         if(!planner.has_blocks_queued())
@@ -1701,7 +1699,7 @@ void RTSSHOW::RTS_HandleData()
           waitway = 0;
         }
       }
-      else if (recdat.data[0] == 9) //'4' button, AUX levelling, screen #28
+      else if (recdat.data[0] == 9) //'4' button, AUX leveling, screen #28
       {
         // Assitant Level , Back Right 4
         if(!planner.has_blocks_queued())
@@ -1713,7 +1711,7 @@ void RTSSHOW::RTS_HandleData()
           waitway = 0;
         }
       }
-      else if (recdat.data[0] == 10) //'5' button, AUX levelling, screen #28
+      else if (recdat.data[0] == 10) //'5' button, AUX leveling, screen #28
       {
         // Assitant Level , Back Left 5
         if(!planner.has_blocks_queued())
@@ -1729,29 +1727,32 @@ void RTSSHOW::RTS_HandleData()
       {
         waitway = 3;
         RTS_SndData(ExchangePageBase + 40, ExchangepageAddr); //call 'Processing, wait...' screen
-        queue.enqueue_now_P(PSTR("G28 X"));
-        queue.enqueue_now_P(PSTR("G34"));
+        //queue.enqueue_now_P(PSTR("G28 X"));
+        active_extruder_flag = false;
+        active_extruder = 0;
+        active_extruder_font = active_extruder;
+        RTS_SndData(0, EXCHANGE_NOZZLE_ICON_VP);        queue.enqueue_now_P(PSTR("G34"));
         Update_Time_Value = 0;
         waitway = 0;
       }
       else if (recdat.data[0] == 12) //'Tramming' key or 'Run Again' key
       {
-        waitway = 3;
+        //waitway = 3;
         RTS_SndData(ExchangePageBase + 40, ExchangepageAddr); //call 'Processing, wait...' screen
-        queue.enqueue_now_P(PSTR("G28 X"));
-        queue.enqueue_now_P(PSTR("T0"));
+        //queue.enqueue_now_P(PSTR("G28 X"));
+        //queue.enqueue_now_P(PSTR("T0"));
         active_extruder_flag = false;
         active_extruder = 0;
         active_extruder_font = active_extruder;
         RTS_SndData(0, EXCHANGE_NOZZLE_ICON_VP);
         RTS_SndData(10 * current_position[X_AXIS], AXIS_X_COORD_VP);
         queue.enqueue_now_P(PSTR("G35"));
-        waitway = 0;
+        //waitway = 0;
       }
       else if (recdat.data[0] == 13) //'Mesh viewer' button
       {
-        waitway = 2;
-        RTS_AutoBedLevelPage();
+        RTS_ViewMesh();
+        waitway = 0;
       }
       break;
 
@@ -1902,9 +1903,9 @@ void RTSSHOW::RTS_HandleData()
       }
       else if (recdat.data[0] == 2)
       {
-        if(!planner.has_blocks_queued())  //from Aux levelling, screen #28
+        if(!planner.has_blocks_queued())  //from Aux leveling, screen #28
         {
-          waitway = 6;
+          waitway = 4;
           if(active_extruder == 0)
           {
             queue.enqueue_now_P(PSTR("G28 X"));
@@ -1936,7 +1937,7 @@ void RTSSHOW::RTS_HandleData()
       {
         if(!planner.has_blocks_queued())
         {
-          if(0 == READ(FIL_RUNOUT_PIN))
+          if(READ(FIL_RUNOUT_PIN) == 0)
           {
             RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
           }
@@ -1960,7 +1961,7 @@ void RTSSHOW::RTS_HandleData()
       {
         if(!planner.has_blocks_queued())
         {
-          if(0 == READ(FIL_RUNOUT_PIN))
+          if(READ(FIL_RUNOUT_PIN) == 0)
           {
             RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
           }
@@ -1984,7 +1985,7 @@ void RTSSHOW::RTS_HandleData()
       {
         if(!planner.has_blocks_queued())
         {
-          if(0 == READ(FIL_RUNOUT2_PIN))
+          if(READ(FIL_RUNOUT2_PIN) == 0)
           {
             RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
           }
@@ -2009,7 +2010,7 @@ void RTSSHOW::RTS_HandleData()
       {
         if(!planner.has_blocks_queued())
         {
-          if(0 == READ(FIL_RUNOUT2_PIN))
+          if(READ(FIL_RUNOUT2_PIN) == 0)
           {
             RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
           }
@@ -2108,7 +2109,7 @@ void RTSSHOW::RTS_HandleData()
     case FilamentCheckKey:
       if (recdat.data[0] == 1)
       {
-        if(((0 == READ(FIL_RUNOUT_PIN)) && (active_extruder == 0)) || ((0 == READ(FIL_RUNOUT2_PIN)) && (active_extruder == 1)))
+        if(((READ(FIL_RUNOUT_PIN) == 0) && (active_extruder == 0)) || ((READ(FIL_RUNOUT2_PIN) == 0) && (active_extruder == 1)))
         {
           RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
         }
@@ -2274,11 +2275,11 @@ void RTSSHOW::RTS_HandleData()
     case PrintFileKey:
     if (recdat.data[0] == 1)
       {
-        if((0 != dualXPrintingModeStatus) && (4 != dualXPrintingModeStatus))
+        if((dualXPrintingModeStatus != 0) && (dualXPrintingModeStatus != 4))
         {
           RTS_SndData(dualXPrintingModeStatus, SELECT_MODE_ICON_VP);
         }
-        else if(4 == dualXPrintingModeStatus)
+        else if(dualXPrintingModeStatus == 4)
         {
           RTS_SndData(5, SELECT_MODE_ICON_VP);
         }
@@ -2379,57 +2380,55 @@ void RTSSHOW::RTS_HandleData()
       if(recdat.data[0] == 0xF1)
       {
         settings.init_eeprom();
-        #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-          bool zig = false;
-          int8_t inStart, inStop, inInc, showcount;
-          showcount = 0;
-          for (int y = 0; y < GRID_MAX_POINTS_Y; y++)
+        bool zig = false;
+        int8_t inStart, inStop, inInc, showcount;
+        showcount = 0;
+        for (int y = 0; y < GRID_MAX_POINTS_Y; y++)
+        {
+          // away from origin
+          if (zig)
           {
-            // away from origin
-            if (zig)
-            {
-              inStart = 0;
-              inStop = GRID_MAX_POINTS_X;
-              inInc = 1;
-            }
-            else
-            {
-              // towards origin
-              inStart = GRID_MAX_POINTS_X - 1;
-              inStop = -1;
-              inInc = -1;
-            }
-            zig ^= true;
-            for (int x = inStart; x != inStop; x += inInc)
-            {
-              RTS_SndData(z_values[x][y] * 1000, AUTO_BED_LEVEL_1POINT_VP + showcount * 2);
-              showcount++;
-            }
+            inStart = 0;
+            inStop = GRID_MAX_POINTS_X;
+            inInc = 1;
           }
-          queue.enqueue_now_P(PSTR("M420 S1"));
-        #endif
-        zprobe_zoffset = 0;
-        last_zoffset = 0;
-        RTS_SndData(probe.offset.z * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
-        RTS_SndData(0, MOTOR_FREE_ICON_VP); //motors enabled
-        RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
-        RTS_SndData((hotend_offset[1].x - X2_MAX_POS) * 100, TWO_EXTRUDER_HOTEND_XOFFSET_VP);
-        RTS_SndData(hotend_offset[1].y * 100, TWO_EXTRUDER_HOTEND_YOFFSET_VP);
-        //RTS_SndData(hotend_offset[1].z * 100, TWO_EXTRUDER_HOTEND_ZOFFSET_VP);
-      }
-      else if (recdat.data[0] == 0xF0)
-      {
-        memset(commandbuf, 0, sizeof(commandbuf));
-        sprintf_P(commandbuf, PSTR("M218 T1 X%4.1f"), hotend_offset[1].x);
-        queue.enqueue_now_P(commandbuf);
-        sprintf_P(commandbuf, PSTR("M218 T1 Y%4.1f"), hotend_offset[1].y);
-        queue.enqueue_now_P(commandbuf);
-        sprintf_P(commandbuf, PSTR("M218 T1 Z%4.1f"), hotend_offset[1].z);
-        queue.enqueue_now_P(commandbuf);
-        //settings.save();
-        RTS_SndData(ExchangePageBase + 35, ExchangepageAddr);
-      }
-      break;
+          else
+          {
+            // towards origin
+            inStart = GRID_MAX_POINTS_X - 1;
+            inStop = -1;
+            inInc = -1;
+          }
+          zig ^= true;
+          for (int x = inStart; x != inStop; x += inInc)
+          {
+            RTS_SndData(z_values[x][y] * 1000, AUTO_BED_LEVEL_1POINT_VP + showcount * 2);
+            showcount++;
+          }
+        }
+      queue.enqueue_now_P(PSTR("M420 S1"));
+      zprobe_zoffset = 0;
+      last_zoffset = 0;
+      RTS_SndData(probe.offset.z * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
+      RTS_SndData(0, MOTOR_FREE_ICON_VP); //motors enabled
+      RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
+      RTS_SndData((hotend_offset[1].x - X2_MAX_POS) * 100, TWO_EXTRUDER_HOTEND_XOFFSET_VP);
+      RTS_SndData(hotend_offset[1].y * 100, TWO_EXTRUDER_HOTEND_YOFFSET_VP);
+      //RTS_SndData(hotend_offset[1].z * 100, TWO_EXTRUDER_HOTEND_ZOFFSET_VP);
+    }
+    else if (recdat.data[0] == 0xF0)
+    {
+      memset(commandbuf, 0, sizeof(commandbuf));
+      sprintf_P(commandbuf, PSTR("M218 T1 X%4.1f"), hotend_offset[1].x);
+      queue.enqueue_now_P(commandbuf);
+      sprintf_P(commandbuf, PSTR("M218 T1 Y%4.1f"), hotend_offset[1].y);
+      queue.enqueue_now_P(commandbuf);
+      sprintf_P(commandbuf, PSTR("M218 T1 Z%4.1f"), hotend_offset[1].z);
+      queue.enqueue_now_P(commandbuf);
+      //settings.save();
+      RTS_SndData(ExchangePageBase + 35, ExchangepageAddr);
+    }
+    break;
 
     case XhotendOffsetKey:
       if (recdat.data[0] >= 32768)
@@ -2474,14 +2473,14 @@ void RTSSHOW::RTS_HandleData()
       {
         break;
       }
-      else if(change_page_number == 11)
+      else if (change_page_number == 11)
       {
         RTS_SndData(change_page_number + ExchangePageBase, ExchangepageAddr);
-        if((0 != dualXPrintingModeStatus) && (4 != dualXPrintingModeStatus))
+        if ((dualXPrintingModeStatus != 0) && (dualXPrintingModeStatus != 4))
         {
           RTS_SndData(dualXPrintingModeStatus, PRINT_MODE_ICON_VP);
         }
-        else if(4 == dualXPrintingModeStatus)
+        else if (dualXPrintingModeStatus == 4)
         {
           RTS_SndData(5, PRINT_MODE_ICON_VP);
         }
@@ -2490,14 +2489,14 @@ void RTSSHOW::RTS_HandleData()
           RTS_SndData(4, PRINT_MODE_ICON_VP);
         }
       }
-      else if(change_page_number == 12)
+      else if (change_page_number == 12)
       {
         RTS_SndData(change_page_number + ExchangePageBase, ExchangepageAddr);
-        if((0 != dualXPrintingModeStatus) && (4 != dualXPrintingModeStatus))
+        if ((dualXPrintingModeStatus != 0) && (dualXPrintingModeStatus != 4))
         {
           RTS_SndData(dualXPrintingModeStatus, PRINT_MODE_ICON_VP);
         }
-        else if(4 == dualXPrintingModeStatus)
+        else if (dualXPrintingModeStatus == 4)
         {
           RTS_SndData(5, PRINT_MODE_ICON_VP);
         }
@@ -2511,11 +2510,11 @@ void RTSSHOW::RTS_HandleData()
         RTS_SndData(change_page_number + ExchangePageBase, ExchangepageAddr);
         change_page_number = 1;
       }
-      if((0 != dualXPrintingModeStatus) && (4 != dualXPrintingModeStatus))
+      if ((dualXPrintingModeStatus != 0) && (dualXPrintingModeStatus != 4))
       {
         RTS_SndData(dualXPrintingModeStatus, SELECT_MODE_ICON_VP);
       }
-      else if(4 == dualXPrintingModeStatus)
+      else if (dualXPrintingModeStatus == 4)
       {
         RTS_SndData(5, SELECT_MODE_ICON_VP);
       }
@@ -2613,6 +2612,77 @@ void RTSSHOW::RTS_HandleData()
   recdat.head[1] = FHTWO;
 }
 
+void RTSSHOW::RTS_AutoBedLevelPage()
+{
+  if(waitway == 3)
+  {
+    rtscheck.RTS_SndData(ExchangePageBase + 22, ExchangepageAddr);
+    waitway = 0;
+  }
+}
+
+void RTSSHOW::RTS_ViewMesh()
+{
+    //Mesh visualization
+    int8_t x, y, color;
+    float z_val, max_bed_delta, min_bed_delta, delta;
+    int8_t inStart, inStop, inInc, showcount;
+    // Probe in reverse order for every other row/column
+    bool zig = GRID_MAX_POINTS_Y & 1;// Always end at RIGHT and BACK_PROBE_BED_POSITION
+    //find max + min bed delta
+    max_bed_delta = 0.0;
+    min_bed_delta = 0.0;
+    showcount = 0;
+    for (y = 0; y < GRID_MAX_POINTS_Y; y++)
+    {
+      for (x = 0; x < GRID_MAX_POINTS_X; x++)
+      {
+        z_val = z_values[x][y];
+        if (z_val > max_bed_delta)
+        {
+          max_bed_delta = z_val;
+        }
+        if (z_val < min_bed_delta)
+        {
+          min_bed_delta = z_val;
+        }
+      }
+    }
+    //calculate 25 color shadings for positive & negative deviation
+    delta = max (max_bed_delta,(-1 * min_bed_delta)) / 25;
+    //prepare mesh viewer page
+    for (y = 0; y < GRID_MAX_POINTS_Y; y++)
+    {
+      // zag towards origin
+      if (zig)
+      {
+        inStart = 0;
+        inStop = GRID_MAX_POINTS_X;
+        inInc = 1;
+      }
+      else
+      {
+        // zag towards origin
+        inStart = GRID_MAX_POINTS_X - 1;
+        inStop = -1;
+        inInc = -1;
+      }
+      zig ^= true;
+      for (x = inStart; x != inStop; x += inInc)
+      {
+        color = LROUND(z_values[x][y]/delta);
+        if (color < 0)
+        {
+          color = 25 - color;
+        }
+        RTS_SndData(color , MESH_VISUAL_ICON_VP + showcount * 2);
+        RTS_SndData(z_values[x][y] * 1000, AUTO_BED_LEVEL_1POINT_VP + showcount * 2);
+        showcount++;
+      }
+    }
+    RTS_SndData(ExchangePageBase + 81, ExchangepageAddr); //call 'Mesh view' page
+}
+
 int EndsWith(const char *str, const char *suffix)
 {
     if (!str || !suffix)
@@ -2692,14 +2762,14 @@ void EachMomentUpdate()
             static millis_t next_remain_time_update = 0;
             if(ELAPSED(ms, next_remain_time_update))
             {
-              if((0 == save_dual_x_carriage_mode) && (thermalManager.temp_hotend[0].celsius >= (thermalManager.temp_hotend[0].target - 5)))
+              if((save_dual_x_carriage_mode == 0) && (thermalManager.temp_hotend[0].celsius >= (thermalManager.temp_hotend[0].target - 5)))
               {
                 remain_time = elapsed.value / (Percentrecord * 0.01f) - elapsed.value;
                 next_remain_time_update += 20 * 1000UL;
                 rtscheck.RTS_SndData(remain_time / 3600, PRINT_SURPLUS_TIME_HOUR_VP);
                 rtscheck.RTS_SndData((remain_time % 3600) / 60, PRINT_SURPLUS_TIME_MIN_VP);
               }
-              else if((0 != save_dual_x_carriage_mode) && (thermalManager.temp_hotend[0].celsius >= (thermalManager.temp_hotend[0].target - 5)) && (thermalManager.temp_hotend[1].celsius >= (thermalManager.temp_hotend[1].target - 5)))
+              else if((save_dual_x_carriage_mode != 0) && (thermalManager.temp_hotend[0].celsius >= (thermalManager.temp_hotend[0].target - 5)) && (thermalManager.temp_hotend[1].celsius >= (thermalManager.temp_hotend[1].target - 5)))
               {
                 remain_time = elapsed.value / (Percentrecord * 0.01f) - elapsed.value;
                 next_remain_time_update += 20 * 1000UL;
@@ -2723,7 +2793,7 @@ void EachMomentUpdate()
       if(pause_action_flag && (false == sdcard_pause_check) && printingIsPaused() && !planner.has_blocks_queued())
       {
         pause_action_flag = false;
-        if((1 == active_extruder) && (1 == save_dual_x_carriage_mode))
+        if((active_extruder == 1) && (save_dual_x_carriage_mode == 1))
         {
           queue.enqueue_now_P(PSTR("G0 F3000 X362"));
         }
@@ -2910,86 +2980,42 @@ void RTSUpdate()
 
 void RTS_PauseMoveAxisPage()
 {
-  if(waitway == 1) //enable display pause processing
+  if (waitway == 1) //enable display pause processing
   {
     rtscheck.RTS_SndData(ExchangePageBase + 12, ExchangepageAddr);
     waitway = 0;
   }
-}
-
-void RTS_AutoBedLevelPage()
-{
-  if(waitway == 3) //wait while tramming/alingning
+/*
+  else if(waitway == 5) //process change filament
   {
-    waitway = 0;
-    rtscheck.RTS_SndData(ExchangePageBase + 22, ExchangepageAddr);
-  }
-  if(waitway == 2) //wait while auto-levelling
-  {
-    //Mesh visualization
-    int8_t x, y, color;
-    float z_val, max_bed_delta, min_bed_delta, delta;
-    int8_t inStart, inStop, inInc, showcount;
-    // Probe in reverse order for every other row/column
-    bool zig = GRID_MAX_POINTS_Y & 1;// Always end at RIGHT and BACK_PROBE_BED_POSITION
-    //find max + min bed delta
-    max_bed_delta = 0.0;
-    min_bed_delta = 0.0;
-    showcount = 0;
-    for (y = 0; y < GRID_MAX_POINTS_Y; y++)
-    {
-      for (x = 0; x < GRID_MAX_POINTS_X; x++)
-      {
-        z_val = z_values[x][y];
-        if (z_val > max_bed_delta)
-        {
-          max_bed_delta = z_val;
-        }
-        if (z_val < min_bed_delta)
-        {
-          min_bed_delta = z_val;
-        }
-      }
-    }
-    //calculate 25 color shadings for positive & negative deviation
-    delta = max (max_bed_delta,(-1 * min_bed_delta)) / 25;
-    //prepare mesh viewer page
-    for (y = 0; y < GRID_MAX_POINTS_Y; y++)
-    {
-      // zig away from origin
-      if (zig)
-      {
-        inStart = 0;
-        inStop = GRID_MAX_POINTS_X;
-        inInc = 1;
-      }
-      else
-      {
-        // zag towards origin
-        inStart = GRID_MAX_POINTS_X - 1;
-        inStop = -1;
-        inInc = -1;
-      }
-      zig ^= true;
-      for (x = inStart; x != inStop; x += inInc)
-      {
-        color = LROUND(z_values[x][y]/delta);
-        if (color < 0)
-        {
-          color = 25 - color;
-        }
-        rtscheck.RTS_SndData(color , MESH_VISUAL_ICON_VP + showcount * 2);
-        showcount++;
-      }
-    }
-    rtscheck.RTS_SndData(ExchangePageBase + 81, ExchangepageAddr); //call 'Mesh view' page
+    rtscheck.RTS_SndData(ExchangePageBase + 39, ExchangepageAddr);
     waitway = 0;
   }
+*/
 }
 
 void RTS_MoveAxisHoming()
 {
-  if(waitway == 4)
+/*
+  if (waitway == 2) //tramming
+  {
+    rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
+    wait_idle(250);
+
+    rtscheck.RTS_SndData(ExchangePageBase + 57, ExchangepageAddr);
+    waitway = 0;
+  }
+  if (waitway == 3) //leveling
+  {
+    rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
+    wait_idle(250);
+    rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
+
+    rtscheck.RTS_SndData(ExchangePageBase + 22, ExchangepageAddr);
+    waitway = 0;
+  }
+*/
+  if (waitway == 4) //moving
   {
     if (all_axes_trusted())
     {
@@ -3019,16 +3045,17 @@ void RTS_MoveAxisHoming()
     }
     waitway = 0;
   }
-  else if(waitway == 6)
+  if (waitway == 6)
   {
-    waitway = 0;
+    //leveling
     rtscheck.RTS_SndData(ExchangePageBase + 22, ExchangepageAddr);
+    waitway = 0;
   }
-  else if(waitway == 7)
+  if (waitway == 7)
   {
     // Click Print finish
-    waitway = 0;
     rtscheck.RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
+    waitway = 0;
   }
   if(active_extruder == 0)
   {
@@ -3038,7 +3065,6 @@ void RTS_MoveAxisHoming()
   {
     rtscheck.RTS_SndData(1, EXCHANGE_NOZZLE_ICON_VP);
   }
-
   rtscheck.RTS_SndData(10*current_position[X_AXIS], AXIS_X_COORD_VP);
   rtscheck.RTS_SndData(10*current_position[Y_AXIS], AXIS_Y_COORD_VP);
   rtscheck.RTS_SndData(10*current_position[Z_AXIS], AXIS_Z_COORD_VP);

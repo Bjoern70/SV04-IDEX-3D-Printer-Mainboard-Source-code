@@ -900,7 +900,7 @@ G29_TYPE GcodeSuite::G29() {
   //TERN_(HAS_DWIN_E3V2_BASIC, DWIN_CompletedLeveling());
 
   #if ENABLED(RTS_AVAILABLE)
-    RTS_AutoBedLevelPage();
+    rtscheck.RTS_AutoBedLevelPage();
   #endif
   report_current_position();
 

@@ -182,6 +182,8 @@ class RTSSHOW
     void ShowFilesOnCardPage(int);
     void RTS_ProcessPause();
     void RTS_ProcessResume();
+    void RTS_AutoBedLevelPage();
+    void RTS_ViewMesh();
     FileInfo fileInfo;
     DB recdat;
     DB snddat;
@@ -327,7 +329,6 @@ extern float current_position_x0_axis;
 extern float current_position_x1_axis;
 
 void RTS_PauseMoveAxisPage();
-void RTS_AutoBedLevelPage();
 void RTS_MoveAxisHoming();
 extern void RTS_Buzz(const uint16_t, const uint16_t);
 void wait_idle(millis_t);

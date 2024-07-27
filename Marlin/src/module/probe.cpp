@@ -784,7 +784,7 @@ float Probe::probe_at_point(const_float_t rx, const_float_t ry, const ProbePtRai
 
   float measured_z = NAN;
   if (!deploy()) {
-    TERN_(HAS_PTC, ptc.apply_compensation(measured_z));
+    measured_z = run_z_probe(sanity_check) + offset.z;
     TERN_(X_AXIS_TWIST_COMPENSATION, measured_z += xatc.compensation(npos + offset_xy));
   }
   if (!isnan(measured_z)) {
@@ -806,6 +806,7 @@ float Probe::probe_at_point(const_float_t rx, const_float_t ry, const ProbePtRai
     #endif
   }
 
+  DEBUG_ECHOLNPGM("measured_z: ", measured_z);
   return measured_z;
 }
 

@@ -30,3 +30,6 @@ Fixed toolhead selection issue: selecting single mode will activate correspondin
 
 23 JUL 2024:
 Fixed M423 "X Twist Compensation" basic implementation. Process is supported via host terminal.
+
+27 JUL 2024:
+Fixed probe bug that came with x twist compensation.
