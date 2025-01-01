@@ -145,6 +145,7 @@ static bool ensure_safe_temperature(const bool wait=true, const PauseMode mode=P
   rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
   rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
 
+
   if (wait) return thermalManager.wait_for_hotend(active_extruder);
 
   // Allow interruption by Emergency Parser M108
@@ -193,18 +194,19 @@ bool load_filament(const_float_t slow_load_length/*=0*/, const_float_t fast_load
     if (show_lcd)
     {
       ui.pause_show_message(PAUSE_MESSAGE_INSERT, mode);//insert the silk stock and continue
-      if (thermalManager.temp_hotend[0].celsius < 260.0) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
+      if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
       else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
       rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
-      if (thermalManager.temp_hotend[0].target < 260.0) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
+      if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
       else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
       rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
-      if (thermalManager.temp_hotend[1].celsius < 260.0) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+      if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
       else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
       rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
-      if (thermalManager.temp_hotend[1].target < 260.0) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
+      if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
       else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
       rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
+      SERIAL_ECHOLNPGM("Pause screen #8 triggered");
       rtscheck.RTS_SndData(ExchangePageBase + 8, ExchangepageAddr);
     }
     SERIAL_ECHO_MSG(_PMSG(STR_FILAMENT_CHANGE_INSERT));
@@ -289,16 +291,16 @@ bool load_filament(const_float_t slow_load_length/*=0*/, const_float_t fast_load
         if (show_lcd)
         {
           ui.pause_show_message(PAUSE_MESSAGE_PURGE);//Wait for the nozzle to be cleaned
-          if (thermalManager.temp_hotend[0].celsius < 260.0) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
+          if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
           else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
           rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
-          if (thermalManager.temp_hotend[0].target < 260.0) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
+          if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
           else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
           rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
-          if (thermalManager.temp_hotend[1].celsius < 260.0) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+          if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
           else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
           rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
-          if (thermalManager.temp_hotend[1].target < 260.0) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
+          if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
           else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
           rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
         }
@@ -379,16 +381,16 @@ bool unload_filament(const_float_t unload_length, const bool show_lcd/*=false*/,
   if (show_lcd)
   {
     ui.pause_show_message(PAUSE_MESSAGE_UNLOAD, mode);//Wait for the filament to be removed
-    if (thermalManager.temp_hotend[0].celsius < 260.0) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
+    if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
     else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
     rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
-    if (thermalManager.temp_hotend[0].target < 260.0) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
+    if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
     else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
     rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
-    if (thermalManager.temp_hotend[1].celsius < 260.0) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+    if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
     else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
     rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
-    if (thermalManager.temp_hotend[1].target < 260.0) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
+    if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
     else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
     rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
   }
@@ -540,16 +542,16 @@ void show_continue_prompt(const bool is_reload) {
   DEBUG_ECHOLNPGM("... is_reload:", is_reload);
 
   ui.pause_show_message(is_reload ? PAUSE_MESSAGE_INSERT : PAUSE_MESSAGE_WAITING);
-  if (thermalManager.temp_hotend[0].celsius < 260.0) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
+  if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
   else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
   rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
-  if (thermalManager.temp_hotend[0].target < 260.0) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
+  if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
   else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
   rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
-  if (thermalManager.temp_hotend[1].celsius < 260.0) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+  if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
   else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
   rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
-  if (thermalManager.temp_hotend[1].target < 260.0) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
+  if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
   else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
   rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
   rtscheck.RTS_SndData(Beep, SoundAddr);
@@ -578,12 +580,12 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
       set_duplication_enabled(false, DXC_ext);
     #endif
 
-    // Wait for filament insert by user and press button
+    // Wait for user to press button
     KEEPALIVE_STATE(PAUSED_FOR_USER);
     TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, GET_TEXT(MSG_NOZZLE_PARKED), CONTINUE_STR));
     TERN_(EXTENSIBLE_UI, ExtUI::onUserConfirmRequired_P(GET_TEXT(MSG_NOZZLE_PARKED)));
-    SERIAL_ECHOLNPGM("Confirmation page 8 triggered");
-    rtscheck.RTS_SndData(ExchangePageBase + 8, ExchangepageAddr);
+    SERIAL_ECHOLNPGM("Pause screen #60 triggered");
+    rtscheck.RTS_SndData(ExchangePageBase + 60, ExchangepageAddr);
     wait_for_user = true;    // LCD click or M108 will clear this
     while (wait_for_user) {
       impatient_beep(max_beep_count);
@@ -596,20 +598,20 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
       // re-heat the nozzle, re-show the continue prompt, restart idle timers, start over
       if (nozzle_timed_out) {
         ui.pause_show_message(PAUSE_MESSAGE_HEAT);//Press to confirm to heat the nozzle
-        if (thermalManager.temp_hotend[0].celsius < 260.0) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
+        if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
         else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
         rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
-        if (thermalManager.temp_hotend[0].target < 260.0) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
+        if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
         else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
         rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
-        if (thermalManager.temp_hotend[1].celsius < 260.0) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+        if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
         else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
         rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
-        if (thermalManager.temp_hotend[1].target < 260.0) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
+        if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
         else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
         rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
-        rtscheck.RTS_SndData(ExchangePageBase + 39, ExchangepageAddr);
-        SERIAL_ECHO_MSG(_PMSG(STR_FILAMENT_CHANGE_HEAT));
+        SERIAL_ECHOLNPGM("Pause screen #61 triggered");
+        rtscheck.RTS_SndData(ExchangePageBase + 61, ExchangepageAddr);
 
         TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, GET_TEXT(MSG_HEATER_TIMEOUT), GET_TEXT(MSG_REHEAT)));
 
@@ -640,7 +642,8 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
         HOTEND_LOOP() thermalManager.heater_idle[e].start(nozzle_timeout);
 
         queue.enqueue_one_P(PSTR("M117 Reheat Done."));
-        rtscheck.RTS_SndData(ExchangePageBase + 8, ExchangepageAddr);
+        SERIAL_ECHOLNPGM("Pause screen #60 triggered");
+        rtscheck.RTS_SndData(ExchangePageBase + 60, ExchangepageAddr);
         TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, GET_TEXT(MSG_REHEATDONE), CONTINUE_STR));
         TERN_(EXTENSIBLE_UI, ExtUI::onUserConfirmRequired_P(GET_TEXT(MSG_REHEATDONE)));
         TERN_(DWIN_CREALITY_LCD_ENHANCED, ui.set_status_P(GET_TEXT(MSG_REHEATDONE)));
@@ -782,6 +785,10 @@ void resume_print(const_float_t slow_load_length/*=0*/, const_float_t fast_load_
   TERN_(HAS_STATUS_MESSAGE, ui.reset_status());
   TERN_(HAS_LCD_MENU, ui.return_to_status());
   TERN_(DWIN_CREALITY_LCD_ENHANCED, HMI_ReturnScreen());
+  #if ENABLED(RTS_AVAILABLE)
+    //return to previous RTS screen
+    rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
+  #endif
 }
 
 #endif // ADVANCED_PAUSE_FEATURE

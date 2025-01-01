@@ -35,10 +35,6 @@
 #define DEBUG_OUT ENABLED(DEBUG_DXC_MODE)
 #include "../../core/debug_out.h"
 
-#if ENABLED(RTS_AVAILABLE)
-  #include "../../lcd/e3v2/creality/LCD_RTS.h"
-#endif
-
 #if ENABLED(DUAL_X_CARRIAGE)
 
   /**
@@ -70,36 +66,22 @@
 
     if (parser.seen('S')) {
       const DualXMode previous_mode = dual_x_carriage_mode;
-      //SERIAL_ECHOLNPGM("DualXMode: ", DualXMode);
+
       dual_x_carriage_mode = (DualXMode)parser.value_byte();
       idex_set_mirrored_mode(false);
 
       switch (dual_x_carriage_mode) {
 
         case DXC_FULL_CONTROL_MODE:
-          #if ENABLED(RTS_AVAILABLE)
-            //SetExtruderMode(4, false);
-          #endif
-          break;
-
         case DXC_AUTO_PARK_MODE:
-          #if ENABLED(RTS_AVAILABLE)
-            //SetExtruderMode(1);
-            //SetExtruderMode(1, false);
-          #endif
           break;
 
         case DXC_DUPLICATION_MODE:
           // Set the X offset, but no less than the safety gap
           if (parser.seen('X')) duplicate_extruder_x_offset = _MAX(parser.value_linear_units(), (82) - (X1_MIN_POS));
           if (parser.seen('R')) duplicate_extruder_temp_offset = parser.value_celsius_diff();
-
           // Always switch back to tool 0
           if (active_extruder != 0) tool_change(0);
-          #if ENABLED(RTS_AVAILABLE)
-            //SetExtruderMode(2);
-            //SetExtruderMode(2, false);
-          #endif
           break;
 
         case DXC_MIRRORED_MODE: {
@@ -117,10 +99,6 @@
             planner.buffer_line(dest, feedrate_mm_s, 0);
             dest.x += 0.1f;
           }
-          #if ENABLED(RTS_AVAILABLE)
-            //SetExtruderMode(3);
-            //SetExtruderMode(3, false);
-          #endif
         } return;
 
         default:

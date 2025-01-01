@@ -571,6 +571,9 @@ volatile bool Temperature::raw_temps_ready = false;
     const bool isbed = (heater_id == H_BED);
     const bool ischamber = (heater_id == H_CHAMBER);
 
+    int16_t rts_target = target;
+    millis_t rts_ms = next_temp_ms + 500UL;
+
     #if ENABLED(PIDTEMPCHAMBER)
       #define C_TERN(T,A,B) ((T) ? (A) : (B))
     #else
@@ -660,6 +663,17 @@ volatile bool Temperature::raw_temps_ready = false;
           }
         #endif
 
+        #if ENABLED(RTS_AVAILABLE)
+        if (ELAPSED(ms, rts_ms))
+        {
+          rts_ms = ms + 500UL;
+          //rotate tuning busy icon
+          if (RTS_cyclesIcon > 5) { RTS_cyclesIcon = 1; }
+          else { RTS_cyclesIcon = RTS_cyclesIcon + 1; }
+          rtscheck.RTS_SndData((uint16_t)RTS_cyclesIcon, TUNE_PROGRESS_ICON_VP);
+        }
+        #endif
+
         if (heating && current_temp > target && ELAPSED(ms, t2 + 5000UL)) {
           heating = false;
           SHV((bias - d) >> 1);
@@ -672,6 +686,7 @@ volatile bool Temperature::raw_temps_ready = false;
           heating = true;
           t2 = ms;
           t_low = t2 - t1;
+
           if (cycles > 0) {
             const long max_pow = GHV(MAX_CHAMBER_POWER, MAX_BED_POWER, PID_MAX);
             bias += (d * (t_high - t_low)) / (t_low + t_high);
@@ -699,6 +714,67 @@ volatile bool Temperature::raw_temps_ready = false;
           }
           SHV((bias + d) >> 1);
           TERN_(HAS_STATUS_MESSAGE, ui.status_printf_P(0, PSTR(S_FMT " %i/%i"), GET_TEXT(MSG_PID_CYCLE), cycles, ncycles));
+          #if ENABLED(RTS_AVAILABLE)
+            //report tuning cycle status
+            switch (heater_id)
+            {
+              case H_E0:
+                //left nozzle report
+                if (rts_target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
+                else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
+                rtscheck.RTS_SndData(rts_target, HEAD0_SET_TEMP_VP);
+                if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
+                else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
+                rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
+                rtscheck.RTS_SndData((uint16_t)cycles, TUNE_CURRENT_CYCLE_VP);
+                rtscheck.RTS_SndData((uint16_t)ncycles, SET_TUNE_CYCLES_VP);
+                rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kp * 100)) >> 16) & 0xFFFF), HEAD0_TUNE_KP_VP);
+                rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kp * 100)) & 0xFFFF), HEAD0_TUNE_KP_VP + 1);
+                rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Ki * 100)) >> 16) & 0xFFFF), HEAD0_TUNE_KI_VP);
+                rtscheck.RTS_SndData((((uint16_t)(tune_pid.Ki * 100)) & 0xFFFF), HEAD0_TUNE_KI_VP + 1);
+                rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), HEAD0_TUNE_KD_VP);
+                rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kd * 100)) & 0xFFFF), HEAD0_TUNE_KD_VP + 1);
+                RTS_currentScreen = 93;
+                rtscheck.RTS_SndData(ExchangePageBase + 93, ExchangepageAddr);
+                break;
+              case H_E1:
+                //right nozzle report
+                if (rts_target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
+                else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
+                rtscheck.RTS_SndData(rts_target, HEAD1_SET_TEMP_VP);
+                if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+                else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
+                rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
+                rtscheck.RTS_SndData((uint16_t)cycles, TUNE_CURRENT_CYCLE_VP);
+                rtscheck.RTS_SndData((uint16_t)ncycles, SET_TUNE_CYCLES_VP);
+                rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kp * 100)) >> 16) & 0xFFFF), HEAD1_TUNE_KP_VP);
+                rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kp * 100)) & 0xFFFF), HEAD1_TUNE_KP_VP + 1);
+                rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Ki * 100)) >> 16) & 0xFFFF), HEAD1_TUNE_KI_VP);
+                rtscheck.RTS_SndData((((uint16_t)(tune_pid.Ki * 100)) & 0xFFFF), HEAD1_TUNE_KI_VP + 1);
+                rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), HEAD1_TUNE_KD_VP);
+                rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kd * 100)) & 0xFFFF), HEAD1_TUNE_KD_VP + 1);
+                RTS_currentScreen = 94;
+                rtscheck.RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
+                break;
+              case H_BED:
+                //hot-bed report
+                rtscheck.RTS_SndData(rts_target, BED_SET_TEMP_VP);
+                rtscheck.RTS_SndData(thermalManager.temp_bed.celsius, BED_CURRENT_TEMP_VP);
+                rtscheck.RTS_SndData((uint16_t)cycles, TUNE_CURRENT_CYCLE_VP);
+                rtscheck.RTS_SndData((uint16_t)ncycles, SET_TUNE_CYCLES_VP);
+                rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kp * 100)) >> 16) & 0xFFFF), BED_TUNE_KP_VP);
+                rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kp * 100)) & 0xFFFF), BED_TUNE_KP_VP + 1);
+                rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Ki * 100)) >> 16) & 0xFFFF), BED_TUNE_KI_VP);
+                rtscheck.RTS_SndData((((uint16_t)(tune_pid.Ki * 100)) & 0xFFFF), BED_TUNE_KI_VP + 1);
+                rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), BED_TUNE_KD_VP);
+                rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kd * 100)) & 0xFFFF), BED_TUNE_KD_VP + 1);
+                RTS_currentScreen = 95;
+                rtscheck.RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
+                break;
+              default:
+                break;
+            }
+          #endif
           cycles++;
           minT = target;
         }
@@ -721,6 +797,66 @@ volatile bool Temperature::raw_temps_ready = false;
           print_heater_states(ischamber ? active_extruder : (isbed ? active_extruder : heater_id));
           SERIAL_EOL();
         #endif
+        #if ENABLED(RTS_AVAILABLE)
+          switch (heater_id)
+          {
+            case H_E0:
+              //left nozzle report
+              if (rts_target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
+              else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
+              rtscheck.RTS_SndData(rts_target, HEAD0_SET_TEMP_VP);
+              if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
+              else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
+              rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
+              rtscheck.RTS_SndData((uint16_t)cycles, TUNE_CURRENT_CYCLE_VP);
+              rtscheck.RTS_SndData((uint16_t)ncycles, SET_TUNE_CYCLES_VP);
+              rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kp * 100)) >> 16) & 0xFFFF), HEAD0_TUNE_KP_VP);
+              rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kp * 100)) & 0xFFFF), HEAD0_TUNE_KP_VP + 1);
+              rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Ki * 100)) >> 16) & 0xFFFF), HEAD0_TUNE_KI_VP);
+              rtscheck.RTS_SndData((((uint16_t)(tune_pid.Ki * 100)) & 0xFFFF), HEAD0_TUNE_KI_VP + 1);
+              rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), HEAD0_TUNE_KD_VP);
+              rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kd * 100)) & 0xFFFF), HEAD0_TUNE_KD_VP + 1);
+              RTS_currentScreen = 93;
+              rtscheck.RTS_SndData(ExchangePageBase + 93, ExchangepageAddr);
+              break;
+            case H_E1:
+              //right nozzle report
+              if (rts_target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
+              else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
+              rtscheck.RTS_SndData(rts_target, HEAD1_SET_TEMP_VP);
+              if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+              else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
+              rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
+              rtscheck.RTS_SndData((uint16_t)cycles, TUNE_CURRENT_CYCLE_VP);
+              rtscheck.RTS_SndData((uint16_t)ncycles, SET_TUNE_CYCLES_VP);
+              rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kp * 100)) >> 16) & 0xFFFF), HEAD1_TUNE_KP_VP);
+              rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kp * 100)) & 0xFFFF), HEAD1_TUNE_KP_VP + 1);
+              rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Ki * 100)) >> 16) & 0xFFFF), HEAD1_TUNE_KI_VP);
+              rtscheck.RTS_SndData((((uint16_t)(tune_pid.Ki * 100)) & 0xFFFF), HEAD1_TUNE_KI_VP + 1);
+              rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), HEAD1_TUNE_KD_VP);
+              rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kd * 100)) & 0xFFFF), HEAD1_TUNE_KD_VP + 1);
+              RTS_currentScreen = 94;
+              rtscheck.RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
+              break;
+            case H_BED:
+              //hot-bed report
+              rtscheck.RTS_SndData(rts_target, BED_SET_TEMP_VP);
+              rtscheck.RTS_SndData(thermalManager.temp_bed.celsius, BED_CURRENT_TEMP_VP);
+              rtscheck.RTS_SndData((uint16_t)cycles, TUNE_CURRENT_CYCLE_VP);
+              rtscheck.RTS_SndData((uint16_t)ncycles, SET_TUNE_CYCLES_VP);
+              rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kp * 100)) >> 16) & 0xFFFF), BED_TUNE_KP_VP);
+              rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kp * 100)) & 0xFFFF), BED_TUNE_KP_VP + 1);
+              rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Ki * 100)) >> 16) & 0xFFFF), BED_TUNE_KI_VP);
+              rtscheck.RTS_SndData((((uint16_t)(tune_pid.Ki * 100)) & 0xFFFF), BED_TUNE_KI_VP + 1);
+              rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), BED_TUNE_KD_VP);
+              rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kd * 100)) & 0xFFFF), BED_TUNE_KD_VP + 1);
+              RTS_currentScreen = 95;
+              rtscheck.RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
+              break;
+            default:
+              break;
+          }
+        #endif
         next_temp_ms = ms + 2000UL;
 
         // Make sure heating is actually working
@@ -735,9 +871,8 @@ volatile bool Temperature::raw_temps_ready = false;
               else if (ELAPSED(ms, temp_change_ms))                   // Watch timer expired
               {
                 #if ENABLED(RTS_AVAILABLE)
-
-                    rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
-
+                  RTS_currentScreen = 53;
+                  rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
                 #endif
                  _temp_error(heater_id, str_t_heating_failed, GET_TEXT(MSG_HEATING_FAILED_LCD));
               }
@@ -746,9 +881,8 @@ volatile bool Temperature::raw_temps_ready = false;
             else if (current_temp < target - (MAX_OVERSHOOT_PID_AUTOTUNE)) // Heated, then temperature fell too far?
             {
               #if ENABLED(RTS_AVAILABLE)
-
-                    rtscheck.RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
-
+                RTS_currentScreen = 52;
+                rtscheck.RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
               #endif
               _temp_error(heater_id, str_t_thermal_runaway, GET_TEXT(MSG_THERMAL_RUNAWAY));
             }
@@ -765,15 +899,15 @@ volatile bool Temperature::raw_temps_ready = false;
         TERN_(DWIN_CREALITY_LCD_ENHANCED, DWIN_PidTuning(PID_TUNING_TIMEOUT));
         TERN_(EXTENSIBLE_UI, ExtUI::onPidTuning(ExtUI::result_t::PID_TUNING_TIMEOUT));
         #if ENABLED(RTS_AVAILABLE)
-
-            rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
-
+          RTS_currentScreen = 53;
+          rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
         #endif
         SERIAL_ECHOLNPGM(STR_PID_TIMEOUT);
         break;
       }
 
-      if (cycles > ncycles && cycles > 2) {
+      if (cycles > ncycles && cycles > 2)
+      {
         SERIAL_ECHOLNPGM(STR_PID_AUTOTUNE_FINISHED);
 
         #if EITHER(PIDTEMPBED, PIDTEMPCHAMBER)
@@ -787,7 +921,8 @@ volatile bool Temperature::raw_temps_ready = false;
           say_default_(); SERIAL_ECHOLNPGM("Kd ", tune_pid.Kd);
         #endif
 
-        auto _set_hotend_pid = [](const uint8_t e, const PID_t &in_pid) {
+        auto _set_hotend_pid = [](const uint8_t e, const PID_t &in_pid)
+        {
           #if ENABLED(PIDTEMP)
             PID_PARAM(Kp, e) = in_pid.Kp;
             PID_PARAM(Ki, e) = scalePID_i(in_pid.Ki);
@@ -799,7 +934,8 @@ volatile bool Temperature::raw_temps_ready = false;
         };
 
         #if ENABLED(PIDTEMPBED)
-          auto _set_bed_pid = [](const PID_t &in_pid) {
+          auto _set_bed_pid = [](const PID_t &in_pid)
+          {
             temp_bed.pid.Kp = in_pid.Kp;
             temp_bed.pid.Ki = scalePID_i(in_pid.Ki);
             temp_bed.pid.Kd = scalePID_d(in_pid.Kd);
@@ -807,7 +943,8 @@ volatile bool Temperature::raw_temps_ready = false;
         #endif
 
         #if ENABLED(PIDTEMPCHAMBER)
-          auto _set_chamber_pid = [](const PID_t &in_pid) {
+          auto _set_chamber_pid = [](const PID_t &in_pid)
+          {
             temp_chamber.pid.Kp = in_pid.Kp;
             temp_chamber.pid.Ki = scalePID_i(in_pid.Ki);
             temp_chamber.pid.Kd = scalePID_d(in_pid.Kd);
@@ -816,30 +953,98 @@ volatile bool Temperature::raw_temps_ready = false;
 
         // Use the result? (As with "M303 U1")
         if (set_result)
+        {
+          #if ENABLED(RTS_AVAILABLE)
+            //PID autotune final report
+            RTS_cyclesIcon = 7;
+            rtscheck.RTS_SndData((uint16_t)RTS_cyclesIcon, TUNE_PROGRESS_ICON_VP);
+            rtscheck.RTS_SndData(StartSoundSet, SoundAddr); //beep
+            switch (heater_id)
+            {
+              case H_E0:
+                //left nozzle report
+                if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
+                else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
+                rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
+                if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
+                else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
+                rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
+                rtscheck.RTS_SndData(0, TUNE_CURRENT_CYCLE_VP);
+                rtscheck.RTS_SndData(ncycles, SET_TUNE_CYCLES_VP);
+                rtscheck.RTS_SndData(((((unsigned short)(tune_pid.Kp * 100)) >> 16) & 0xFFFF), HEAD0_TUNE_KP_VP);
+                rtscheck.RTS_SndData((((unsigned short)(tune_pid.Kp * 100)) & 0xFFFF), HEAD0_TUNE_KP_VP + 1);
+                rtscheck.RTS_SndData(((((unsigned short)(tune_pid.Ki * 100)) >> 16) & 0xFFFF), HEAD0_TUNE_KI_VP);
+                rtscheck.RTS_SndData((((unsigned short)(tune_pid.Ki * 100)) & 0xFFFF), HEAD0_TUNE_KI_VP + 1);
+                rtscheck.RTS_SndData(((((unsigned short)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), HEAD0_TUNE_KD_VP);
+                rtscheck.RTS_SndData((((unsigned short)(tune_pid.Kd * 100)) & 0xFFFF), HEAD0_TUNE_KD_VP + 1);
+                rtscheck.RTS_SndData(ExchangePageBase + 93, ExchangepageAddr);
+                break;
+              case H_E1:
+                //right nozzle report
+                if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
+                else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
+                rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
+                if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+                else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
+                rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
+                rtscheck.RTS_SndData(0, TUNE_CURRENT_CYCLE_VP);
+                rtscheck.RTS_SndData(ncycles, SET_TUNE_CYCLES_VP);
+                rtscheck.RTS_SndData(((((unsigned short)(tune_pid.Kp * 100)) >> 16) & 0xFFFF), HEAD1_TUNE_KP_VP);
+                rtscheck.RTS_SndData((((unsigned short)(tune_pid.Kp * 100)) & 0xFFFF), HEAD1_TUNE_KP_VP + 1);
+                rtscheck.RTS_SndData(((((unsigned short)(tune_pid.Ki * 100)) >> 16) & 0xFFFF), HEAD1_TUNE_KI_VP);
+                rtscheck.RTS_SndData((((unsigned short)(tune_pid.Ki * 100)) & 0xFFFF), HEAD1_TUNE_KI_VP + 1);
+                rtscheck.RTS_SndData(((((unsigned short)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), HEAD1_TUNE_KD_VP);
+                rtscheck.RTS_SndData((((unsigned short)(tune_pid.Kd * 100)) & 0xFFFF), HEAD1_TUNE_KD_VP + 1);
+                rtscheck.RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
+                break;
+              case H_BED:
+                //hot-bed report
+                rtscheck.RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
+                rtscheck.RTS_SndData(thermalManager.temp_bed.celsius, BED_CURRENT_TEMP_VP);
+                rtscheck.RTS_SndData(0, TUNE_CURRENT_CYCLE_VP);
+                rtscheck.RTS_SndData(ncycles, SET_TUNE_CYCLES_VP);
+                rtscheck.RTS_SndData(((((unsigned short)(tune_pid.Kp * 100)) >> 16) & 0xFFFF), BED_TUNE_KP_VP);
+                rtscheck.RTS_SndData((((unsigned short)(tune_pid.Kp * 100)) & 0xFFFF), BED_TUNE_KP_VP + 1);
+                rtscheck.RTS_SndData(((((unsigned short)(tune_pid.Ki * 100)) >> 16) & 0xFFFF), BED_TUNE_KI_VP);
+                rtscheck.RTS_SndData((((unsigned short)(tune_pid.Ki * 100)) & 0xFFFF), BED_TUNE_KI_VP + 1);
+                rtscheck.RTS_SndData(((((unsigned short)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), BED_TUNE_KD_VP);
+                rtscheck.RTS_SndData((((unsigned short)(tune_pid.Kd * 100)) & 0xFFFF), BED_TUNE_KD_VP + 1);
+                rtscheck.RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
+                break;
+              default:
+                break;
+            }
+          #endif
+
           GHV(_set_chamber_pid(tune_pid), _set_bed_pid(tune_pid), _set_hotend_pid(heater_id, tune_pid));
+        }
+        /* supress end of print behavior
 
         TERN_(PRINTER_EVENT_LEDS, printerEventLEDs.onPidTuningDone(color));
 
         TERN_(EXTENSIBLE_UI, ExtUI::onPidTuning(ExtUI::result_t::PID_DONE));
         TERN_(DWIN_CREALITY_LCD_ENHANCED, DWIN_PidTuning(PID_DONE));
+        */
 
         goto EXIT_M303;
       }
 
       // Run HAL idle tasks
       TERN_(HAL_IDLETASK, HAL_idletask());
+      /* supress end of print behavior
       // Run UI update
       TERN(HAS_DWIN_E3V2_BASIC, RTSUpdate(), ui.update());
+      */
     }
     wait_for_heatup = false;
 
     disable_all_heaters();
-
+    /* supress end of print behavior
     TERN_(PRINTER_EVENT_LEDS, printerEventLEDs.onPidTuningDone(color));
 
     TERN_(EXTENSIBLE_UI, ExtUI::onPidTuning(ExtUI::result_t::PID_DONE));
     TERN_(DWIN_CREALITY_LCD_ENHANCED, DWIN_PidTuning(PID_DONE));
-
+    */
     EXIT_M303:
       TERN_(NO_FAN_SLOWING_IN_PID_TUNING, adaptive_fan_slowing = true);
       return;
@@ -1050,18 +1255,16 @@ void Temperature::_temp_error(const heater_id_t heater_id, PGM_P const serial_ms
 
 void Temperature::max_temp_error(const heater_id_t heater_id) {
   #if HAS_DWIN_E3V2_BASIC && (HAS_HOTEND || HAS_HEATED_BED)
-
-      rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
-
+    RTS_currentScreen = 54;
+    rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
   #endif
   _temp_error(heater_id, PSTR(STR_T_MAXTEMP), GET_TEXT(MSG_ERR_MAXTEMP));
 }
 
 void Temperature::min_temp_error(const heater_id_t heater_id) {
   #if HAS_DWIN_E3V2_BASIC && (HAS_HOTEND || HAS_HEATED_BED)
-
-      rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
-
+    RTS_currentScreen = 54;
+    rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
   #endif
   _temp_error(heater_id, PSTR(STR_T_MINTEMP), GET_TEXT(MSG_ERR_MINTEMP));
 }
@@ -1353,9 +1556,8 @@ void Temperature::manage_heater() {
         if (degHotend(e) > temp_range[e].maxtemp)
         {
           #if ENABLED(RTS_AVAILABLE)
-
-              rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
-
+            RTS_currentScreen = 54;
+            rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
           #endif
            max_temp_error((heater_id_t)e);
         }
@@ -1377,9 +1579,8 @@ void Temperature::manage_heater() {
             start_watching_hotend(e);               // If temp reached, turn off elapsed check
           else {
             #if ENABLED(RTS_AVAILABLE)
-
-                rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
-
+              RTS_currentScreen = 53;
+              rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
             #endif
             _temp_error((heater_id_t)e, str_t_heating_failed, GET_TEXT(MSG_HEATING_FAILED_LCD));
           }
@@ -1417,9 +1618,8 @@ void Temperature::manage_heater() {
       if (degBed() > BED_MAXTEMP)
       {
         #if ENABLED(RTS_AVAILABLE)
-
-            rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
-
+          RTS_currentScreen = 54;
+          rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
         #endif
         max_temp_error(H_BED);
       }
@@ -1432,9 +1632,8 @@ void Temperature::manage_heater() {
           start_watching_bed();                 // If temp reached, turn off elapsed check
         else {
           #if ENABLED(RTS_AVAILABLE)
-
-              rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
-
+            RTS_currentScreen = 53;
+            rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
           #endif
           _temp_error(H_BED, str_t_heating_failed, GET_TEXT(MSG_HEATING_FAILED_LCD));
         }
@@ -2646,9 +2845,8 @@ void Temperature::init() {
 
       case TRRunaway:
         #if ENABLED(RTS_AVAILABLE)
-
-            rtscheck.RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
-
+          RTS_currentScreen = 52;
+          rtscheck.RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
         #endif
         _temp_error(heater_id, str_t_thermal_runaway, GET_TEXT(MSG_THERMAL_RUNAWAY));
     }
@@ -3791,13 +3989,12 @@ void Temperature::isr() {
 
       if (wait_for_heatup) {
         wait_for_heatup = false;
-        #if HAS_DWIN_E3V2_BASIC
-          Update_Time_Value = RTS_UPDATE_VALUE;
-
-            rtscheck.RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
-
-        #endif
         ui.reset_status();
+        #if ENABLED(RTS_AVAILABLE)
+          //return to previous RTS screen
+          SERIAL_ECHOLNPGM("Wait for nozzle heatup done. Return to display screen #", RTS_currentScreen );
+          rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
+        #endif
         TERN_(PRINTER_EVENT_LEDS, printerEventLEDs.onHeatingDone());
         return true;
       }
@@ -3812,6 +4009,24 @@ void Temperature::isr() {
           LCD_MESSAGEPGM(MSG_HEATING);
           wait_for_hotend(target_extruder);
           ui.reset_status();
+          #if ENABLED(RTS_AVAILABLE)
+            Update_Time_Value = RTS_UPDATE_VALUE;
+            if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
+            else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
+            rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
+            if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
+            else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
+            rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
+            if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+            else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
+            rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
+            if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
+            else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
+            rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
+            rtscheck.RTS_SndData(thermalManager.temp_bed.celsius, BED_CURRENT_TEMP_VP);
+            rtscheck.RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
+            rtscheck.RTS_SndData(ExchangePageBase + 63, ExchangepageAddr);
+          #endif
         }
       }
     #endif
@@ -3930,6 +4145,11 @@ void Temperature::isr() {
       if (wait_for_heatup) {
         wait_for_heatup = false;
         ui.reset_status();
+        #if ENABLED(RTS_AVAILABLE)
+          //return to previous RTS screen
+          SERIAL_ECHOLNPGM("Wait for hot-bed heatup done. Return to display screen #", RTS_currentScreen );
+          rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
+        #endif
         return true;
       }
 
@@ -3942,6 +4162,25 @@ void Temperature::isr() {
         LCD_MESSAGEPGM(MSG_BED_HEATING);
         wait_for_bed();
         ui.reset_status();
+          #if ENABLED(RTS_AVAILABLE)
+            Update_Time_Value = RTS_UPDATE_VALUE;
+            if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
+            else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
+            rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
+            if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
+            else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
+            rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
+            if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+            else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
+            rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
+            if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
+            else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
+            rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
+            rtscheck.RTS_SndData(thermalManager.temp_bed.celsius, BED_CURRENT_TEMP_VP);
+            rtscheck.RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
+            rtscheck.RTS_SndData(ExchangePageBase + 64, ExchangepageAddr);
+          #endif
+
       }
     }
 
@@ -4008,6 +4247,11 @@ void Temperature::isr() {
       if (wait_for_heatup) {
         wait_for_heatup = false;
         ui.reset_status();
+        #if ENABLED(RTS_AVAILABLE)
+          //return to previous RTS screen
+          SERIAL_ECHOLNPGM("Wait for probe heatup done. Return to display screen #", RTS_currentScreen );
+          rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
+        #endif
         return true;
       }
       else if (will_wait)
@@ -4107,6 +4351,11 @@ void Temperature::isr() {
       if (wait_for_heatup) {
         wait_for_heatup = false;
         ui.reset_status();
+        #if ENABLED(RTS_AVAILABLE)
+          //return to previous RTS screen
+          SERIAL_ECHOLNPGM("Wait for chamber heatup done. Return to display screen #", RTS_currentScreen );
+          rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
+        #endif
         return true;
       }
 
@@ -4206,6 +4455,11 @@ void Temperature::isr() {
       if (wait_for_heatup) {
         wait_for_heatup = false;
         ui.reset_status();
+        #if ENABLED(RTS_AVAILABLE)
+          //return to previous RTS screen
+          SERIAL_ECHOLNPGM("Wait for cooler done. Return to display screen #", RTS_currentScreen );
+          rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
+        #endif
         return true;
       }
 

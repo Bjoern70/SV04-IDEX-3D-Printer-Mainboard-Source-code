@@ -22,7 +22,9 @@
 
 #include "../gcode.h"
 #include "../../module/planner.h"
-
+#if ENABLED(RTS_AVAILABLE)
+  #include "../../lcd/e3v2/creality/LCD_RTS.h"
+#endif
 #if HAS_EXTRUDERS
 
 /**
@@ -42,6 +44,9 @@ void GcodeSuite::M221() {
     SERIAL_CHAR('%');
     SERIAL_EOL();
   }
+  #if ENABLED(RTS_AVAILABLE)
+    if (target_extruder == 0) rtscheck.RTS_SndData(planner.flow_percentage[0], HEAD0_FLOW_RATE_VP);
+    if (target_extruder == 1) rtscheck.RTS_SndData(planner.flow_percentage[1], HEAD1_FLOW_RATE_VP);
+  #endif
 }
-
 #endif // EXTRUDERS

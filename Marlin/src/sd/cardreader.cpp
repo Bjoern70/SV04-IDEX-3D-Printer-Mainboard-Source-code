@@ -1291,14 +1291,15 @@ void CardReader::fileHasFinished() {
     }
     else
     {
-      /*cleanup toolchange problem close to end of file
+      /*
+      cleanup toolchange problem close to end of file
       #if ENABLED(DUAL_X_CARRIAGE)
         extruder_duplication_enabled = false;
         dual_x_carriage_mode = DEFAULT_DUAL_X_CARRIAGE_MODE;
         active_extruder = 0;
       #endif
-      PoweroffContinue = false;
       */
+      PoweroffContinue = false;
     }
   #endif
 

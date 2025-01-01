@@ -106,11 +106,9 @@ void GcodeSuite::M106() {
   #if ENABLED(RTS_AVAILABLE)
     if (pfan == 0)
     {
-      if (speed == 0) {rtscheck.RTS_SndData(0, HEAD0_FAN_ICON_VP);}
-      else {rtscheck.RTS_SndData(1, HEAD0_FAN_ICON_VP);}
+      rtscheck.RTS_SndData(speed, HEAD0_FAN_SPEED_VP);
     } else {
-      if (speed == 0) {rtscheck.RTS_SndData(0, HEAD1_FAN_ICON_VP);}
-      else {rtscheck.RTS_SndData(1, HEAD1_FAN_ICON_VP);}
+      rtscheck.RTS_SndData(speed, HEAD1_FAN_SPEED_VP);
     }
     RTS_PauseMoveAxisPage(); //enable display pause processing
   #endif
@@ -141,9 +139,9 @@ void GcodeSuite::M107() {
   #if ENABLED(RTS_AVAILABLE)
     if (pfan == 0)
     {
-      rtscheck.RTS_SndData(0, HEAD0_FAN_ICON_VP);
+      rtscheck.RTS_SndData(0, HEAD0_FAN_SPEED_VP);
     } else {
-      rtscheck.RTS_SndData(0, HEAD1_FAN_ICON_VP);
+      rtscheck.RTS_SndData(0, HEAD1_FAN_SPEED_VP);
     }
     RTS_PauseMoveAxisPage();
   #endif

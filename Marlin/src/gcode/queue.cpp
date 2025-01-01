@@ -559,7 +559,8 @@ void GCodeQueue::get_serial_commands() {
     if (!IS_SD_FETCHING()) return;
 
     int sd_count = 0;
-    while (!ring_buffer.full() && !card.eof()) {
+    while (!ring_buffer.full() && !card.eof())
+    {
       const int16_t n = card.get();
       const bool card_eof = card.eof();
       if (n < 0 && !card_eof) { SERIAL_ERROR_MSG(STR_SD_ERR_READ); continue; }
@@ -594,16 +595,16 @@ void GCodeQueue::get_serial_commands() {
       }
       else
         process_stream_char(sd_char, sd_input_state, command.buffer, sd_count);
-
-      #if ENABLED(RTS_AVAILABLE)
-        // the printing results
-        if (card_eof)
-        {
-          //cleaned up toolchange problem close to end of file
-          card.fileHasFinished();         // Handle end of file reached
-        }
-      #endif
     }
+    #if ENABLED(RTS_AVAILABLE)
+       // the printing results
+       if (card.eof())
+       {
+         queue.exhaust(); //complete queue in order to prevent eof error
+         card.fileHasFinished();      //Handle end of file reached
+         rtscheck.RTS_SDcardFinish(); //Show finished screen #9
+      }
+  #endif
   }
 
 #endif // SDSUPPORT

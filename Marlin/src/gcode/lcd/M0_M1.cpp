@@ -47,8 +47,7 @@
 
 
 /**
- * M0: Unconditional stop - Wait for user button press on LCD
- * M1: Conditional stop   - Wait for user button press on LCD
+ * M0: Unconditional stop - Restart printer
  */
 void GcodeSuite::M0_M1() {
   millis_t ms = 100; //override wait for user
@@ -77,7 +76,9 @@ void GcodeSuite::M0_M1() {
     DWIN_Popup_Confirm(ICON_BLTouch, parser.string_arg ?: GET_TEXT(MSG_STOPPED), GET_TEXT(MSG_USERWAIT));
 
   #elif ENABLED(RTS_AVAILABLE)
-    rtscheck.RTS_SDcardStop();
+    //rtscheck.RTS_SDcardStop();
+    RTS_currentScreen = 1; //back to first RTSscreen
+    rtscheck.RTS_SndData(ExchangePageBase + 60, ExchangepageAddr);
     TERN_(HOST_PROMPT_SUPPORT, host_prompt_open(PROMPT_USER_CONTINUE, GET_TEXT(MSG_PRINT_ABORTED), CONTINUE_STR));
     TERN_(HAS_RESUME_CONTINUE, wait_for_user_response(ms));
   #else

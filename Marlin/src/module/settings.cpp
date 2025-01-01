@@ -36,12 +36,12 @@
  */
 
 // Change EEPROM version if the structure changes
-#define EEPROM_VERSION "V85"
+#define EEPROM_VERSION "V88"
 #define EEPROM_OFFSET 100
 
 // Check the integrity of data offsets.
 // Can be disabled for production build.
-//#define DEBUG_EEPROM_READWRITE
+#define DEBUG_EEPROM_READWRITE
 
 #include "settings.h"
 
@@ -264,6 +264,18 @@ typedef struct SettingsDataStruct {
     float xatc_spacing;                                 // M423 X Z
     float xatc_start;
     xatc_array_t xatc_z_offset;
+  #endif
+
+  //
+  // RTS_AVAILABLE
+  //
+  #if ENABLED(RTS_AVAILABLE)    // RTS preset data
+    celsius_t rtscheck_rtspresets_pla_hotend_t;     //nozzle temperature, type int16_t
+    celsius_t rtscheck_rtspresets_pla_bed_t;        //hot-bed temperature, type int16_t
+    celsius_t rtscheck_rtspresets_petg_hotend_t;    //nozzle temperature, type int16_t
+    celsius_t rtscheck_rtspresets_petg_bed_t;       //hot-bed temperature, type int16_t
+    int16_t rtscheck_rtspresets_motor_hold_time;    //DEFAULT_STEPPER_DEACTIVE_TIME in sec
+    bool rtscheck_rtspresets_auto_power_off_enable; //auto power-off enabled, type boolean
   #endif
 
   //
@@ -724,7 +736,7 @@ void MarlinSettings::postprocess() {
     {
       #if HAS_HOTEND_OFFSET
         // Skip hotend 0 which must be 0
-        LOOP_S_L_N(e, 1, HOTENDS)
+        LOOP_S_L_N(e, 1, HOTENDS)    //for (uint8_t e=(1); e<(HOTENDS); e++)
           EEPROM_WRITE(hotend_offset[e]);
       #endif
     }
@@ -845,6 +857,19 @@ void MarlinSettings::postprocess() {
       EEPROM_WRITE(xatc.spacing);
       EEPROM_WRITE(xatc.start);
       EEPROM_WRITE(xatc.z_offset);
+    #endif
+
+    //
+    // RTS_AVAILABLE
+    //
+    #if ENABLED(RTS_AVAILABLE)
+      _FIELD_TEST(rtscheck_rtspresets_pla_hotend_t);
+      EEPROM_WRITE(rtscheck.RTS_presets.pla_hotend_t);          //1 int16_t
+      EEPROM_WRITE(rtscheck.RTS_presets.pla_bed_t);             //1 int16_t
+      EEPROM_WRITE(rtscheck.RTS_presets.petg_hotend_t);         //1 int16_t
+      EEPROM_WRITE(rtscheck.RTS_presets.petg_bed_t);            //1 int16_t
+      EEPROM_WRITE(rtscheck.RTS_presets.motor_hold_time);       //1 int16_t
+      EEPROM_WRITE(rtscheck.RTS_presets.auto_power_off_enable); //1 boolean
     #endif
 
     //
@@ -1602,7 +1627,7 @@ void MarlinSettings::postprocess() {
       {
         #if HAS_HOTEND_OFFSET
           // Skip hotend 0 which must be 0
-          LOOP_S_L_N(e, 1, HOTENDS)
+          LOOP_S_L_N(e, 1, HOTENDS)      //for (uint8_t e=(1); e<(HOTENDS); e++)
             EEPROM_READ(hotend_offset[e]);
         #endif
       }
@@ -1719,6 +1744,20 @@ void MarlinSettings::postprocess() {
         EEPROM_READ(xatc.spacing);
         EEPROM_READ(xatc.start);
         EEPROM_READ(xatc.z_offset);
+      #endif
+
+
+      //
+      // RTS_AVAILABLE
+      //
+      #if ENABLED(RTS_AVAILABLE)
+        _FIELD_TEST(rtscheck_rtspresets_pla_hotend_t);
+        EEPROM_READ(rtscheck.RTS_presets.pla_hotend_t);          //1 int16_t
+        EEPROM_READ(rtscheck.RTS_presets.pla_bed_t);             //1 int16_t
+        EEPROM_READ(rtscheck.RTS_presets.petg_hotend_t);         //1 int16_t
+        EEPROM_READ(rtscheck.RTS_presets.petg_bed_t);            //1 int16_t
+        EEPROM_READ(rtscheck.RTS_presets.motor_hold_time);       //1 int16_t
+        EEPROM_READ(rtscheck.RTS_presets.auto_power_off_enable); //1 boolean
       #endif
 
       //
@@ -2676,7 +2715,12 @@ void MarlinSettings::reset() {
     home_offset.reset();
   #endif
 
-  TERN_(HAS_HOTEND_OFFSET, reset_hotend_offsets());
+  #if HAS_HOTEND_OFFSET
+    constexpr float tmp[XYZ][HOTENDS] = { HOTEND_OFFSET_X, HOTEND_OFFSET_Y, HOTEND_OFFSET_Z };
+    // Transpose from [XYZ][HOTENDS] to [HOTENDS][XYZ]
+    HOTEND_LOOP() LOOP_ABC(a) hotend_offset[e][a] = tmp[a][e];
+          hotend_offset[1].x += _MAX(X2_HOME_POS, X2_MAX_POS);
+  #endif
 
   //
   // Filament Runout Sensor
@@ -2765,6 +2809,18 @@ void MarlinSettings::reset() {
   // X Axis Twist Compensation
   //
   TERN_(X_AXIS_TWIST_COMPENSATION, xatc.reset());
+
+  //
+  // RTS_AVAILABLE
+  //
+  #if ENABLED(RTS_AVAILABLE)
+    rtscheck.RTS_presets.pla_hotend_t = PREHEAT_1_TEMP_HOTEND;            //nozzle temperature, type int16_t
+    rtscheck.RTS_presets.pla_bed_t = PREHEAT_1_TEMP_BED;                  //hot-bed temperature, type int16_t
+    rtscheck.RTS_presets.petg_hotend_t = PREHEAT_2_TEMP_HOTEND;           //nozzle temperature, type int16_t
+    rtscheck.RTS_presets.petg_bed_t = PREHEAT_2_TEMP_BED;                 //hot-bed temperature, type int16_t
+    rtscheck.RTS_presets.motor_hold_time = DEFAULT_STEPPER_DEACTIVE_TIME; //DEFAULT_STEPPER_DEACTIVE_TIME in sec
+    rtscheck.RTS_presets.auto_power_off_enable = true;                    //enable power-off
+  #endif
 
   //
   // Nozzle-to-probe Offset

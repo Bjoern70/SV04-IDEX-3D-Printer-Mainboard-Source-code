@@ -34,7 +34,7 @@
   #define BOARD_INFO_NAME      "Creality V4"
 #endif
 #ifndef DEFAULT_MACHINE_NAME
-  #define DEFAULT_MACHINE_NAME "Creality V5.2.1"
+  #define DEFAULT_MACHINE_NAME MACHINE_NAME
 #endif
 
 //

@@ -62,7 +62,7 @@ void GcodeSuite::M24() {
   #endif
 
   #if ENABLED(RTS_AVAILABLE)
-    rtscheck.RTS_ProcessResume();
+    rtscheck.RTS_ProcessM24();
   #endif
 
   #if ENABLED(POWER_LOSS_RECOVERY)
@@ -105,7 +105,7 @@ void GcodeSuite::M25() {
   #if ENABLED(PARK_HEAD_ON_PAUSE)
 
     #if ENABLED(RTS_AVAILABLE)
-      rtscheck.RTS_ProcessPause();
+      rtscheck.RTS_ProcessM25();
       //RTS_PauseMoveAxisPage(); //enable display pause processing
     #else
       M125();

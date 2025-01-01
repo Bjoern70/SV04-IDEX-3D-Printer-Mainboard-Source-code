@@ -65,12 +65,21 @@ GcodeSuite gcode;
   #include "../feature/password/password.h"
 #endif
 
-#include "../MarlinCore.h" // for idle, kill
+#if ENABLED(RTS_AVAILABLE)
+  #include "../lcd/e3v2/creality/LCD_RTS.h"
+#endif
 
+#include "../MarlinCore.h" // for idle, kill
+/*
 // Inactivity shutdown
 millis_t GcodeSuite::previous_move_ms = 0,
          GcodeSuite::max_inactive_time = 0,
          GcodeSuite::stepper_inactive_time = SEC_TO_MS(DEFAULT_STEPPER_DEACTIVE_TIME);
+*/
+millis_t GcodeSuite::previous_move_ms = 0,
+         GcodeSuite::max_inactive_time = 0,
+         GcodeSuite::stepper_inactive_time = SEC_TO_MS(rtscheck.RTS_presets.motor_hold_time);
+
 
 // Relative motion mode for each logical axis
 static constexpr xyze_bool_t ar_init = AXIS_RELATIVE_MODES;
