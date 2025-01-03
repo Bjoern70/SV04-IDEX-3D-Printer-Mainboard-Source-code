@@ -29,7 +29,7 @@
 #endif
 
 /**
- * M1901 - Call RTS display sreen directly (Requires RTS_AVAILABLE)
+ * M1901 - Call RTS display screen directly (Requires RTS_AVAILABLE)
  *
  * M1901          - report current screen number
  *
