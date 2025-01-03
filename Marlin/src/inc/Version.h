@@ -25,7 +25,11 @@
  * Release version. Leave the Marlin version or apply a custom scheme.
  */
 #ifndef SHORT_BUILD_VERSION
+<<<<<<< HEAD
 #define SHORT_BUILD_VERSION "v1.15.1"
+=======
+#define SHORT_BUILD_VERSION "v1.15.1-RTS-DEBUG"
+>>>>>>> 8b05904 (HOST CLEANUP)
 #endif
 
 /**

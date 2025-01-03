@@ -38,7 +38,11 @@
 
 // Enable verbose output from display handler to terminal.
 // Can be disabled for production build.
+<<<<<<< HEAD
 //#define RTS_DEBUG
+=======
+#define RTS_DEBUG
+>>>>>>> 8b05904 (HOST CLEANUP)
 
 
 #if ENABLED(RTS_AVAILABLE)
