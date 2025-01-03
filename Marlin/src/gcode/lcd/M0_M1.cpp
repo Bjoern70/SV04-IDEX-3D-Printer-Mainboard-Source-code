@@ -77,7 +77,7 @@ void GcodeSuite::M0_M1() {
 
   #elif ENABLED(RTS_AVAILABLE)
     //rtscheck.RTS_SDcardStop();
-    RTS_currentScreen = 1; //back to first RTSscreen
+    RTS_currentScreen = 60; //call pause screen
     rtscheck.RTS_SndData(ExchangePageBase + 60, ExchangepageAddr);
     TERN_(HOST_PROMPT_SUPPORT, host_prompt_open(PROMPT_USER_CONTINUE, GET_TEXT(MSG_PRINT_ABORTED), CONTINUE_STR));
     TERN_(HAS_RESUME_CONTINUE, wait_for_user_response(ms));

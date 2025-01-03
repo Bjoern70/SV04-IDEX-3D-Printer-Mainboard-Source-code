@@ -296,6 +296,8 @@
  * M995 - Touch screen calibration for TFT display
  * M997 - Perform in-application firmware update
  * M999 - Restart after being stopped by error
+ * M1900 - Restart RTS Display, reset variables & reload from EEPROM (Requires RTS_AVAILABLE)
+ * M1901 - Call RTS Screen directly (Requires RTS_AVAILABLE)
  * D... - Custom Development G-code. Add hooks to 'gcode_D.cpp' for developers to test features. (Requires MARLIN_DEV_MODE)
  *        D576 - Set buffer monitoring options. (Requires BUFFER_MONITORING)
  *
@@ -1158,7 +1160,13 @@ private:
     static void M997();
   #endif
 
-  static void M999();
+    static void M999();
+
+  #if ENABLED(RTS_AVAILABLE)
+    static void M1900();
+    static void M1901();
+  #endif
+
 
   #if ENABLED(POWER_LOSS_RECOVERY)
     static void M413();

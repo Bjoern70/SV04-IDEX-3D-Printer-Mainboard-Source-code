@@ -3992,7 +3992,7 @@ void Temperature::isr() {
         ui.reset_status();
         #if ENABLED(RTS_AVAILABLE)
           //return to previous RTS screen
-          SERIAL_ECHOLNPGM("Wait for nozzle heatup done. Return to display screen #", RTS_currentScreen );
+          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("Wait for nozzle heatup done. Return to display screen #", RTS_currentScreen));
           rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
         #endif
         TERN_(PRINTER_EVENT_LEDS, printerEventLEDs.onHeatingDone());
@@ -4147,7 +4147,7 @@ void Temperature::isr() {
         ui.reset_status();
         #if ENABLED(RTS_AVAILABLE)
           //return to previous RTS screen
-          SERIAL_ECHOLNPGM("Wait for hot-bed heatup done. Return to display screen #", RTS_currentScreen );
+          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("Wait for hot-bed heatup done. Return to display screen #", RTS_currentScreen));
           rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
         #endif
         return true;
@@ -4249,7 +4249,7 @@ void Temperature::isr() {
         ui.reset_status();
         #if ENABLED(RTS_AVAILABLE)
           //return to previous RTS screen
-          SERIAL_ECHOLNPGM("Wait for probe heatup done. Return to display screen #", RTS_currentScreen );
+          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("Wait for probe heatup done. Return to display screen #", RTS_currentScreen));
           rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
         #endif
         return true;
@@ -4353,7 +4353,7 @@ void Temperature::isr() {
         ui.reset_status();
         #if ENABLED(RTS_AVAILABLE)
           //return to previous RTS screen
-          SERIAL_ECHOLNPGM("Wait for chamber heatup done. Return to display screen #", RTS_currentScreen );
+          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("Wait for chamber heatup done. Return to display screen #", RTS_currentScreen));
           rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
         #endif
         return true;
@@ -4457,7 +4457,7 @@ void Temperature::isr() {
         ui.reset_status();
         #if ENABLED(RTS_AVAILABLE)
           //return to previous RTS screen
-          SERIAL_ECHOLNPGM("Wait for cooler done. Return to display screen #", RTS_currentScreen );
+          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("Wait for cooler done. Return to display screen #", RTS_currentScreen));
           rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
         #endif
         return true;

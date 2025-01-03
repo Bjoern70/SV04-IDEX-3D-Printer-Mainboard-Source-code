@@ -110,7 +110,7 @@ void GcodeSuite::M600() {
     const uint8_t active_extruder_before_filament_change = active_extruder;
     if (active_extruder != target_extruder && TERN1(DUAL_X_CARRIAGE, !idex_is_duplicating()))
       tool_change(target_extruder, false);
-      SERIAL_ECHOLNPGM("MSG: tool_change:",target_extruder);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => tool_change:",target_extruder));
   #endif
 
   // Initial retract before move to filament change position

@@ -485,6 +485,7 @@ extern float current_position_x1_axis;
 extern char RTS_cyclesIcon;
 extern int RTS_currentScreen;
 extern char RTS_waitway;
+extern char RTS_heatway;
 
 void RTS_PauseMoveAxisPage();
 void RTS_MoveAxisHoming();

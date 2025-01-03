@@ -1032,6 +1032,11 @@ void GcodeSuite::process_parsed_command(const bool no_ok/*=false*/) {
 
       case 999: M999(); break;                                    // M999: Restart after being Stopped
 
+      #if ENABLED(RTS_AVAILABLE)
+        case 1900: M1900(); break;                                // M1900: Restart RTS Display, reset variables & reload from EEPROM
+        case 1901: M1901(); break;                                // M1901: Call RTS Screen directly (Requires RTS_AVAILABLE)
+      #endif
+
       #if ENABLED(POWER_LOSS_RECOVERY)
         case 413: M413(); break;                                  // M413: Enable/disable/query Power-Loss Recovery
         case 1000: M1000(); break;                                // M1000: [INTERNAL] Resume from power-loss

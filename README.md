@@ -4,13 +4,13 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
 
  - added bed levelling map visualization for 8x8 grid
  - added soft power off button functionality (supports separate suicide switch to execute g-code command M81)
- - hanged preheat settings from filament type ABS to PETG
+ - changed preheat settings from filament type ABS to PETG
  - corrected tramming pitch
  - increased probing speed
  - added simple DGUS display onboard buzzer handling: g-code command M300 will play beep sound omitting parameters
  - fixed print mode hickup when pausing / resuming
  - cleaned host temperature report
- - fixed M1 stop wait loop bug 
+ - fixed M1 stop wait loop bug
  - fixed toolchange and dualmode override bug at end of file
  - adjusted extruder movement speeds
  - cleaned up STOP, PAUSE & FINISH PRINT processing
@@ -20,28 +20,36 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
  - fixed deadlock bug after filament runout and resume
  - fixed pause + user interface deadlock bugs
  - fixed unpredictable movement behaviour in move menu & added warning in case of moving axes uncalibrated axes
- - longer filenames supported
  - added basic M423 "X Twist Compensation" implementation: compensation process is currently not supported via display
  - fixed toolhead selection issue: selecting single mode will activate corresponding toolhead
  - cleaned up filename + directory colors
  - fixed M423 implementation: process is supported via host terminal
- - fixed x-twist compensation probe bug.
+ - fixed x twist compensation probe bug
+ - added adjustment of fan speed &  flow rate during printing
+ - added extra settings dialog: PID tuning for nozzles and hot-bed (Auto-PID & manual input are supported)
+ - added extra settings dialog: extruder E-step adjustment
+ - added extra settings dialog: define presets (pre-heat temperatures, stepper deactivation time and auto power-off enable/disable)
+ - changed filename display to rolling text with adjustable text speed; first 130 chars of filenames are displayed, including umlaute
+ - minor changes in display handler iot avoid display hickups during host print
+ - added new G-Code command M1900 "Restart RTS display variables & reload from EEPROM"
+ - added new G-Code command M1901 "Call RTS display sreen directly". Released additional RTS display debug firmware version.
 
-This SV04 Marlin firmware requires matching touchscreen software v1.14.3 that is available here:
-https://github.com/Bjoern70/SV04-Touchscreen/releases/tag/v1.14.3
+This SV04 Marlin firmware requires matching touchscreen software v1.15.0 that is available here:
+https://github.com/Bjoern70/SV04-Touchscreen/releases/tag/v1.15.0
+(Yes, the display software has not been touched since firmware v1.15.0)
 
 # About the SV04 IDEX 3D Printer
 
-Sovol SV04 IDEX 3D Printer comes with dual independent direct drive extruders, both are metal titan style extruders,  
-which make it to print with two materials very easily such as TPU, TPE, HIPS, ABS, PETG, WOOD, PC, PA, PVA, ASA. 
-Combined with auto-leveling and extruder 2 leveling knob solved the a lot of IDEX users’ leveling trouble. 
-Two extruders work independently will save time， save money， and save effort in 3d printing production, 
-The large build volume satisfy most of using demand compared with the full enclosed IDEX 3d printer. 
-There are  4 print modes，single-mode，dual-mode, duplicate mode, and mirror mode. 
+Sovol SV04 IDEX 3D Printer comes with dual independent direct drive extruders, both are metal titan style extruders,
+which make it to print with two materials very easily such as TPU, TPE, HIPS, ABS, PETG, WOOD, PC, PA, PVA, ASA.
+Combined with auto-leveling and extruder 2 leveling knob solved the a lot of IDEX users’ leveling trouble.
+Two extruders work independently will save time， save money， and save effort in 3d printing production,
+The large build volume satisfy most of using demand compared with the full enclosed IDEX 3d printer.
+There are  4 print modes，single-mode，dual-mode, duplicate mode, and mirror mode.
 
-# Related tutorials 
+# Related tutorials
 
-- Firmware wiki.  [Click here]https://github.com/Bjoern70/SV04-IDEX-3D-Printer-Mainboard-Source-code/wiki
+- Firmware wiki.  [Click here](https://github.com/Bjoern70/SV04-IDEX-3D-Printer-Mainboard-Source-code/wiki).
 - User Manual.  [Click here](https://drive.google.com/file/d/1QpIDenqIKmsA2blAhKkOxhp2SKL8hwoI/view).
 - Firmware Download. [Click here](https://sovol3d.com/pages/download).
 - SD Card Content, including tutorials and stl files. [Click here](https://drive.google.com/drive/folders/1LNCtBA045Xo5z7Gd4n1M2aDEVry_wHCH?fbclid=IwAR3y-_OYa_VTG4Bz68GR5JdGMLE_ROVfIQRevPL4WpTEDLQ1nXzUEtDMaqs)

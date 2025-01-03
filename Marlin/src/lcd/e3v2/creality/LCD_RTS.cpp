@@ -36,6 +36,11 @@
   #include "../../../feature/runout.h"
 #endif
 
+// Enable verbose output from display handler to terminal.
+// Can be disabled for production build.
+//#define RTS_DEBUG
+
+
 #if ENABLED(RTS_AVAILABLE)
 RTS_preset_data RTS_presets; // Initialized by settings.load()
 float zprobe_zoffset;
@@ -53,7 +58,7 @@ float current_position_x0_axis = X_MIN_POS;
 float current_position_x1_axis = X2_MAX_POS;
 int PrintFlag = 0;
 
-int heatway = 0;
+char RTS_heatway = 0;
 millis_t next_rts_update_ms = 0;
 int last_target_temperature[4] = {0};
 int last_target_temperature_bed;
@@ -343,7 +348,7 @@ void RTSSHOW::RTS_SDCardUpate(void)
 
 void RTSSHOW::RTS_Init()
 {
-  SERIAL_ECHOLNPGM("RTS Init");
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS Init"));
   //enable Auto Power Off
   autoPowerOffEnabled = RTS_presets.auto_power_off_enable; //get auto power-off preset
   if (autoPowerOffEnabled == true)
@@ -360,7 +365,7 @@ void RTSSHOW::RTS_Init()
 
   #if ENABLED(DUAL_X_CARRIAGE)
     save_dual_x_carriage_mode = dualXPrintingModeStatus; //get last mode before power-off
-    SERIAL_ECHOLNPGM("Debug Mode: RTS Init; dualXPrintingModeStatus=",dualXPrintingModeStatus);
+    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS Init; dualXPrintingModeStatus=",dualXPrintingModeStatus));
 
     if(save_dual_x_carriage_mode == 1)      //DXC_AUTO_PARK_MODE => DUAL MODE
     {
@@ -477,7 +482,7 @@ void RTSSHOW::RTS_Init()
 
   /*********cleanup miscellanous variables***************/
   RTS_waitway = 0;
-  heatway = 0;
+  RTS_heatway = 0;
   sdcard_pause_check = true;
   next_rts_update_ms = 0;
   Percentrecord = 0;
@@ -934,7 +939,7 @@ void RTSSHOW::RTS_Restart()
   planner.clear_block_buffer();
   delay(5);
   //cleanup miscellanous variables
-  heatway = 0;
+  RTS_heatway = 0;
   sdcard_pause_check = true;
   next_rts_update_ms = 0;
   Percentrecord = 0;
@@ -977,6 +982,7 @@ void RTSSHOW::RTS_Restart()
   thermalManager.setTargetBed(0);
   RTS_SndData(0, BED_SET_TEMP_VP);
   thermalManager.zero_fan_speeds();
+  queue.enqueue_now_P(PSTR("M501")); //Recover stored data from EEPROM
   wait_for_heatup = wait_for_user = false;
   Update_Time_Value = 0;
   wait_idle(2);
@@ -1101,7 +1107,7 @@ void RTSSHOW::RTS_HandleData()
     {
       RTS_waitway = 0;
     }
-    SERIAL_ECHOLNPGM("Ignoring RTS input. RTS_waitway: ", RTS_waitway);
+    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Ignoring RTS input. RTS_waitway: ", RTS_waitway));
     return;
   }
   for(int i = 0;Addrbuf[i] != 0;i ++)
@@ -1195,7 +1201,7 @@ void RTSSHOW::RTS_HandleData()
       {
         #if ENABLED(DUAL_X_CARRIAGE)
           save_dual_x_carriage_mode = dualXPrintingModeStatus;
-          SERIAL_ECHOLNPGM("Debug Mode: MainPageKey=5");
+          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => MainPageKey=5"));
           SetExtruderMode(save_dual_x_carriage_mode, true);
           RTS_currentScreen = 34;
           RTS_SndData(ExchangePageBase + 34, ExchangepageAddr);
@@ -1205,13 +1211,13 @@ void RTSSHOW::RTS_HandleData()
       {
         //go to main screen
         RTS_currentScreen = 1;
-        SERIAL_ECHOLNPGM("Stop - go to main screen #1" );
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Stop - go to main screen #1"));
         RTS_SDcardStop();
       }
       else if(recdat.data[0] == 7) //resume key from #60
       {
         //return to previous RTS screen
-        SERIAL_ECHOLNPGM("Resume - go to screen #", RTS_currentScreen );
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Resume - go to screen #", RTS_currentScreen));
         RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
       }
       break;
@@ -1423,7 +1429,7 @@ void RTSSHOW::RTS_HandleData()
       thermalManager.temp_bed.target = recdat.data[0];
       thermalManager.setTargetBed(thermalManager.temp_bed.target);
       RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
-      SERIAL_ECHOLNPGM("HotBedEnterKey: ", recdat.data[0]);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => HotBedEnterKey: ", recdat.data[0]));
       break;
 
     case TempScreenKey:
@@ -1568,7 +1574,7 @@ void RTSSHOW::RTS_HandleData()
       if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {RTS_SndData(0, HEAD0_SET_ICON_VP);}
       else {RTS_SndData(1, HEAD0_SET_ICON_VP);}
       RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
-      SERIAL_ECHOLNPGM("Heater0TempEnterKey: ", recdat.data[0]);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Heater0TempEnterKey: ", recdat.data[0]));
       break;
 
     case Heater1TempEnterKey:
@@ -1584,11 +1590,11 @@ void RTSSHOW::RTS_HandleData()
       if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {RTS_SndData(0, HEAD1_SET_ICON_VP);}
       else {RTS_SndData(1, HEAD1_SET_ICON_VP);}
       RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
-      SERIAL_ECHOLNPGM("Heater1TempEnterKey: ", recdat.data[0]);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Heater1TempEnterKey: ", recdat.data[0]));
       break;
 
     case SettingScreenKey: //'Settings' screen #21
-      SERIAL_ECHOLNPGM("Settings Button ID: ", recdat.data[0]);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Settings Button ID: ", recdat.data[0]));
       if(recdat.data[0] == 1) //'Leveling' button
       {
         // Motor Icon
@@ -1950,7 +1956,7 @@ void RTSSHOW::RTS_HandleData()
       break;
 
     case SettingBackKey:
-      SERIAL_ECHOLNPGM("Settings Button ID: ", recdat.data[0]);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Settings Button ID: ", recdat.data[0]));
       if (recdat.data[0] == 1)
       {
         Update_Time_Value = RTS_UPDATE_VALUE;
@@ -2620,7 +2626,7 @@ void RTSSHOW::RTS_HandleData()
           RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_0, HEAD0_SET_TEMP_VP);
           RTS_currentScreen = 26;
           RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
-          heatway = 1;
+          RTS_heatway = 1;
         }
       }
       else if(recdat.data[0] == 6)
@@ -2648,7 +2654,7 @@ void RTSSHOW::RTS_HandleData()
           RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_1, HEAD1_SET_TEMP_VP);
           RTS_currentScreen = 26;
         RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
-          heatway = 2;
+          RTS_heatway = 2;
         }
       }
       else if (recdat.data[0] == 8)
@@ -2748,7 +2754,7 @@ void RTSSHOW::RTS_HandleData()
         {
           #if ENABLED(DUAL_X_CARRIAGE)
             save_dual_x_carriage_mode = dualXPrintingModeStatus;
-            SERIAL_ECHOLNPGM("Debug Mode: PowerContinuePrintKey=1");
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PowerContinuePrintKey=1"));
             switch(save_dual_x_carriage_mode)
             {
               case 1:
@@ -2910,25 +2916,25 @@ void RTSSHOW::RTS_HandleData()
     case Fan0SpeedEnterKey:
       thermalManager.set_fan_speed(0, recdat.data[0]);
       RTS_SndData(recdat.data[0], HEAD0_FAN_SPEED_VP);
-      SERIAL_ECHOLNPGM("Fan0SpeedEnterKey: ", recdat.data[0]);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Fan0SpeedEnterKey: ", recdat.data[0]));
     break;
 
     case Fan1SpeedEnterKey:
       thermalManager.set_fan_speed(1, recdat.data[0]);
       RTS_SndData(recdat.data[0], HEAD1_FAN_SPEED_VP);
-      SERIAL_ECHOLNPGM("Fan1SpeedEnterKey: ", recdat.data[0]);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Fan1SpeedEnterKey: ", recdat.data[0]));
     break;
 
     case Flow0EnterKey:
       planner.set_flow(0, recdat.data[0]);
       RTS_SndData(recdat.data[0], HEAD0_FLOW_RATE_VP);
-      SERIAL_ECHOLNPGM("Flow0EnterKey: ", recdat.data[0]);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Flow0EnterKey: ", recdat.data[0]));
     break;
 
     case Flow1EnterKey:
       planner.set_flow(1, recdat.data[0]);
       RTS_SndData(recdat.data[0], HEAD1_FLOW_RATE_VP);
-      SERIAL_ECHOLNPGM("Flow1EnterKey: ", recdat.data[0]);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Flow1EnterKey: ", recdat.data[0]));
     break;
 
     case TuneCyclesEnterKey:
@@ -2942,7 +2948,7 @@ void RTSSHOW::RTS_HandleData()
       }
       TuneCycles = recdat.data[0];
       RTS_SndData(TuneCycles, SET_TUNE_CYCLES_VP);
-      SERIAL_ECHOLNPGM("TuneCyclesEnterKey: ", TuneCycles);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => TuneCyclesEnterKey: ", TuneCycles));
     break;
 
     case EStepsAdjustKey:
@@ -2957,7 +2963,7 @@ void RTSSHOW::RTS_HandleData()
         memset(cmdbuf, 0, sizeof(cmdbuf));
         sprintf_P(cmdbuf, PSTR("M92 E%4.2f T0"), ESteps0);
         queue.enqueue_now_P(commandbuf);
-        SERIAL_ECHOLNPGM("EStepsAdjustKey: ", ESteps0);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => EStepsAdjustKey: ", ESteps0));
       }
       else if (recdat.data[0] == 2)
       {
@@ -2970,7 +2976,7 @@ void RTSSHOW::RTS_HandleData()
         memset(cmdbuf, 0, sizeof(cmdbuf));
         sprintf_P(cmdbuf, PSTR("M92 E%4.2f T0"), ESteps0);
         queue.enqueue_now_P(commandbuf);
-        SERIAL_ECHOLNPGM("EStepsAdjustKey: ", ESteps0);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => EStepsAdjustKey: ", ESteps0));
       }
       else if (recdat.data[0] == 3)
       {
@@ -2983,7 +2989,7 @@ void RTSSHOW::RTS_HandleData()
         memset(cmdbuf, 0, sizeof(cmdbuf));
         sprintf_P(cmdbuf, PSTR("M92 E%4.2f T1"), ESteps1);
         queue.enqueue_now_P(commandbuf);
-        SERIAL_ECHOLNPGM("EStepsAdjustKey: ", ESteps1);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => EStepsAdjustKey: ", ESteps1));
       }
       else if (recdat.data[0] == 4)
       {
@@ -2996,7 +3002,7 @@ void RTSSHOW::RTS_HandleData()
         memset(cmdbuf, 0, sizeof(cmdbuf));
         sprintf_P(cmdbuf, PSTR("M92 E%4.2f T1"), ESteps1);
         queue.enqueue_now_P(commandbuf);
-        SERIAL_ECHOLNPGM("EStepsAdjustKey: ", ESteps1);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => EStepsAdjustKey: ", ESteps1));
       }
 
     break;
@@ -3014,7 +3020,7 @@ void RTSSHOW::RTS_HandleData()
         memset(cmdbuf, 0, sizeof(cmdbuf));
         sprintf_P(cmdbuf, PSTR("M92 E%4.2f T0"), ESteps0);
         queue.enqueue_now_P(commandbuf);
-        SERIAL_ECHOLNPGM("ESteps0EnterKey: ", ESteps0);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => ESteps0EnterKey: ", ESteps0));
         RTS_SndData((uint16_t)ConvertH, HEAD0_E_STEPS_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD0_E_STEPS_VP + 1);
       }
@@ -3037,7 +3043,7 @@ void RTSSHOW::RTS_HandleData()
         memset(cmdbuf, 0, sizeof(cmdbuf));
         sprintf_P(cmdbuf, PSTR("M92 E%4.2f T1"), ESteps1);
         queue.enqueue_now_P(commandbuf);
-        SERIAL_ECHOLNPGM("ESteps1EnterKey: ", ESteps1);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => ESteps1EnterKey: ", ESteps1));
         RTS_SndData((uint16_t)ConvertH, HEAD1_E_STEPS_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD1_E_STEPS_VP + 1);
       }
@@ -3050,13 +3056,13 @@ void RTSSHOW::RTS_HandleData()
     case FeedRateEnterKey:
       EstepFeedRate = (float)recdat.data[0]/10;
       RTS_SndData(EstepFeedRate*10, E_STEPS_FEED_RATE_VP);
-      SERIAL_ECHOLNPGM("FeedRateEnterKey: ", EstepFeedRate);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => FeedRateEnterKey: ", EstepFeedRate));
     break;
 
     case FeedDistEnterKey:
       EstepFeedDistance = (float)recdat.data[0]/10;
       RTS_SndData(EstepFeedDistance*10, E_STEPS_FEED_DIST_VP);
-      SERIAL_ECHOLNPGM("FeedDistEnterKey: ", EstepFeedDistance);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => FeedDistEnterKey: ", EstepFeedDistance));
     break;
 
     case FeedKey:
@@ -3068,7 +3074,7 @@ void RTSSHOW::RTS_HandleData()
           if (EstepFeedRate <= 0.0)
           {
             EstepFeedRate = 6.0;
-            SERIAL_ECHOLNPGM("Set minimum feed rate 6 mm/min");
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Set minimum feed rate 6 mm/min"));
             RTS_SndData(StartSoundSet, SoundAddr);
             wait_idle(250);
           }
@@ -3076,7 +3082,7 @@ void RTSSHOW::RTS_HandleData()
           if (EstepFeedDistance <= 0.0)
           {
             EstepFeedDistance = 1.0;
-            SERIAL_ECHOLNPGM("Set minimum feed distance 1 mm");
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Set minimum feed distance 1 mm"));
             RTS_SndData(StartSoundSet, SoundAddr);
             wait_idle(250);
           }
@@ -3104,7 +3110,7 @@ void RTSSHOW::RTS_HandleData()
               RTS_line_to_current(E_AXIS_N(0), MMM_TO_MMS(EstepFeedRate));
               RTS_SndData(EstepFeedRate*10, E_STEPS_FEED_RATE_VP);
               RTS_SndData(EstepFeedDistance*10, E_STEPS_FEED_DIST_VP);
-              SERIAL_ECHOLNPGM("Feeding left extruder");
+              TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feeding left extruder"));
             }
           }
         }
@@ -3114,7 +3120,7 @@ void RTSSHOW::RTS_HandleData()
         //heat up left nozzle
         thermalManager.temp_hotend[0].target = FILAMENT_CHANGE_TEMPERATURE_0;
         thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
-        SERIAL_ECHOLNPGM("Heating up left nozzle to 200°C");
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Heating up left nozzle to 200°C"));
         RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_0, CHANGE_FILAMENT0_TEMP_VP);
         RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
         RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
@@ -3130,7 +3136,7 @@ void RTSSHOW::RTS_HandleData()
           if (EstepFeedRate <= 0.0)
           {
             EstepFeedRate = 6.0;
-            SERIAL_ECHOLNPGM("Set minimum feed rate 6 mm/min");
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Set minimum feed rate 6 mm/min"));
             RTS_SndData(StartSoundSet, SoundAddr);
             wait_idle(250);
           }
@@ -3138,7 +3144,7 @@ void RTSSHOW::RTS_HandleData()
           if (EstepFeedDistance <= 0.0)
           {
             EstepFeedDistance = 1.0;
-            SERIAL_ECHOLNPGM("Set minimum feed distance 1 mm");
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("SRTS => et minimum feed distance 1 mm"));
             RTS_SndData(StartSoundSet, SoundAddr);
             wait_idle(250);
           }
@@ -3165,7 +3171,7 @@ void RTSSHOW::RTS_HandleData()
               // Assert in case of low nozzle temp => New screen!
               RTS_line_to_current(E_AXIS_N(1), MMM_TO_MMS(EstepFeedRate));
               RTS_SndData(EstepFeedDistance*10, E_STEPS_FEED_DIST_VP);
-              SERIAL_ECHOLNPGM("Feeding right extruder");
+              TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feeding right extruder"));
             }
           }
         }
@@ -3175,7 +3181,7 @@ void RTSSHOW::RTS_HandleData()
         //heat up right nozzle
         thermalManager.temp_hotend[1].target = FILAMENT_CHANGE_TEMPERATURE_1;
         thermalManager.setTargetHotend(thermalManager.temp_hotend[1].target, 1);
-        SERIAL_ECHOLNPGM("Heating up right nozzle to 200°C");
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Heating up right nozzle to 200°C"));
         RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_1, CHANGE_FILAMENT1_TEMP_VP);
         RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
         RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
@@ -3201,7 +3207,7 @@ void RTSSHOW::RTS_HandleData()
           RTS_SndData(4, SELECT_MODE_ICON_VP);   //SINGLE MODE L icon
         }
         RTS_SndData(fileInfo.currentDisplayFilename, PRINT_FILE_TEXT_VP);
-        RTS_currentScreen = 1;
+        RTS_currentScreen = 56;
         RTS_SndData(ExchangePageBase + 56, ExchangepageAddr);
       }
       else if (recdat.data[0] == 2)
@@ -3246,8 +3252,8 @@ void RTSSHOW::RTS_HandleData()
         strcpy(cmdbuf, cmd);
 
         save_dual_x_carriage_mode = dualXPrintingModeStatus;
-        SERIAL_ECHOLNPGM("Debug Mode: PrintFileKey=11; save_dual_x_carriage_mode=" , save_dual_x_carriage_mode);
-        SERIAL_ECHOLNPGM("dualXPrintingModeStatus: ", dualXPrintingModeStatus);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PrintFileKey=11; save_dual_x_carriage_mode=" , save_dual_x_carriage_mode));
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => dualXPrintingModeStatus: ", dualXPrintingModeStatus));
 
         switch(save_dual_x_carriage_mode)
         {
@@ -3391,9 +3397,9 @@ void RTSSHOW::RTS_HandleData()
           BackupKp = thermalManager.temp_hotend[0].pid.Kp;
           BackupKi = thermalManager.temp_hotend[0].pid.Ki;
           BackupKd = thermalManager.temp_hotend[0].pid.Kd;
-          SERIAL_ECHOLNPGM("Started left extruder autotuning");
+          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Started left extruder autotuning"));
           thermalManager.PID_autotune(thermalManager.temp_hotend[0].target, (heater_id_t)H_E0, TuneCycles, true);
-          SERIAL_ECHOLNPGM("Left extruder autotuning finished");
+          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Left extruder autotuning finished"));
           BackupPID=0;
           RTS_currentScreen = 93;
           RTS_SndData(ExchangePageBase + 93, ExchangepageAddr);
@@ -3415,9 +3421,9 @@ void RTSSHOW::RTS_HandleData()
           BackupKp = thermalManager.temp_hotend[1].pid.Kp;
           BackupKi = thermalManager.temp_hotend[1].pid.Ki;
           BackupKd = thermalManager.temp_hotend[1].pid.Kd;
-          SERIAL_ECHOLNPGM("Started right extruder autotuning");
+          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Started right extruder autotuning"));
           thermalManager.PID_autotune(thermalManager.temp_hotend[1].target, (heater_id_t)H_E1, TuneCycles, true);
-          SERIAL_ECHOLNPGM("Right extruder autotuning finished");
+          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Right extruder autotuning finished"));
           BackupPID=0;
           RTS_currentScreen = 94;
           RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
@@ -3439,9 +3445,9 @@ void RTSSHOW::RTS_HandleData()
           BackupKp = thermalManager.temp_bed.pid.Kp;
           BackupKi = thermalManager.temp_bed.pid.Ki;
           BackupKd = thermalManager.temp_bed.pid.Kd;
-          SERIAL_ECHOLNPGM("Started hot.bed autotuning");
+          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Started hot.bed autotuning"));
           thermalManager.PID_autotune(thermalManager.temp_bed.target, (heater_id_t)H_BED, TuneCycles, true);
-          SERIAL_ECHOLNPGM("Hot-bed autotuning finished");
+          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Hot-bed autotuning finished"));
           BackupPID=0;
           RTS_currentScreen = 95;
           RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
@@ -3453,7 +3459,7 @@ void RTSSHOW::RTS_HandleData()
         //heat up left nozzle
         thermalManager.temp_hotend[0].target = AutoTuneNozzleLowerLimit;
         thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
-        SERIAL_ECHOLNPGM("Set left nozzle target temperature to ", AutoTuneNozzleLowerLimit , " °C");
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Set left nozzle target temperature to ", AutoTuneNozzleLowerLimit , " °C"));
         RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
         RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
         RTS_currentScreen = 93;
@@ -3465,7 +3471,7 @@ void RTSSHOW::RTS_HandleData()
         //heat up right nozzle
         thermalManager.temp_hotend[1].target = AutoTuneNozzleLowerLimit;
         thermalManager.setTargetHotend(thermalManager.temp_hotend[1].target, 1);
-        SERIAL_ECHOLNPGM("Set right nozzle target temperature to ", AutoTuneNozzleLowerLimit , " °C");
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Set right nozzle target temperature to ", AutoTuneNozzleLowerLimit , " °C"));
         RTS_SndData(thermalManager.temp_hotend[1].target, HEAD0_SET_TEMP_VP);
         RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD0_CURRENT_TEMP_VP);
         RTS_currentScreen = 94;
@@ -3476,7 +3482,7 @@ void RTSSHOW::RTS_HandleData()
       {
         //heat up hot-bed
         thermalManager.setTargetBed(AutoTuneHotBedLowerLimit);
-        SERIAL_ECHOLNPGM("Set hot-bed  nozzle target temperature to ", AutoTuneHotBedLowerLimit , " °C");
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Set hot-bed  nozzle target temperature to ", AutoTuneHotBedLowerLimit , " °C"));
         RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
         RTS_SndData(thermalManager.temp_bed.celsius, BED_CURRENT_TEMP_VP);
         RTS_currentScreen = 95;
@@ -3485,7 +3491,7 @@ void RTSSHOW::RTS_HandleData()
       }
       else if (recdat.data[0] == 7) //abort tuning
       {
-        SERIAL_ECHOLNPGM("Autotuning aborted. Previous PID parameters restored.");
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Autotuning aborted. Previous PID parameters restored."));
         //reset Autotuning indicator
         RTS_cyclesIcon = 0;
         //triple beep abort notification
@@ -3540,7 +3546,7 @@ void RTSSHOW::RTS_HandleData()
         TuneCycles--;
         if (TuneCycles < TuneCyclesLowerLimit) {TuneCycles = TuneCyclesLowerLimit;}
         RTS_SndData(TuneCycles, SET_TUNE_CYCLES_VP);
-        SERIAL_ECHOLNPGM("TuneCycles--: ", TuneCycles);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => TuneCycles--: ", TuneCycles));
         break;
       }
       else if (recdat.data[0] == 11) // from screens #93,#94,#95: tuning cycles +
@@ -3548,7 +3554,7 @@ void RTSSHOW::RTS_HandleData()
         TuneCycles++;
         if (TuneCycles > TuneCyclesUpperLimit) {TuneCycles = TuneCyclesUpperLimit;}
         RTS_SndData(TuneCycles, SET_TUNE_CYCLES_VP);
-        SERIAL_ECHOLNPGM("TuneCycles++: ", TuneCycles);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => TuneCycles++: ", TuneCycles));
         break;
       }
       else if (recdat.data[0] == 12) // from screen #93: left nozzle temperature -
@@ -3559,7 +3565,7 @@ void RTSSHOW::RTS_HandleData()
         if (t_temp < NozzleWarningLimit) {RTS_SndData(0, HEAD0_SET_ICON_VP);}
         else {RTS_SndData(1, HEAD0_SET_ICON_VP);}
         RTS_SndData(t_temp, HEAD0_SET_TEMP_VP);
-        SERIAL_ECHOLNPGM("Heater0Temp--: ", t_temp);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Heater0Temp--: ", t_temp));
         break;
       }
       else if (recdat.data[0] == 13) // from screen #93: left nozzle temperature +
@@ -3570,7 +3576,7 @@ void RTSSHOW::RTS_HandleData()
         if (t_temp < NozzleWarningLimit) {RTS_SndData(0, HEAD0_SET_ICON_VP);}
         else {RTS_SndData(1, HEAD0_SET_ICON_VP);}
         RTS_SndData(t_temp, HEAD0_SET_TEMP_VP);
-        SERIAL_ECHOLNPGM("Heater0Temp++: ", t_temp);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Heater0Temp++: ", t_temp));
         break;
       }
       else if (recdat.data[0] == 14) // from screen #94: right nozzle temperature -
@@ -3581,7 +3587,7 @@ void RTSSHOW::RTS_HandleData()
         if (t_temp < NozzleWarningLimit) {RTS_SndData(0, HEAD1_SET_ICON_VP);}
         else {RTS_SndData(1, HEAD1_SET_ICON_VP);}
         RTS_SndData(t_temp, HEAD1_SET_TEMP_VP);
-        SERIAL_ECHOLNPGM("Heater1Temp--: ", t_temp);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Heater1Temp--: ", t_temp));
         break;
       }
       else if (recdat.data[0] == 15) // from screen #94: right nozzle temperature +
@@ -3592,7 +3598,7 @@ void RTSSHOW::RTS_HandleData()
         if (t_temp < NozzleWarningLimit) {RTS_SndData(0, HEAD1_SET_ICON_VP);}
         else {RTS_SndData(1, HEAD1_SET_ICON_VP);}
         RTS_SndData(t_temp, HEAD1_SET_TEMP_VP);
-        SERIAL_ECHOLNPGM("Heater1Temp++: ", t_temp);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Heater1Temp++: ", t_temp));
         break;
       }
       else if (recdat.data[0] == 16) // from screen #95: hot-bed temperature -
@@ -3601,7 +3607,7 @@ void RTSSHOW::RTS_HandleData()
         if (t_temp < BedTempLowerLimit) {t_temp = BedTempLowerLimit;}
         thermalManager.setTargetBed(t_temp);
         RTS_SndData(t_temp, BED_SET_TEMP_VP);
-        SERIAL_ECHOLNPGM("HotBedTemp--: ", t_temp);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => HotBedTemp--: ", t_temp));
         break;
       }
       else if (recdat.data[0] == 17) // from screen #95: hot-bed temperature +
@@ -3610,15 +3616,16 @@ void RTSSHOW::RTS_HandleData()
         if (t_temp > BedTempUpperLimit) {t_temp = BedTempUpperLimit;}
         thermalManager.setTargetBed(t_temp);
         RTS_SndData(t_temp, BED_SET_TEMP_VP);
-                SERIAL_ECHOLNPGM("HotBedTemp++: ", t_temp);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => HotBedTemp++: ", t_temp));
         break;
       }
     break;
 
     case RestartKey:  //'Restart' screen #86 receives key codes 0xF1 (Restart) / 0xF0 (Cancel)
-      RTS_SndData(StartSoundSet, SoundAddr);
+
       if(recdat.data[0] == 0xF1) //Restart printer now
       {
+        RTS_SndData(StartSoundSet, SoundAddr);
         RTS_Restart(); //restart
       }
       else if(recdat.data[0] == 0xF0) //Cancel, switch back to settings screen
@@ -3629,9 +3636,10 @@ void RTSSHOW::RTS_HandleData()
       break;
 
     case SuicideKey:  //'Power Off' screen #88 receives key codes 0xF1 (Yes) / 0xF0 (No)
-      RTS_SndData(StartSoundSet, SoundAddr);
+
       if(recdat.data[0] == 0xF1) //Yes, power off printer now
       {
+        RTS_SndData(StartSoundSet, SoundAddr);
         autoPowerOffEnabled = true;
         queue.enqueue_now_P(PSTR("M81")); //power off
       }
@@ -3661,7 +3669,7 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKp0 = (float)ConvertLong/100;
         PID_PARAM(Kp, 0) = PIDparamKp0;
-        SERIAL_ECHOLNPGM("Head0PIDKpEnterKey: ", PIDparamKp0);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Head0PIDKpEnterKey: ", PIDparamKp0));
         RTS_SndData((uint16_t)ConvertH, HEAD0_TUNE_KP_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD0_TUNE_KP_VP + 1);
       }
@@ -3682,7 +3690,7 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKi0 = (float)ConvertLong/100;
         PID_PARAM(Ki, 0) = scalePID_i(PIDparamKi0);
-        SERIAL_ECHOLNPGM("Head0PIDKiEnterKey (unscaled): ", PIDparamKi0);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Head0PIDKiEnterKey (unscaled): ", PIDparamKi0));
         RTS_SndData((uint16_t)ConvertH, HEAD0_TUNE_KI_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD0_TUNE_KI_VP + 1);
       }
@@ -3703,7 +3711,7 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKd0 = (float)ConvertLong/100;
         PID_PARAM(Kd, 0) = scalePID_d(PIDparamKd0);
-        SERIAL_ECHOLNPGM("Head0PIDKdEnterKey (unscaled): ", PIDparamKd0);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Head0PIDKdEnterKey (unscaled): ", PIDparamKd0));
         RTS_SndData((uint16_t)ConvertH, HEAD0_TUNE_KD_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD0_TUNE_KD_VP + 1);
       }
@@ -3724,7 +3732,7 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKp1 = (float)ConvertLong/100;
         PID_PARAM(Kp, 1) = PIDparamKp1;
-        SERIAL_ECHOLNPGM("Head1PIDKpEnterKey: ", PIDparamKp1);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Head1PIDKpEnterKey: ", PIDparamKp1));
         RTS_SndData((uint16_t)ConvertH, HEAD1_TUNE_KP_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD1_TUNE_KP_VP + 1);
       }
@@ -3745,7 +3753,7 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKi1 = (float)ConvertLong/100;
         PID_PARAM(Ki, 1) = scalePID_i(PIDparamKi1);
-        SERIAL_ECHOLNPGM("Head1PIDKiEnterKey (unscaled): ", PIDparamKi1);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Head1PIDKiEnterKey (unscaled): ", PIDparamKi1));
         RTS_SndData((uint16_t)ConvertH, HEAD1_TUNE_KI_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD1_TUNE_KI_VP + 1);
       }
@@ -3766,7 +3774,7 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKd1 = (float)ConvertLong/100;
         PID_PARAM(Kd, 1) = scalePID_d(PIDparamKd1);
-        SERIAL_ECHOLNPGM("Head1PIDKdEnterKey (unscaled): ", PIDparamKd1);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Head1PIDKdEnterKey (unscaled): ", PIDparamKd1));
         RTS_SndData((uint16_t)ConvertH, HEAD1_TUNE_KD_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD1_TUNE_KD_VP + 1);
       }
@@ -3787,7 +3795,7 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKpB = (float)ConvertLong/100;
         thermalManager.temp_bed.pid.Kp = PIDparamKpB;
-        SERIAL_ECHOLNPGM("BedPIDKpEnterKey: ", PIDparamKpB);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => BedPIDKpEnterKey: ", PIDparamKpB));
         RTS_SndData((uint16_t)ConvertH, BED_TUNE_KP_VP);
         RTS_SndData((uint16_t)ConvertL, BED_TUNE_KP_VP + 1);
       }
@@ -3808,7 +3816,7 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKiB = (float)ConvertLong/100;
         thermalManager.temp_bed.pid.Ki = scalePID_i(PIDparamKiB);
-        SERIAL_ECHOLNPGM("BedPIDKiEnterKey (unscaled): ", PIDparamKiB);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => BedPIDKiEnterKey (unscaled): ", PIDparamKiB));
         RTS_SndData((uint16_t)ConvertH, BED_TUNE_KI_VP);
         RTS_SndData((uint16_t)ConvertL, BED_TUNE_KI_VP + 1);
       }
@@ -3829,7 +3837,7 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKdB = (float)ConvertLong/100;
         thermalManager.temp_bed.pid.Kd = scalePID_d(PIDparamKdB);
-        SERIAL_ECHOLNPGM("BedPIDKdEnterKey (unscaled): ", PIDparamKdB);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => BedPIDKdEnterKey (unscaled): ", PIDparamKdB));
         RTS_SndData((uint16_t)ConvertH, BED_TUNE_KD_VP);
         RTS_SndData((uint16_t)ConvertL, BED_TUNE_KD_VP + 1);
       }
@@ -3849,7 +3857,7 @@ void RTSSHOW::RTS_HandleData()
         RTS_presets.pla_hotend_t = recdat.data[0];
       }
       RTS_SndData(RTS_presets.pla_hotend_t, PRESET_PLA_HOTEND_VP);
-      SERIAL_ECHOLNPGM("PresetPlaHotendKey: ", RTS_presets.pla_hotend_t);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PresetPlaHotendKey: ", RTS_presets.pla_hotend_t));
     break;
 
     case PresetPlaBedKey:
@@ -3862,7 +3870,7 @@ void RTSSHOW::RTS_HandleData()
         RTS_presets.pla_bed_t = recdat.data[0];
       }
       RTS_SndData(RTS_presets.pla_bed_t, PRESET_PLA_BED_VP);
-      SERIAL_ECHOLNPGM("PresetPlaBedKey: ", RTS_presets.pla_bed_t);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PresetPlaBedKey: ", RTS_presets.pla_bed_t));
     break;
 
     case PresetPetgHotendKey:
@@ -3875,7 +3883,7 @@ void RTSSHOW::RTS_HandleData()
         RTS_presets.petg_hotend_t = recdat.data[0];
       }
       RTS_SndData(RTS_presets.petg_hotend_t, PRESET_PETG_HOTEND_VP);
-      SERIAL_ECHOLNPGM("PresetPetgHotendKey: ", RTS_presets.petg_hotend_t);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PresetPetgHotendKey: ", RTS_presets.petg_hotend_t));
     break;
 
     case PresetPetgBedKey:
@@ -3888,7 +3896,7 @@ void RTSSHOW::RTS_HandleData()
         RTS_presets.petg_bed_t = recdat.data[0];
       }
       RTS_SndData(RTS_presets.petg_bed_t, PRESET_PETG_BED_VP);
-      SERIAL_ECHOLNPGM("PresetPetgBedKey: ", RTS_presets.petg_bed_t);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PresetPetgBedKey: ", RTS_presets.petg_bed_t));
     break;
 
     case PresetMotorHoldKey:
@@ -3901,7 +3909,7 @@ void RTSSHOW::RTS_HandleData()
         RTS_presets.motor_hold_time = recdat.data[0];
       }
       RTS_SndData(RTS_presets.motor_hold_time, PRESET_MOTOR_HOLD_TIME_VP);
-      SERIAL_ECHOLNPGM("PresetMotorHoldKey: ", RTS_presets.motor_hold_time);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PresetMotorHoldKey: ", RTS_presets.motor_hold_time));
     break;
 
     case PresetAutoOffKey: //Toggle Auto Power-Off
@@ -3922,7 +3930,7 @@ void RTSSHOW::RTS_HandleData()
     break;
 
     case ChangePageKey:
-      SERIAL_ECHOLNPGM("Change Page: ", change_page_number);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Change Page: ", change_page_number));
       if ((change_page_number == 36) || (change_page_number == 76))
       {
         break;
@@ -4277,18 +4285,18 @@ void EachMomentUpdate()
         last_target_temperature_bed = thermalManager.temp_bed.target;
       }
 
-      if((thermalManager.temp_hotend[0].celsius >= thermalManager.temp_hotend[0].target) && (heatway == 1))
+      if((thermalManager.temp_hotend[0].celsius >= thermalManager.temp_hotend[0].target) && (RTS_heatway == 1))
       {
         RTS_currentScreen = 23;
         rtscheck.RTS_SndData(ExchangePageBase + 23, ExchangepageAddr);
-        heatway = 0;
+        RTS_heatway = 0;
         rtscheck.RTS_SndData(10 * Filament0LOAD, HEAD0_FILAMENT_LOAD_DATA_VP);
       }
-      else if((thermalManager.temp_hotend[1].celsius >= thermalManager.temp_hotend[1].target) && (heatway == 2))
+      else if((thermalManager.temp_hotend[1].celsius >= thermalManager.temp_hotend[1].target) && (RTS_heatway == 2))
       {
         RTS_currentScreen = 23;
         rtscheck.RTS_SndData(ExchangePageBase + 23, ExchangepageAddr);
-        heatway = 0;
+        RTS_heatway = 0;
         rtscheck.RTS_SndData(10 * Filament1LOAD, HEAD1_FILAMENT_LOAD_DATA_VP);
       }
 
@@ -4306,7 +4314,7 @@ void EachMomentUpdate()
 }
 
 void SetExtruderMode(unsigned int mode, bool isDirect) {
-  SERIAL_ECHOLNPGM("Selected extruder mode: ", mode);
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Selected extruder mode: ", mode));
   if (isDirect && mode == 4)
   {
     mode = 5; //DXC_SINGLE_R_MODE => SINGLE MODE 2
@@ -4315,7 +4323,7 @@ void SetExtruderMode(unsigned int mode, bool isDirect) {
   {
     mode = 4; //DXC_SINGLE_L_MODE => SINGLE MODE 1
   }
-  SERIAL_ECHOLNPGM("Select new extruder mode: ", mode);
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Select new extruder mode: ", mode));
   if (mode == 1)
   {
     //dual mode
@@ -4377,7 +4385,7 @@ void SetExtruderMode(unsigned int mode, bool isDirect) {
   {
     //return key; keep previous print mode
     save_dual_x_carriage_mode = dualXPrintingModeStatus;
-    SERIAL_ECHOLNPGM("save_dual_x_carriage_mode: ", save_dual_x_carriage_mode);
+    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => save_dual_x_carriage_mode: ", save_dual_x_carriage_mode));
     settings.save();
     RTS_currentScreen = 1;
     rtscheck.RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
@@ -4407,7 +4415,7 @@ void RTSUpdate()
 
   if((card_insert_st == false) && (sd_printing == true))
   {
-    RTS_currentScreen = 1;
+    RTS_currentScreen = 46;
     rtscheck.RTS_SndData(ExchangePageBase + 46, ExchangepageAddr);
     rtscheck.RTS_SndData(0, CHANGE_SDCARD_ICON_VP);
     /* Pause printing so that the nozzle can return to zero */

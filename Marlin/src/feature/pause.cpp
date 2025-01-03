@@ -206,7 +206,7 @@ bool load_filament(const_float_t slow_load_length/*=0*/, const_float_t fast_load
       if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
       else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
       rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
-      SERIAL_ECHOLNPGM("Pause screen #8 triggered");
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  Pause screen #8 triggered"));
       rtscheck.RTS_SndData(ExchangePageBase + 8, ExchangepageAddr);
     }
     SERIAL_ECHO_MSG(_PMSG(STR_FILAMENT_CHANGE_INSERT));
@@ -584,7 +584,7 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
     KEEPALIVE_STATE(PAUSED_FOR_USER);
     TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, GET_TEXT(MSG_NOZZLE_PARKED), CONTINUE_STR));
     TERN_(EXTENSIBLE_UI, ExtUI::onUserConfirmRequired_P(GET_TEXT(MSG_NOZZLE_PARKED)));
-    SERIAL_ECHOLNPGM("Pause screen #60 triggered");
+    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  Pause screen #60 triggered"));
     rtscheck.RTS_SndData(ExchangePageBase + 60, ExchangepageAddr);
     wait_for_user = true;    // LCD click or M108 will clear this
     while (wait_for_user) {
@@ -610,7 +610,7 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
         if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
         else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
         rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
-        SERIAL_ECHOLNPGM("Pause screen #61 triggered");
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  Pause screen #61 triggered"));
         rtscheck.RTS_SndData(ExchangePageBase + 61, ExchangepageAddr);
 
         TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, GET_TEXT(MSG_HEATER_TIMEOUT), GET_TEXT(MSG_REHEAT)));
@@ -642,7 +642,7 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
         HOTEND_LOOP() thermalManager.heater_idle[e].start(nozzle_timeout);
 
         queue.enqueue_one_P(PSTR("M117 Reheat Done."));
-        SERIAL_ECHOLNPGM("Pause screen #60 triggered");
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  Pause screen #60 triggered"));
         rtscheck.RTS_SndData(ExchangePageBase + 60, ExchangepageAddr);
         TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, GET_TEXT(MSG_REHEATDONE), CONTINUE_STR));
         TERN_(EXTENSIBLE_UI, ExtUI::onUserConfirmRequired_P(GET_TEXT(MSG_REHEATDONE)));
@@ -655,7 +655,7 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
       }
       idle_no_sleep();
     }
-    SERIAL_ECHOLNPGM("End Wait for user.");
+    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  End Wait for user."));
     #if ENABLED(DUAL_X_CARRIAGE)
       set_duplication_enabled(saved_ext_dup_mode, saved_ext);
     #endif
@@ -686,11 +686,11 @@ void resume_print(const_float_t slow_load_length/*=0*/, const_float_t fast_load_
   DEBUG_ECHOLNPGM("... slowlen:", slow_load_length, " fastlen:", fast_load_length, " purgelen:", purge_length, " maxbeep:", max_beep_count, " targetTemp:", targetTemp DXC_SAY);
 
 
-  SERIAL_ECHOLNPGM(
-    "resume_print: dual_x_carriage_mode:", dual_x_carriage_mode,
-    "\nextruder_duplication_enabled:", extruder_duplication_enabled,
-    "\nactive_extruder:", active_extruder
-  );
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM(
+    "RTS =>  resume_print: dual_x_carriage_mode:", dual_x_carriage_mode,
+    "\nRTS =>  extruder_duplication_enabled:", extruder_duplication_enabled,
+    "\nRTS =>  active_extruder:", active_extruder
+  ));
 
   if (!did_pause_print) return;
 
@@ -721,7 +721,7 @@ void resume_print(const_float_t slow_load_length/*=0*/, const_float_t fast_load_
 
   // Retract to prevent oozing
   unscaled_e_move(-(PAUSE_PARK_RETRACT_LENGTH), feedRate_t(PAUSE_PARK_RETRACT_FEEDRATE));
-  SERIAL_ECHOLNPGM("check for home");
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  check for home"));
   if (!axes_should_home()) {
     // Move XY back to saved position
     destination.set(resume_position.x, resume_position.y, current_position.z, current_position.e);
@@ -787,6 +787,7 @@ void resume_print(const_float_t slow_load_length/*=0*/, const_float_t fast_load_
   TERN_(DWIN_CREALITY_LCD_ENHANCED, HMI_ReturnScreen());
   #if ENABLED(RTS_AVAILABLE)
     //return to previous RTS screen
+    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  Resumed print. Return to display screen #", RTS_currentScreen));
     rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
   #endif
 }
