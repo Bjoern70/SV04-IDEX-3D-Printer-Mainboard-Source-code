@@ -25,11 +25,15 @@
  * Release version. Leave the Marlin version or apply a custom scheme.
  */
 #ifndef SHORT_BUILD_VERSION
+<<<<<<< HEAD
   #define SHORT_BUILD_VERSION "v1.15.3"
 #endif
 
 #ifndef DISPLAY_VERSION
   #define DISPLAY_VERSION "v1.15.2"
+=======
+  #define SHORT_BUILD_VERSION "v1.15.2"
+>>>>>>> refs/remotes/origin/master
 #endif
 
 /**
