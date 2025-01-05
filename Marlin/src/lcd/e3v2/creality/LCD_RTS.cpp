@@ -38,12 +38,7 @@
 
 // Enable verbose output from display handler to terminal.
 // Can be disabled for production build.
-<<<<<<< HEAD
 //#define RTS_DEBUG
-=======
-#define RTS_DEBUG
->>>>>>> 8b05904 (HOST CLEANUP)
-
 
 #if ENABLED(RTS_AVAILABLE)
 RTS_preset_data RTS_presets; // Initialized by settings.load()
@@ -107,7 +102,8 @@ float BackupKi = 0.0; //Backup Ki param
 float BackupKd = 0.0; //Backup Kd param
 uint16_t FileScrollSpeed = 1;
 char RTS_cyclesIcon = 0;
-int RTS_currentScreen = 0;
+uint8_t RTS_currentScreen = 0;
+uint8_t RTS_lastScreen = 0;
 
 // 1 for 0.1mm, 2 for 1mm, 3 for 10mm, 4 for 100mm
 unsigned char AxisUnitMode;
@@ -829,6 +825,10 @@ void RTSSHOW::RTS_SDcardStop()
   RTS_SndData(StartSoundSet, SoundAddr);
   */
   PoweroffContinue = false;
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_SDcardStop. Last screen #", RTS_currentScreen));
+  RTS_lastScreen = RTS_currentScreen;
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_SDcardStop. Screen #40.1 triggered"));
+  RTS_currentScreen = 40;
   RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
   //RTS_waitway = 7;
   Update_Time_Value = 0;
@@ -906,9 +906,9 @@ void RTSSHOW::RTS_SDcardFinish()
   delay(1);
   rtscheck.RTS_SndData(0, PRINT_SURPLUS_TIME_MIN_VP);
   delay(1);
-  RTS_currentScreen = 1;
   RTS_waitway = 0;
   change_page_number = 1;
+  RTS_currentScreen = 9;
   rtscheck.RTS_SndData(ExchangePageBase + 9, ExchangepageAddr);
   //wait_idle(3000);
   active_extruder = active_extruder_font;
@@ -1017,7 +1017,11 @@ void RTSSHOW::RTS_Restart()
 
 void RTSSHOW::RTS_ProcessPause()
 {
-  RTS_waitway = 1;
+  //RTS_waitway = 1; Skip screen lock
+  RTS_waitway = 0;
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessPause. Last screen #", RTS_currentScreen));
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessPause. Screen #40.2 triggered"));
+  RTS_currentScreen = 40;
   RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
   //pause command
   card.pauseSDPrint();
@@ -1025,15 +1029,21 @@ void RTSSHOW::RTS_ProcessPause()
   Update_Time_Value = 0;
   sdcard_pause_check = false;
   PrintFlag = 1;
-  change_page_number = 12;
-  //QUEUETEST
-  //queue.enqueue_one_P(PSTR("M76"));
-  queue.inject_P(PSTR("M76"));
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessPause. Override Last Screen to #12"));
+  RTS_lastScreen = 12; //Override to get back to info screen while pausing
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessPause. Screen #12 triggered"));
+  RTS_currentScreen = 12;
+  RTS_SndData(ExchangePageBase + 12, ExchangepageAddr);
+  //change_page_number = 12;
+  queue.enqueue_one_P(PSTR("M76"));
+
 }
 
 void RTSSHOW::RTS_ProcessResume()
 {
   RTS_waitway = 0;
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessResume. Last screen #", RTS_currentScreen));
+  RTS_lastScreen = RTS_currentScreen;
   //queue.enqueue_one_P(PSTR("M117 Resuming..."));
   RTS_SndData(fileInfo.currentDisplayFilename, PRINT_FILE_TEXT_VP);
   #if BOTH(M600_PURGE_MORE_RESUMABLE, ADVANCED_PAUSE_FEATURE)
@@ -1046,31 +1056,37 @@ void RTSSHOW::RTS_ProcessResume()
   Update_Time_Value = 0;
   sdcard_pause_check = true;
   pause_action_flag = false;
-  RTS_currentScreen = 11;
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessResume. Override Last Screen to #11"));
+  RTS_lastScreen = 11; //Override to get back to info screen while printing
+  RTS_currentScreen = 11; //Override to get back to info screen while printing
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessResume. Screen #11 triggered"));
   RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
   PrintFlag = 2;
-  //QUEUETEST
-  //queue.enqueue_one_P(PSTR("M75"));
-  queue.inject_P(PSTR("M75"));
-  TERN_(HOST_PAUSE_M76, host_action_resume());
+  queue.enqueue_one_P(PSTR("M75"));
+  //TERN_(HOST_PAUSE_M76, host_action_resume());
 }
 void RTSSHOW::RTS_ProcessM25()
 {
   //pause command
   RTS_waitway = 0;
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  RTS_ProcessM25. Last screen #", RTS_currentScreen));
   RTS_SndData(PSTR("Pausing..."), PRINT_FILE_TEXT_VP);
   card.pauseSDPrint();
   pause_action_flag = true;
   Update_Time_Value = 0;
   sdcard_pause_check = false;
   PrintFlag = 1;
-  RTS_currentScreen = 12;
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessM25. Override Last Screen to #12"));
+  RTS_lastScreen = 12; //Override to get back to info screen while pausing
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessM25. Pause screen #60.6 triggered"));
+  RTS_currentScreen = 60;
   RTS_SndData(ExchangePageBase + 60, ExchangepageAddr);
 }
 
 void RTSSHOW::RTS_ProcessM24()
 {
   //resume command
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  RTS_ProcessM24. Last screen #", RTS_currentScreen));
   RTS_waitway = 0;
   RTS_SndData(fileInfo.currentDisplayFilename, PRINT_FILE_TEXT_VP);
   #if BOTH(M600_PURGE_MORE_RESUMABLE, ADVANCED_PAUSE_FEATURE)
@@ -1082,8 +1098,11 @@ void RTSSHOW::RTS_ProcessM24()
   Update_Time_Value = 0;
   sdcard_pause_check = true;
   pause_action_flag = false;
-  //return to previous RTS screen
-  RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessM24. Override Last Screen to #11"));
+  RTS_lastScreen = 11; //Override to get back to info screen while printing
+  RTS_currentScreen = 11; //Override to get back to info screen while printing
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessM24. Printing screen #11 triggered"));
+  RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
   PrintFlag = 2;
 }
 
@@ -1150,12 +1169,12 @@ void RTSSHOW::RTS_HandleData()
           {
             RTS_SndData((unsigned int)FileScrollSpeed, PRINT_FILE_TEXT_SP + (j * 32));
           }
-          RTS_currentScreen = 1;
+          RTS_currentScreen = 2;
           RTS_SndData(ExchangePageBase + 2, ExchangepageAddr);
         }
         else
         {
-          RTS_currentScreen = 1;
+          RTS_currentScreen = 47;
           RTS_SndData(ExchangePageBase + 47, ExchangepageAddr);
         }
       }
@@ -1221,8 +1240,9 @@ void RTSSHOW::RTS_HandleData()
       else if(recdat.data[0] == 7) //resume key from #60
       {
         //return to previous RTS screen
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Resume - go to screen #", RTS_currentScreen));
-        RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Resume-Key. Last screen #", RTS_currentScreen));
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Go to last screen #", RTS_lastScreen));
+        RTS_SndData(ExchangePageBase + RTS_lastScreen, ExchangepageAddr);
       }
       break;
 
@@ -1260,6 +1280,7 @@ void RTSSHOW::RTS_HandleData()
           RTS_SndData(0, AUTO_POWER_OFF_ICON_VP);
           autoPowerOffEnabled = true;
         }
+        RTS_currentScreen = 14;
         RTS_SndData(ExchangePageBase + 14, ExchangepageAddr);
       }
       break;
@@ -1320,6 +1341,10 @@ void RTSSHOW::RTS_HandleData()
         #endif
         wait_for_user = false;
         //change filament and resume
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => ResumePrintKey.2. Last screen #", RTS_currentScreen));
+        RTS_lastScreen = RTS_currentScreen;
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => ResumePrintKey.2. Screen #40.3 triggered"));
+        RTS_currentScreen = 40;
         RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
         //card.startOrResumeFilePrinting();
         //print_job_timer.start();
@@ -1399,6 +1424,10 @@ void RTSSHOW::RTS_HandleData()
         }
         else
         {
+          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => ResumePrintKey.4. Last screen #", RTS_currentScreen));
+          RTS_lastScreen = RTS_currentScreen;
+          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => ResumePrintKey.4. Screen #40.4 triggered"));
+          RTS_currentScreen = 40;
           RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
 
           card.startOrResumeFilePrinting();
@@ -2228,6 +2257,10 @@ void RTSSHOW::RTS_HandleData()
       else if (recdat.data[0] == 11) //'Auto Z-align' button from screen #22
       {
         RTS_waitway = 3;
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.11. Last screen #", RTS_currentScreen));
+        RTS_lastScreen = RTS_currentScreen;
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.11. Screen #40.5 triggered"));
+        RTS_currentScreen = 40;
         RTS_SndData(ExchangePageBase + 40, ExchangepageAddr); //call 'Processing, wait...' screen
         //queue.enqueue_now_P(PSTR("G28 X"));
         active_extruder_flag = false;
@@ -2240,6 +2273,10 @@ void RTSSHOW::RTS_HandleData()
       else if (recdat.data[0] == 12) //'Tramming' key or 'Run Again' key
       {
         //RTS_waitway = 3;
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.12. Last screen #", RTS_currentScreen));
+        RTS_lastScreen = RTS_currentScreen;
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.12. Screen #40.6 triggered"));
+        RTS_currentScreen = 40;
         RTS_SndData(ExchangePageBase + 40, ExchangepageAddr); //call 'Processing, wait...' screen
         //queue.enqueue_now_P(PSTR("G28 X"));
         //queue.enqueue_now_P(PSTR("T0"));
@@ -3858,9 +3895,9 @@ void RTSSHOW::RTS_HandleData()
       }
       else
       {
-        RTS_presets.pla_hotend_t = recdat.data[0];
+        RTS_presets.pla_hotend_t = (int16_t)recdat.data[0];
       }
-      RTS_SndData(RTS_presets.pla_hotend_t, PRESET_PLA_HOTEND_VP);
+      RTS_SndData((int16_t)RTS_presets.pla_hotend_t, PRESET_PLA_HOTEND_VP);
       TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PresetPlaHotendKey: ", RTS_presets.pla_hotend_t));
     break;
 
@@ -3871,9 +3908,9 @@ void RTSSHOW::RTS_HandleData()
       }
       else
       {
-        RTS_presets.pla_bed_t = recdat.data[0];
+        RTS_presets.pla_bed_t = (int16_t)recdat.data[0];
       }
-      RTS_SndData(RTS_presets.pla_bed_t, PRESET_PLA_BED_VP);
+      RTS_SndData((int16_t)RTS_presets.pla_bed_t, PRESET_PLA_BED_VP);
       TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PresetPlaBedKey: ", RTS_presets.pla_bed_t));
     break;
 
@@ -3884,9 +3921,9 @@ void RTSSHOW::RTS_HandleData()
       }
       else
       {
-        RTS_presets.petg_hotend_t = recdat.data[0];
+        RTS_presets.petg_hotend_t = (int16_t)recdat.data[0];
       }
-      RTS_SndData(RTS_presets.petg_hotend_t, PRESET_PETG_HOTEND_VP);
+      RTS_SndData((int16_t)RTS_presets.petg_hotend_t, PRESET_PETG_HOTEND_VP);
       TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PresetPetgHotendKey: ", RTS_presets.petg_hotend_t));
     break;
 
@@ -3897,9 +3934,9 @@ void RTSSHOW::RTS_HandleData()
       }
       else
       {
-        RTS_presets.petg_bed_t = recdat.data[0];
+        RTS_presets.petg_bed_t = (int16_t)recdat.data[0];
       }
-      RTS_SndData(RTS_presets.petg_bed_t, PRESET_PETG_BED_VP);
+      RTS_SndData((int16_t)RTS_presets.petg_bed_t, PRESET_PETG_BED_VP);
       TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PresetPetgBedKey: ", RTS_presets.petg_bed_t));
     break;
 
@@ -3910,9 +3947,9 @@ void RTSSHOW::RTS_HandleData()
       }
       else
       {
-        RTS_presets.motor_hold_time = recdat.data[0];
+        RTS_presets.motor_hold_time = (int16_t)recdat.data[0];
       }
-      RTS_SndData(RTS_presets.motor_hold_time, PRESET_MOTOR_HOLD_TIME_VP);
+      RTS_SndData((int16_t)RTS_presets.motor_hold_time, PRESET_MOTOR_HOLD_TIME_VP);
       TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PresetMotorHoldKey: ", RTS_presets.motor_hold_time));
     break;
 
@@ -3941,7 +3978,7 @@ void RTSSHOW::RTS_HandleData()
       }
       else if (change_page_number == 11)
       {
-        RTS_currentScreen = ExchangePageBase;
+        RTS_currentScreen = change_page_number;
         RTS_SndData(change_page_number + ExchangePageBase, ExchangepageAddr);
         if ((dualXPrintingModeStatus != 0) && (dualXPrintingModeStatus != 4))
         {
@@ -3958,7 +3995,7 @@ void RTSSHOW::RTS_HandleData()
       }
       else if (change_page_number == 12)
       {
-        RTS_currentScreen = ExchangePageBase;
+        RTS_currentScreen = change_page_number;
         RTS_SndData(change_page_number + ExchangePageBase, ExchangepageAddr);
         if ((dualXPrintingModeStatus != 0) && (dualXPrintingModeStatus != 4))
         {
@@ -3975,7 +4012,7 @@ void RTSSHOW::RTS_HandleData()
       }
       else
       {
-        RTS_currentScreen = ExchangePageBase;
+        RTS_currentScreen = change_page_number;
         RTS_SndData(change_page_number + ExchangePageBase, ExchangepageAddr);
         change_page_number = 1;
       }
@@ -4443,16 +4480,6 @@ void RTSUpdate()
   while(rtscheck.RTS_RecData() > 0)
   {
     rtscheck.RTS_HandleData();
-  }
-}
-
-void RTS_PauseMoveAxisPage()
-{
-  if (RTS_waitway == 1) //enable display pause processing
-  {
-    RTS_currentScreen = 12;
-    rtscheck.RTS_SndData(ExchangePageBase + 12, ExchangepageAddr);
-    RTS_waitway = 0;
   }
 }
 

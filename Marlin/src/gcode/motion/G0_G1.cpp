@@ -131,7 +131,8 @@ void GcodeSuite::G0_G1(TERN_(HAS_FAST_MOVES, const bool fast_move/*=false*/)) {
       TERN_(FULL_REPORT_TO_HOST_FEATURE, report_current_grblstate_moving());
     #endif
     #if ENABLED(RTS_AVAILABLE)
-      RTS_PauseMoveAxisPage(); //enable display pause processing
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  G0_G1. Return to display screen #", RTS_currentScreen));
+      rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);//Display update
     #endif
   }
 }

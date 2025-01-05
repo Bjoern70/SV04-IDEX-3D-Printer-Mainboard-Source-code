@@ -75,7 +75,7 @@
 #define MACVERSION      STRING_CONFIG_H_AUTHOR
 #define SOFTVERSION     SHORT_BUILD_VERSION
 #define CORP_WEBSITE    "www.sovol3d.com"
-#define DISPLAY_VERSION "v1.15.0"
+//#define DISPLAY_VERSION "v1.15.2"
 
 /**
  * *** VENDORS PLEASE READ ***

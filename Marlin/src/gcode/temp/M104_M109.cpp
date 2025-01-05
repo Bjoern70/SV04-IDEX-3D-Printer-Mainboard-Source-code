@@ -137,7 +137,8 @@ void GcodeSuite::M104_M109(const bool isM109) {
   if (isM109 && got_temp)
     (void)thermalManager.wait_for_hotend(target_extruder, no_wait_for_cooling);
   #if ENABLED(RTS_AVAILABLE)
-    RTS_PauseMoveAxisPage(); //enable display pause processing
+    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  M104_M190. Return to display screen #", RTS_currentScreen));
+    rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);//Display update
   #endif
 }
 

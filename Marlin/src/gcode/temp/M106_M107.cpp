@@ -110,7 +110,8 @@ void GcodeSuite::M106() {
     } else {
       rtscheck.RTS_SndData(speed, HEAD1_FAN_SPEED_VP);
     }
-    RTS_PauseMoveAxisPage(); //enable display pause processing
+    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  M106. Return to display screen #", RTS_currentScreen));
+    rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);//Display update
   #endif
 }
 
@@ -143,7 +144,8 @@ void GcodeSuite::M107() {
     } else {
       rtscheck.RTS_SndData(0, HEAD1_FAN_SPEED_VP);
     }
-    RTS_PauseMoveAxisPage();
+    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  M107. Return to display screen #", RTS_currentScreen));
+    rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);//Display update
   #endif
 }
 

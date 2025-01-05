@@ -106,7 +106,6 @@ void GcodeSuite::M25() {
 
     #if ENABLED(RTS_AVAILABLE)
       rtscheck.RTS_ProcessM25();
-      //RTS_PauseMoveAxisPage(); //enable display pause processing
     #else
       M125();
     #endif

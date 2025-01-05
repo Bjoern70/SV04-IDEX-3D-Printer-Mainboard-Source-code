@@ -25,11 +25,11 @@
  * Release version. Leave the Marlin version or apply a custom scheme.
  */
 #ifndef SHORT_BUILD_VERSION
-<<<<<<< HEAD
-#define SHORT_BUILD_VERSION "v1.15.1"
-=======
-#define SHORT_BUILD_VERSION "v1.15.1-RTS-DEBUG"
->>>>>>> 8b05904 (HOST CLEANUP)
+  #define SHORT_BUILD_VERSION "v1.15.3"
+#endif
+
+#ifndef DISPLAY_VERSION
+  #define DISPLAY_VERSION "v1.15.2"
 #endif
 
 /**
@@ -47,7 +47,7 @@
  * version was tagged.
  */
 #ifndef STRING_DISTRIBUTION_DATE
-  #define STRING_DISTRIBUTION_DATE "2025-01-03"
+  #define STRING_DISTRIBUTION_DATE "2025-01-05"
 #endif
 
 /**
@@ -71,7 +71,7 @@
  * (Other behaviors are given by the firmware version and capabilities report.)
  */
 #ifndef PROTOCOL_VERSION
-  #define PROTOCOL_VERSION "v1.15.0"
+  #define PROTOCOL_VERSION "v1.15.3"
 #endif
 
 /**

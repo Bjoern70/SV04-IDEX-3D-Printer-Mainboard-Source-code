@@ -387,8 +387,12 @@ void Endstops::not_homing() {
   // If the last move failed to trigger an endstop, call kill
   void Endstops::validate_homing_move() {
     if (trigger_state()) hit_on_purpose();
-    else{ 
-      
+    else
+    {
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => validate_homing_move. Last screen #", RTS_currentScreen));
+      RTS_lastScreen = RTS_currentScreen;
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Auto home failed. screen #55 triggered"));
+      RTS_currentScreen = 55;
       rtscheck.RTS_SndData(ExchangePageBase + 55, ExchangepageAddr);
 
       kill(GET_TEXT(MSG_KILL_HOMING_FAILED));

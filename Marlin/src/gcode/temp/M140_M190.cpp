@@ -94,7 +94,8 @@ void GcodeSuite::M140_M190(const bool isM190) {
   if (isM190)
     thermalManager.wait_for_bed(no_wait_for_cooling);
   #if ENABLED(RTS_AVAILABLE)
-    RTS_PauseMoveAxisPage(); //enable display pause processing
+    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  M140_M190. Return to display screen #", RTS_currentScreen));
+    rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);//Display update
   #endif
 }
 

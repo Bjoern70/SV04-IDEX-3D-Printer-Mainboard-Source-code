@@ -45,6 +45,7 @@ void GcodeSuite::G4() {
 
   dwell(dwell_ms);
   #if ENABLED(RTS_AVAILABLE)
-    if (parser.seenval('S')) RTS_PauseMoveAxisPage(); //enable display pause processing
+    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  G4. Return to display screen #", RTS_currentScreen));
+    rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);//Display update
   #endif
 }

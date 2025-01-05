@@ -133,7 +133,8 @@ void GcodeSuite::M290() {
     #endif
   }
   #if ENABLED(RTS_AVAILABLE)
-    RTS_PauseMoveAxisPage(); //enable display pause processing
+    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  M290. Return to display screen #", RTS_currentScreen));
+    rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);//Display update
   #endif
 }
 
