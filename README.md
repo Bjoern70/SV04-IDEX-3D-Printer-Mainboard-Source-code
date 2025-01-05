@@ -33,6 +33,7 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
  - minor changes in display handler iot avoid display hickups during host print
  - added new G-Code command M1900 "Restart RTS display variables & reload from EEPROM"
  - added new G-Code command M1901 "Call RTS display screen directly". Released additional RTS display debug firmware version.
+ - more changes in display handler iot avoid display hickups during host print. Modified G-Code command M1901. Released RTS display debug firmware version.
 
 This SV04 Marlin firmware requires matching touchscreen software v1.15.0 that is available here:
 https://github.com/Bjoern70/SV04-Touchscreen/releases/tag/v1.15.0

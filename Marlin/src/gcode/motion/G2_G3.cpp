@@ -439,7 +439,8 @@ void GcodeSuite::G2_G3(const bool clockwise) {
 
     TERN_(FULL_REPORT_TO_HOST_FEATURE, set_and_report_grblstate(M_IDLE));
     #if ENABLED(RTS_AVAILABLE)
-      RTS_PauseMoveAxisPage(); //enable display pause processing
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  G2_G3. Return to display screen #", RTS_currentScreen));
+      rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);//Display update
     #endif
   }
 }

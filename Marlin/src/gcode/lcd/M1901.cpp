@@ -29,7 +29,11 @@
 #endif
 
 /**
+<<<<<<< HEAD
+ * M1901 - Call RTS display sreen directly (Requires RTS_AVAILABLE)
+=======
  * M1901 - Call RTS display screen directly (Requires RTS_AVAILABLE)
+>>>>>>> 8b05904 (HOST CLEANUP)
  *
  * M1901          - report current screen number
  *
@@ -101,6 +105,8 @@
  *                  103 :                     Query low temperature hot-bed
  *                  any : Other screens than above will likely freeze RTS display
  *
+ * M1901 L<int>   - Set previous displayed RTS screen #
+ *
  * M1901 R<bool>   - Force display RTS screen #S & reset screen locks
  *                   S<int>   - Display RTS screen #S as above
  * Examples:
@@ -116,10 +122,19 @@
     if (parser.seen('S'))
     {
       const int8_t screen = parser.byteval('S');
+      if (parser.seen('L'))
+      {
+        const int8_t lastscreen = parser.byteval('L');
+        if ((lastscreen>=0) || (lastscreen<=140)) RTS_lastScreen = RTS_currentScreen;
+        else RTS_lastScreen = RTS_currentScreen;
+      }
+      else RTS_lastScreen = RTS_currentScreen;
+
       if ((screen>=0) || (screen<=140))
       {
         if (parser.seenval('R'))
         {
+          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => M1901. Last screen #", RTS_lastScreen));
           TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Force call screen #",screen));
           RTS_currentScreen = screen;
           RTS_waitway = 0;  //reset screenlock
@@ -128,6 +143,7 @@
         }
         else
         {
+          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => M1901. Last screen #", RTS_lastScreen));
           TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Call screen #",screen));
           RTS_currentScreen = screen;
           rtscheck.RTS_SndData(ExchangePageBase + screen, ExchangepageAddr);
@@ -138,6 +154,7 @@
     {
       //Report RTS_currentScreen number
       SERIAL_ECHOLNPGM("Current RTS screen # is ",RTS_currentScreen);
+      SERIAL_ECHOLNPGM("Last RTS screen # was ",RTS_lastScreen);
     }
   }
 #endif

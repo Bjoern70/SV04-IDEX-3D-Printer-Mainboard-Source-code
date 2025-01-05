@@ -76,7 +76,10 @@ void GcodeSuite::M0_M1() {
     DWIN_Popup_Confirm(ICON_BLTouch, parser.string_arg ?: GET_TEXT(MSG_STOPPED), GET_TEXT(MSG_USERWAIT));
 
   #elif ENABLED(RTS_AVAILABLE)
+    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  M125. Last screen #", RTS_currentScreen));
+    RTS_lastScreen = RTS_currentScreen;
     //rtscheck.RTS_SDcardStop();
+    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  Pause screen #60.5 triggered"));
     RTS_currentScreen = 60; //call pause screen
     rtscheck.RTS_SndData(ExchangePageBase + 60, ExchangepageAddr);
     TERN_(HOST_PROMPT_SUPPORT, host_prompt_open(PROMPT_USER_CONTINUE, GET_TEXT(MSG_PRINT_ABORTED), CONTINUE_STR));

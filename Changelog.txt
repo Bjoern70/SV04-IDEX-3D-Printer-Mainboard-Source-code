@@ -34,8 +34,11 @@ Fixed M423 "X Twist Compensation" basic implementation. Process is supported via
 27 JUL 2024:
 Fixed probe bug that came with x twist compensation.
 
-01 JAN 2024:
+01 JAN 2025:
 Changed filename display to rolling text with adjustable text speed. First 130 chars of filenames are on display, including umlaute. Added fan speed adjustment (before & during print). Added flow-rate adjustment (before & during print). Added restart function iot to set back all variables to power-up default state. Added extra settings dialog iot provide PID tuning for nozzles and hot-bed (Auto-PID & manual input are supported), extruder E-step adjustment & presets (pre-heat temperatures, stepper deactivation time and auto power-off enable/disable).
 
-03 JAN 2024:
+03 JAN 2025:
 Minor changes in display handler iot avoid display hickups during host print. Added new G-Code command M1900 "Restart RTS display variables & reload from EEPROM". Added new G-Code command M1901 "Call RTS display screen directly". Released additional RTS display debug firmware version.
+
+05 JAN 2025:
+More changes in display handler iot avoid display hickups during host print. Modified G-Code command M1901 "Call RTS display screen directly". Released additional RTS display debug firmware version.

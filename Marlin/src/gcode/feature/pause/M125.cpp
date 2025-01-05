@@ -79,7 +79,11 @@ void GcodeSuite::M125() {
 
   ui.pause_show_message(PAUSE_MESSAGE_PARKING, PAUSE_MODE_PAUSE_PRINT);
   #if ENABLED(RTS_AVAILABLE)
-    rtscheck.RTS_SndData(ExchangePageBase + 60, ExchangepageAddr);
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  M125. Last screen #", RTS_currentScreen));
+  RTS_lastScreen = RTS_currentScreen;
+  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  Pause screen #60.4 triggered"));
+  RTS_currentScreen = 60;
+  rtscheck.RTS_SndData(ExchangePageBase + 60, ExchangepageAddr);
   #endif
 
   // If possible, show an LCD prompt with the 'P' flag

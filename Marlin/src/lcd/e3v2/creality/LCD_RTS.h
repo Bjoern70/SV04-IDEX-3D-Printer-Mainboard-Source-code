@@ -144,8 +144,8 @@ extern int power_off_type_yes;
 //Scrolling text pointer = XX_TEXT_VP + 0x0003
 #define PRINT_FILE_TEXT_VP                 0x1503 //#9,#10,#11,#12,#36,#37,#56,#60,#62
 #define PRESET_PLA_HOTEND_VP               0x1606 //#97
-#define PRESET_PLA_BED_VP                  0x1608 //#97
-#define PRESET_PETG_HOTEND_VP              0x160A //#97
+#define PRESET_PLA_BED_VP                  0x160A //#97
+#define PRESET_PETG_HOTEND_VP              0x1608 //#97
 #define PRESET_PETG_BED_VP                 0x160C //#97
 #define PRESET_MOTOR_HOLD_TIME_VP          0x160E //#97
 #define PRESET_AUTO_POWER_OFF_VP           0x1612 //#97
@@ -329,8 +329,8 @@ extern RTSSHOW rtscheck;
 0x141C  BedPIDKiEnterKey,       #96
 0x1420  BedPIDKdEnterKey,       #96
 0x1606  PresetPlaHotendKey,     #97
-0x1608  PresetPlaBedKey,        #97
-0x160A  PresetPetgHotendKey,    #97
+0x1608  PresetPetgHotendKey,    #97
+0x160A  PresetPlaBedKey,        #97
 0x160C  PresetPetgBedKey,       #97
 0x160E  PresetMotorHoldKey,     #97
 0x1610  PresetAutoOffKey,       #97
@@ -394,8 +394,8 @@ enum PROC_COM
   BedPIDKiEnterKey,
   BedPIDKdEnterKey,
   PresetPlaHotendKey,
-  PresetPlaBedKey,
   PresetPetgHotendKey,
+  PresetPlaBedKey,
   PresetPetgBedKey,
   PresetMotorHoldKey,
   PresetAutoOffKey,
@@ -483,11 +483,11 @@ extern char save_dual_x_carriage_mode;
 extern float current_position_x0_axis;
 extern float current_position_x1_axis;
 extern char RTS_cyclesIcon;
-extern int RTS_currentScreen;
+extern uint8_t RTS_currentScreen;
+extern uint8_t RTS_lastScreen;
 extern char RTS_waitway;
 extern char RTS_heatway;
 
-void RTS_PauseMoveAxisPage();
 void RTS_MoveAxisHoming();
 extern void RTS_Buzz(const uint16_t, const uint16_t);
 void wait_idle(millis_t);
