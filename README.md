@@ -32,15 +32,10 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
  - changed filename display to rolling text with adjustable text speed; first 130 chars of filenames are displayed, including umlaute
  - minor changes in display handler iot avoid display hickups during host print
  - added new G-Code command M1900 "Restart RTS display variables & reload from EEPROM"
-<<<<<<< HEAD
  - added new G-Code command M1901 "Call RTS display screen directly"
  - more changes in display handler iot avoid display hickups during host print
  - modified G-Code command M1901
  - fixed display software version in printer info screen.
-=======
- - added new G-Code command M1901 "Call RTS display screen directly". Released additional RTS display debug firmware version.
- - more changes in display handler iot avoid display hickups during host print. Modified G-Code command M1901. Released RTS display debug firmware version.
->>>>>>> refs/remotes/origin/master
 
 
 This SV04 Marlin firmware requires matching touchscreen software v1.15.2 that is available here:

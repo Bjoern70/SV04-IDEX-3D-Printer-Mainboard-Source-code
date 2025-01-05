@@ -28,11 +28,7 @@
 /**
  * Marlin release version identifier
  */
-<<<<<<< HEAD
 //#define SHORT_BUILD_VERSION "v1.15.3"
-=======
-//#define SHORT_BUILD_VERSION "v1.15.2"
->>>>>>> refs/remotes/origin/master
 
 /**
  * Verbose version identifier which should contain a reference to the location

@@ -42,9 +42,6 @@ Minor changes in display handler iot avoid display hickups during host print. Ad
 
 05 JAN 2025:
 More changes in display handler iot avoid display hickups during host print. Modified G-Code command M1901 "Call RTS display screen directly". Released additional RTS display debug firmware version.
-<<<<<<< HEAD
 
 05 JAN 2025:
 Fixed display software version in printer info screen.
-=======
->>>>>>> refs/remotes/origin/master
