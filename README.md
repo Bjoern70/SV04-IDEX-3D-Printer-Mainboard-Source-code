@@ -35,7 +35,10 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
  - added new G-Code command M1901 "Call RTS display screen directly"
  - more changes in display handler iot avoid display hickups during host print
  - modified G-Code command M1901
- - fixed display software version in printer info screen.
+ - fixed display software version in printer info screen
+ - fixed offset float to integer conversion bug
+ - cleared preset values for X- and Y-offset: both offsets will be 0.0 after EEPROM reset.
+ - added X-axis homing after tramming.
 
 
 This SV04 Marlin firmware requires matching touchscreen software v1.15.2 that is available here:

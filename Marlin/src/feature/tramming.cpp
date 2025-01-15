@@ -25,6 +25,7 @@
 #if ENABLED(ASSISTED_TRAMMING)
 
 #include "tramming.h"
+#include "../gcode/queue.h"
 
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../core/debug_out.h"
@@ -59,9 +60,13 @@ PGM_P const tramming_point_name[] PROGMEM = {
 
   // Move to the defined wait position
   void move_to_tramming_wait_pos() {
-    constexpr xyz_pos_t wait_pos = ASSISTED_TRAMMING_WAIT_POSITION;
-    if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Moving away");
-    do_blocking_move_to(wait_pos, XY_PROBE_FEEDRATE_MM_S);
+    #if ENABLED(RTS_AVAILABLE)
+      queue.enqueue_now_P(PSTR("G28 X"));
+    #elif
+      constexpr xyz_pos_t wait_pos = ASSISTED_TRAMMING_WAIT_POSITION;
+      if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Moving away");
+      do_blocking_move_to(wait_pos, XY_PROBE_FEEDRATE_MM_S);
+    #endif
   }
 
 #endif

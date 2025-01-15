@@ -42,7 +42,7 @@
 
 #if ENABLED(RTS_AVAILABLE)
 RTS_preset_data RTS_presets; // Initialized by settings.load()
-float zprobe_zoffset;
+float zprobe_zoffset = 0.0;
 float last_zoffset = 0.0;
 
 const float manual_feedrate_X = MMM_TO_MMS(XY_PROBE_FEEDRATE);      //180*60 mm/min
@@ -2145,10 +2145,10 @@ void RTSSHOW::RTS_HandleData()
         if (WITHIN((zprobe_zoffset + 0.01), Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX))
         {
           #if ENABLED(HAS_LEVELING)
-            zprobe_zoffset = (zprobe_zoffset + 0.01);
-            zprobe_zoffset = zprobe_zoffset + 0.00001;
+            zprobe_zoffset = zprobe_zoffset + 0.01;
+            //zprobe_zoffset = zprobe_zoffset + 0.00001;
           #endif
-          babystep.add_mm(Z_AXIS, zprobe_zoffset - last_zoffset);
+          babystep.add_mm(Z_AXIS, (float)zprobe_zoffset - last_zoffset);
           probe.offset.z = zprobe_zoffset;
         }
         RTS_SndData(probe.offset.z * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
@@ -2159,10 +2159,10 @@ void RTSSHOW::RTS_HandleData()
         if (WITHIN((zprobe_zoffset - 0.01), Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX))
         {
           #if ENABLED(HAS_LEVELING)
-            zprobe_zoffset = (zprobe_zoffset - 0.01);
-            zprobe_zoffset = zprobe_zoffset - 0.00001;
+            zprobe_zoffset = zprobe_zoffset - 0.01;
+            //zprobe_zoffset = zprobe_zoffset - 0.00001;
           #endif
-          babystep.add_mm(Z_AXIS, zprobe_zoffset - last_zoffset);
+          babystep.add_mm(Z_AXIS, (float)zprobe_zoffset - last_zoffset);
           probe.offset.z = zprobe_zoffset;
         }
         RTS_SndData(probe.offset.z * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
@@ -2299,10 +2299,10 @@ void RTSSHOW::RTS_HandleData()
         if (WITHIN((zprobe_zoffset + 0.1), Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX))
         {
           #if ENABLED(HAS_LEVELING)
-            zprobe_zoffset = (zprobe_zoffset + 0.1);
-            zprobe_zoffset = zprobe_zoffset + 0.00001;
+            zprobe_zoffset = zprobe_zoffset + 0.1;
+            //zprobe_zoffset = zprobe_zoffset + 0.00001;
           #endif
-          babystep.add_mm(Z_AXIS, zprobe_zoffset - last_zoffset);
+          babystep.add_mm(Z_AXIS, (float)zprobe_zoffset - last_zoffset);
           probe.offset.z = zprobe_zoffset;
         }
         RTS_SndData(probe.offset.z * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
@@ -2313,10 +2313,10 @@ void RTSSHOW::RTS_HandleData()
         if (WITHIN((zprobe_zoffset - 0.1), Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX))
         {
           #if ENABLED(HAS_LEVELING)
-            zprobe_zoffset = (zprobe_zoffset - 0.1);
-            zprobe_zoffset = zprobe_zoffset - 0.00001;
+            zprobe_zoffset = zprobe_zoffset - 0.1;
+            //zprobe_zoffset = zprobe_zoffset - 0.00001;
           #endif
-          babystep.add_mm(Z_AXIS, zprobe_zoffset - last_zoffset);
+          babystep.add_mm(Z_AXIS, (float)zprobe_zoffset - last_zoffset);
           probe.offset.z = zprobe_zoffset;
         }
         RTS_SndData(probe.offset.z * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
@@ -2872,31 +2872,33 @@ void RTSSHOW::RTS_HandleData()
     case XhotendOffsetKey:
       if (recdat.data[0] >= 32768)
       {
-        hotend_offset[1].x = (recdat.data[0] - 65536) / 100.0;
-        hotend_offset[1].x = hotend_offset[1].x - 0.00001 + X2_MAX_POS;
+        hotend_offset[1].x = (float)(recdat.data[0] - 65536) / 100.0;
+        //hotend_offset[1].x = hotend_offset[1].x - 0.00001 + X2_MAX_POS;
+        hotend_offset[1].x = hotend_offset[1].x + (float)X2_MAX_POS;
       }
       else
       {
-        hotend_offset[1].x = (recdat.data[0]) / 100.0;
-        hotend_offset[1].x = hotend_offset[1].x + 0.00001 + X2_MAX_POS;
+        hotend_offset[1].x = (float)(recdat.data[0]) / 100.0;
+        //hotend_offset[1].x = hotend_offset[1].x + 0.00001 + X2_MAX_POS;
+        hotend_offset[1].x = hotend_offset[1].x + (float)X2_MAX_POS;
       }
-
-      RTS_SndData((hotend_offset[1].x - X2_MAX_POS)* 100, TWO_EXTRUDER_HOTEND_XOFFSET_VP);
+      //RTS_SndData((hotend_offset[1].x - X2_MAX_POS)* 100, TWO_EXTRUDER_HOTEND_XOFFSET_VP);
+      RTS_SndData(recdat.data[0], TWO_EXTRUDER_HOTEND_XOFFSET_VP);
       break;
 
     case YhotendOffsetKey:
       if (recdat.data[0] >= 32768)
       {
-        hotend_offset[1].y = (recdat.data[0] - 65536) / 100.0;
-        hotend_offset[1].y = hotend_offset[1].y - 0.00001;
+        hotend_offset[1].y = (float)(recdat.data[0] - 65536) / 100.0;
+        //hotend_offset[1].y = hotend_offset[1].y - 0.00001;
       }
       else
       {
-        hotend_offset[1].y = (recdat.data[0]) / 100.0;
-        hotend_offset[1].y = hotend_offset[1].y + 0.00001;
+        hotend_offset[1].y = (float)(recdat.data[0]) / 100.0;
+        //hotend_offset[1].y = hotend_offset[1].y + 0.00001;
       }
-
-      RTS_SndData(hotend_offset[1].y * 100, TWO_EXTRUDER_HOTEND_YOFFSET_VP);
+      //RTS_SndData(hotend_offset[1].y * 100, TWO_EXTRUDER_HOTEND_YOFFSET_VP);
+      RTS_SndData(recdat.data[0] , TWO_EXTRUDER_HOTEND_YOFFSET_VP);
       break;
 
     case StoreMemoryKey:
@@ -2930,8 +2932,9 @@ void RTSSHOW::RTS_HandleData()
           }
         }
       queue.enqueue_now_P(PSTR("M420 S1"));
-      zprobe_zoffset = 0;
-      last_zoffset = 0;
+      last_zoffset = zprobe_zoffset = probe.offset.z;
+      //zprobe_zoffset = 0;
+      //last_zoffset = 0;
       RTS_SndData(probe.offset.z * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
       RTS_SndData(0, MOTOR_FREE_ICON_VP); //motors enabled
       RTS_currentScreen = 21;
