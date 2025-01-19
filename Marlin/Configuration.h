@@ -2793,6 +2793,9 @@
 //#define DWIN_MARLINUI_PORTRAIT
 //#define DWIN_MARLINUI_LANDSCAPE
 #define RTS_AVAILABLE
+// Enable verbose output from RTS display handler to terminal.
+// Can be disabled for production build.
+//#define RTS_DEBUG
 
 //
 // Touch Screen Settings

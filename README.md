@@ -37,8 +37,9 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
  - modified G-Code command M1901
  - fixed display software version in printer info screen
  - fixed offset float to integer conversion bug
- - cleared preset values for X- and Y-offset: both offsets will be 0.0 after EEPROM reset.
- - added X-axis homing after tramming.
+ - cleared preset values for X- and Y-offset: both offsets will be 0.0 after EEPROM reset
+ - added X-axis homing after tramming
+ - modified tramming points & Z-alignment probe points for higher precison.
 
 
 This SV04 Marlin firmware requires matching touchscreen software v1.15.2 that is available here:

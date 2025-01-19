@@ -48,3 +48,6 @@ Fixed display software version in printer info screen.
 
 15 JAN 2025:
 Fixed offset float to integer conversion bug. Cleared preset values for X- and Y-offset: both offsets will be 0.0 after EEPROM reset. Added X-axis homing after tramming.
+
+19 JAN 2025:
+Modified tramming points & Z-alignment probe points for higher precison.

@@ -1545,8 +1545,9 @@ void Temperature::min_temp_error(const heater_id_t heater_id) {
  *  - Update the heated bed PID output value
  */
 void Temperature::manage_heater() {
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => manage_heater. Called from screen #", RTS_currentScreen));
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => manage_heater. Last screen #", RTS_lastScreen));
+  //insert counter here iot limit messages
+  //TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => manage_heater. Called from screen #", RTS_currentScreen));
+  //TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => manage_heater. Last screen #", RTS_lastScreen));
 
   if (marlin_state == MF_INITIALIZING) return watchdog_refresh(); // If Marlin isn't started, at least reset the watchdog!
 

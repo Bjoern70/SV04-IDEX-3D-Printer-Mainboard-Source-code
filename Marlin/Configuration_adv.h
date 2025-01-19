@@ -876,7 +876,8 @@
   // Define probe X and Y positions for Z1, Z2 [, Z3 [, Z4]]
   // If not defined, probe limits will be used.
   // Override with 'M422 S<index> X<pos> Y<pos>'
-  //#define Z_STEPPER_ALIGN_XY { {  10, 190 }, { 100,  10 }, { 190, 190 } }
+  //#define Z_STEPPER_ALIGN_XY { { 32.9, 22.5 }, { 272.9, 22.5 }}
+  #define Z_STEPPER_ALIGN_XY { { 32.9, 262.5 }, { 272.9, 262.5 }}
 
   /**
    * Orientation for the automatically-calculated probe positions.
@@ -898,7 +899,7 @@
    *               | 1   2 | 2   3 | 3   4 | 4   1 |
    */
   #ifndef Z_STEPPER_ALIGN_XY
-    //#define Z_STEPPERS_ORIENTATION 0
+    #define Z_STEPPERS_ORIENTATION 0
   #endif
 
   // Provide Z stepper positions for more rapid convergence in bed alignment.
@@ -932,7 +933,9 @@
 #if ENABLED(ASSISTED_TRAMMING)
 
   // Define positions for probe points.
-  #define TRAMMING_POINT_XY { { 30, 30 }, { 275,  30 }, { 275, 275 }, { 30, 275 } }
+  //#define TRAMMING_POINT_XY { { 30, 30 }, { 275,  30 }, { 275, 275 }, { 30, 275 } }
+  //#define TRAMMING_POINT_XY { { 32.9, 22.5 }, { 272.9, 22.5 }, { 272.9, 262.5 }, { 32.9, 262.5 } } //Limited by front margin
+  #define TRAMMING_POINT_XY { { 32.9, 25 }, { 272.9, 25 }, { 272.9, 262.5 }, { 32.9, 262.5 } }
 
   // Define position names for probe points.
   #define TRAMMING_POINT_NAME_1 "Front-Left"
