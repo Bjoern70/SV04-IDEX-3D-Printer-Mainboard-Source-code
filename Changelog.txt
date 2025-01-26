@@ -51,3 +51,6 @@ Fixed offset float to integer conversion bug. Cleared preset values for X- and Y
 
 19 JAN 2025:
 Modified tramming points & Z-alignment probe points for higher precison.
+
+26 JAN 2025:
+Fixed touchscreen E-step adjustment not recognized bug. Fixed right extruder not moving bug in refuel & extruder E-step adjustment screens.

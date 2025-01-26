@@ -20,7 +20,7 @@
 #include "../../../gcode/queue.h"
 #include "../../../gcode/gcode.h"
 #include "../../../module/probe.h"
-
+#include "../../../libs/numtostr.h"
 #include "../../../feature/bedlevel/abl/abl.h"
 
 #if ENABLED(HOST_ACTION_COMMANDS)
@@ -48,7 +48,7 @@ float last_zoffset = 0.0;
 const float manual_feedrate_X = MMM_TO_MMS(XY_PROBE_FEEDRATE);      //180*60 mm/min
 const float manual_feedrate_Y = MMM_TO_MMS(XY_PROBE_FEEDRATE);      //180*60 mm/min
 const float manual_feedrate_Z = MMM_TO_MMS(Z_PROBE_FEEDRATE_FAST);  // 16*60 mm/min
-const float manual_feedrate_E = FILAMENT_CHANGE_FAST_LOAD_FEEDRATE; //     6 mm/s
+
 
 int startprogress = 0;
 bool sdcard_pause_check = true;
@@ -132,6 +132,14 @@ inline void RTS_line_to_current(AxisEnum axis, float manual_feedrate_mms)
   if (!planner.is_full())
   {
     planner.buffer_line(current_position, manual_feedrate_mms, active_extruder);
+  }
+}
+
+inline void RTS_extruder_move(float length, float manual_feedrate_mms)
+{
+  if (!planner.is_full())
+  {
+    unscaled_e_move(length, manual_feedrate_mms);
   }
 }
 
@@ -1155,7 +1163,7 @@ void RTSSHOW::RTS_HandleData()
 
   switch(Checkkey)
   {
-    case MainPageKey:
+  case MainPageKey:
       if(recdat.data[0] == 1)
       {
         CardUpdate = true;
@@ -2549,33 +2557,7 @@ void RTSSHOW::RTS_HandleData()
       break;
 
     case FilamentLoadKey:
-      if(recdat.data[0] == 1)
-      {
-        if(!planner.has_blocks_queued())
-        {
-          if(READ(FIL_RUNOUT_PIN) == 0)
-          {
-            RTS_currentScreen = 20;
-        RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
-          }
-          current_position[E_AXIS_N(0)] -= Filament0LOAD;
-          active_extruder = 0;
-          queue.enqueue_now_P(PSTR("T0"));
-
-          if(thermalManager.temp_hotend[0].celsius < (FILAMENT_CHANGE_TEMPERATURE_0 - 5))
-          {
-            RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_0, CHANGE_FILAMENT0_TEMP_VP);
-            RTS_currentScreen = 24;
-        RTS_SndData(ExchangePageBase + 24, ExchangepageAddr);
-          }
-          else
-          {
-            RTS_line_to_current(E_AXIS_N(0), manual_feedrate_E);
-            RTS_SndData(10 * Filament0LOAD, HEAD0_FILAMENT_LOAD_DATA_VP);
-          }
-        }
-      }
-      else if(recdat.data[0] == 2)
+      if(recdat.data[0] == 1) //Retract left extruder from screen #23
       {
         if(!planner.has_blocks_queued())
         {
@@ -2584,10 +2566,6 @@ void RTSSHOW::RTS_HandleData()
             RTS_currentScreen = 20;
             RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
           }
-          current_position[E_AXIS_N(0)] += Filament0LOAD;
-          active_extruder = 0;
-          queue.enqueue_now_P(PSTR("T0"));
-
           if(thermalManager.temp_hotend[0].celsius < (FILAMENT_CHANGE_TEMPERATURE_0 - 5))
           {
             RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_0, CHANGE_FILAMENT0_TEMP_VP);
@@ -2596,12 +2574,54 @@ void RTSSHOW::RTS_HandleData()
           }
           else
           {
-            RTS_line_to_current(E_AXIS_N(0), manual_feedrate_E);
+            queue.enqueue_now_P(PSTR("T0"));
+            active_extruder = 0;
+            active_extruder_flag = false;
+            active_extruder_font = active_extruder;
+            current_position[E_AXIS] -= Filament0LOAD;
+            //RTS_extruder_move(0.0-Filament0LOAD, MMM_TO_MMS(EstepFeedRate));
+            RTS_line_to_current(E_AXIS, MMM_TO_MMS(EstepFeedRate));
             RTS_SndData(10 * Filament0LOAD, HEAD0_FILAMENT_LOAD_DATA_VP);
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => FilamentLoadKey 1"));
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Retracting left extruder"));
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Length: ", Filament0LOAD));
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate));
           }
         }
       }
-      else if(recdat.data[0] == 3)
+      else if(recdat.data[0] == 2)  //Feed left extruder from screen #23
+      {
+        if(!planner.has_blocks_queued())
+        {
+          if(READ(FIL_RUNOUT_PIN) == 0)
+          {
+            RTS_currentScreen = 20;
+            RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
+          }
+          if(thermalManager.temp_hotend[0].celsius < (FILAMENT_CHANGE_TEMPERATURE_0 - 5))
+          {
+            RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_0, CHANGE_FILAMENT0_TEMP_VP);
+            RTS_currentScreen = 24;
+            RTS_SndData(ExchangePageBase + 24, ExchangepageAddr);
+          }
+          else
+          {
+            queue.enqueue_now_P(PSTR("T0"));
+            active_extruder = 0;
+            active_extruder_flag = false;
+            active_extruder_font = active_extruder;
+            current_position[E_AXIS] += Filament0LOAD;
+            //RTS_extruder_move(Filament0LOAD, MMM_TO_MMS(EstepFeedRate));
+            RTS_line_to_current(E_AXIS, MMM_TO_MMS(EstepFeedRate));
+            RTS_SndData(10 * Filament0LOAD, HEAD0_FILAMENT_LOAD_DATA_VP);
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => FilamentLoadKey 2"));
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feeding left extruder"));
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Length: ", Filament0LOAD));
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate));
+          }
+        }
+      }
+      else if(recdat.data[0] == 3)  //Retract right extruder from screen #23
       {
         if(!planner.has_blocks_queued())
         {
@@ -2610,47 +2630,59 @@ void RTSSHOW::RTS_HandleData()
             RTS_currentScreen = 20;
             RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
           }
-          current_position[E_AXIS_N(1)] -= Filament1LOAD;
-          active_extruder = 1;
-          queue.enqueue_now_P(PSTR("T1"));
-
           if (thermalManager.temp_hotend[1].celsius < (FILAMENT_CHANGE_TEMPERATURE_1 - 5))
           {
             RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_1, CHANGE_FILAMENT1_TEMP_VP);
 
             RTS_currentScreen = 25;
-        RTS_SndData(ExchangePageBase + 25, ExchangepageAddr);
+            RTS_SndData(ExchangePageBase + 25, ExchangepageAddr);
           }
           else
           {
-            RTS_line_to_current(E_AXIS_N(1), manual_feedrate_E);
+            queue.enqueue_now_P(PSTR("T1"));
+            active_extruder = 1;
+            active_extruder_flag = true;
+            active_extruder_font = active_extruder;
+            current_position[E_AXIS] -= Filament1LOAD;
+            //RTS_extruder_move(0.0-Filament1LOAD, MMM_TO_MMS(EstepFeedRate));
+            RTS_line_to_current(E_AXIS, MMM_TO_MMS(EstepFeedRate));
             RTS_SndData(10 * Filament1LOAD, HEAD1_FILAMENT_LOAD_DATA_VP);
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => FilamentLoadKey 3"));
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Retracting right extruder"));
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Length: ", Filament0LOAD));
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate));
           }
         }
       }
-      else if(recdat.data[0] == 4)
+      else if(recdat.data[0] == 4)  //Feed right extruder from screen #23
       {
         if(!planner.has_blocks_queued())
         {
           if(READ(FIL_RUNOUT2_PIN) == 0)
           {
             RTS_currentScreen = 20;
-        RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
+            RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
           }
-          current_position[E_AXIS_N(1)] += Filament1LOAD;
-          active_extruder = 1;
-          queue.enqueue_now_P(PSTR("T1"));
-
           if(thermalManager.temp_hotend[1].celsius < (FILAMENT_CHANGE_TEMPERATURE_1 - 5))
           {
             RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_1, CHANGE_FILAMENT1_TEMP_VP);
             RTS_currentScreen = 25;
-        RTS_SndData(ExchangePageBase + 25, ExchangepageAddr);
+            RTS_SndData(ExchangePageBase + 25, ExchangepageAddr);
           }
           else
           {
-            RTS_line_to_current(E_AXIS_N(1), manual_feedrate_E);
+            queue.enqueue_now_P(PSTR("T1"));
+            active_extruder = 1;
+            active_extruder_flag = true;
+            active_extruder_font = active_extruder;
+            current_position[E_AXIS] += Filament1LOAD;
+            //RTS_extruder_move(Filament1LOAD, MMM_TO_MMS(EstepFeedRate));
+            RTS_line_to_current(E_AXIS, MMM_TO_MMS(EstepFeedRate));
             RTS_SndData(10 * Filament1LOAD, HEAD1_FILAMENT_LOAD_DATA_VP);
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => FilamentLoadKey 4"));
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feeding right extruder"));
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Length: ", Filament0LOAD));
+            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate));
           }
         }
       }
@@ -2694,7 +2726,7 @@ void RTSSHOW::RTS_HandleData()
           else {RTS_SndData(1, HEAD1_SET_ICON_VP);}
           RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_1, HEAD1_SET_TEMP_VP);
           RTS_currentScreen = 26;
-        RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
+          RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
           RTS_heatway = 2;
         }
       }
@@ -2764,7 +2796,7 @@ void RTSSHOW::RTS_HandleData()
           RTS_SndData(1, MOTOR_FREE_ICON_VP); //motors disabled
         }
         RTS_currentScreen = 21;
-      RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
+        RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
         Filament0LOAD = (float)FILAMENT_LOAD_LENGTH_0;
         Filament1LOAD = (float)FILAMENT_LOAD_LENGTH_1;
       }
@@ -2902,8 +2934,9 @@ void RTSSHOW::RTS_HandleData()
       break;
 
     case StoreMemoryKey:
-      if(recdat.data[0] == 0xF1)
+      if(recdat.data[0] == 0xF1) //Yes to initialize
       {
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => StoreMemoryKey: Yes"));
         settings.init_eeprom();
         bool zig = false;
         int8_t inStart, inStop, inInc, showcount;
@@ -2932,6 +2965,7 @@ void RTSSHOW::RTS_HandleData()
           }
         }
       queue.enqueue_now_P(PSTR("M420 S1"));
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Command: M420 S1"));
       last_zoffset = zprobe_zoffset = probe.offset.z;
       //zprobe_zoffset = 0;
       //last_zoffset = 0;
@@ -2942,15 +2976,19 @@ void RTSSHOW::RTS_HandleData()
       RTS_SndData((hotend_offset[1].x - X2_MAX_POS) * 100, TWO_EXTRUDER_HOTEND_XOFFSET_VP);
       RTS_SndData(hotend_offset[1].y * 100, TWO_EXTRUDER_HOTEND_YOFFSET_VP);
     }
-    else if (recdat.data[0] == 0xF0)
+    else if (recdat.data[0] == 0xF0) //No, do to initialize
     {
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => StoreMemoryKey: No"));
       memset(commandbuf, 0, sizeof(commandbuf));
       sprintf_P(commandbuf, PSTR("M218 T1 X%4.1f"), hotend_offset[1].x);
       queue.enqueue_now_P(commandbuf);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf));
       sprintf_P(commandbuf, PSTR("M218 T1 Y%4.1f"), hotend_offset[1].y);
       queue.enqueue_now_P(commandbuf);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf));
       sprintf_P(commandbuf, PSTR("M218 T1 Z%4.1f"), hotend_offset[1].z);
       queue.enqueue_now_P(commandbuf);
+      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf));
       //settings.save();
       RTS_currentScreen = 35;
       RTS_SndData(ExchangePageBase + 35, ExchangepageAddr);
@@ -3004,10 +3042,11 @@ void RTSSHOW::RTS_HandleData()
         ConvertL = (uint16_t)ConvertLong & 0xFFFF;
         RTS_SndData((uint16_t)ConvertH, HEAD0_E_STEPS_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD0_E_STEPS_VP + 1);
-        memset(cmdbuf, 0, sizeof(cmdbuf));
-        sprintf_P(cmdbuf, PSTR("M92 E%4.2f T0"), ESteps0);
+        memset(commandbuf, 0, sizeof(commandbuf));
+        sprintf_P(commandbuf, PSTR("M92 T0 E%s"), ftostr42_52(ESteps0));
         queue.enqueue_now_P(commandbuf);
         TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => EStepsAdjustKey: ", ESteps0));
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf));
       }
       else if (recdat.data[0] == 2)
       {
@@ -3017,10 +3056,11 @@ void RTSSHOW::RTS_HandleData()
         ConvertL = (uint16_t) ConvertLong & 0xFFFF;
         RTS_SndData((uint16_t)ConvertH, HEAD0_E_STEPS_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD0_E_STEPS_VP + 1);
-        memset(cmdbuf, 0, sizeof(cmdbuf));
-        sprintf_P(cmdbuf, PSTR("M92 E%4.2f T0"), ESteps0);
+        memset(commandbuf, 0, sizeof(commandbuf));
+        sprintf_P(commandbuf, PSTR("M92 T0 E%s"), ftostr42_52(ESteps0));
         queue.enqueue_now_P(commandbuf);
         TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => EStepsAdjustKey: ", ESteps0));
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf));
       }
       else if (recdat.data[0] == 3)
       {
@@ -3030,10 +3070,11 @@ void RTSSHOW::RTS_HandleData()
         ConvertL = (uint16_t) ConvertLong & 0xFFFF;
         RTS_SndData((uint16_t)ConvertH, HEAD1_E_STEPS_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD1_E_STEPS_VP + 1);
-        memset(cmdbuf, 0, sizeof(cmdbuf));
-        sprintf_P(cmdbuf, PSTR("M92 E%4.2f T1"), ESteps1);
+        memset(commandbuf, 0, sizeof(commandbuf));
+        sprintf_P(commandbuf, PSTR("M92 T1 E%s"), ftostr42_52(ESteps1));
         queue.enqueue_now_P(commandbuf);
         TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => EStepsAdjustKey: ", ESteps1));
+        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf));
       }
       else if (recdat.data[0] == 4)
       {
@@ -3043,8 +3084,8 @@ void RTSSHOW::RTS_HandleData()
         ConvertL = (uint16_t) ConvertLong & 0xFFFF;
         RTS_SndData(ConvertH, HEAD1_E_STEPS_VP);
         RTS_SndData(ConvertL, HEAD1_E_STEPS_VP + 1);
-        memset(cmdbuf, 0, sizeof(cmdbuf));
-        sprintf_P(cmdbuf, PSTR("M92 E%4.2f T1"), ESteps1);
+        memset(commandbuf, 0, sizeof(commandbuf));
+        sprintf_P(commandbuf, PSTR("M92 T1 E%s"), ftostr42_52(ESteps1));
         queue.enqueue_now_P(commandbuf);
         TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => EStepsAdjustKey: ", ESteps1));
       }
@@ -3061,8 +3102,8 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong<<16;
         ConvertLong = ConvertLong | ConvertL;
         ESteps0 = (float)ConvertLong/100;
-        memset(cmdbuf, 0, sizeof(cmdbuf));
-        sprintf_P(cmdbuf, PSTR("M92 E%4.2f T0"), ESteps0);
+        memset(commandbuf, 0, sizeof(commandbuf));
+        sprintf_P(commandbuf, PSTR("M92 T0 E%s"), ftostr42_52(ESteps0));
         queue.enqueue_now_P(commandbuf);
         TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => ESteps0EnterKey: ", ESteps0));
         RTS_SndData((uint16_t)ConvertH, HEAD0_E_STEPS_VP);
@@ -3084,8 +3125,8 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong<<16;
         ConvertLong = ConvertLong | ConvertL;
         ESteps1 = (float)ConvertLong / 100;
-        memset(cmdbuf, 0, sizeof(cmdbuf));
-        sprintf_P(cmdbuf, PSTR("M92 E%4.2f T1"), ESteps1);
+        memset(commandbuf, 0, sizeof(commandbuf));
+        sprintf_P(commandbuf, PSTR("M92 T1 E%s"), ftostr42_52(ESteps1));
         queue.enqueue_now_P(commandbuf);
         TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => ESteps1EnterKey: ", ESteps1));
         RTS_SndData((uint16_t)ConvertH, HEAD1_E_STEPS_VP);
@@ -3147,14 +3188,18 @@ void RTSSHOW::RTS_HandleData()
             }
             else
             {
-              current_position[E_AXIS_N(0)] += EstepFeedDistance;
-              active_extruder = 0;
               queue.enqueue_now_P(PSTR("T0"));
-              // Assert in case of low nozzle temp => New screen!
-              RTS_line_to_current(E_AXIS_N(0), MMM_TO_MMS(EstepFeedRate));
+              active_extruder = 0;
+              active_extruder_flag = false;
+              active_extruder_font = active_extruder;
+              current_position[E_AXIS] += EstepFeedDistance;
+              //RTS_extruder_move(EstepFeedDistance, MMM_TO_MMS(EstepFeedRate));
+              RTS_line_to_current(E_AXIS, MMM_TO_MMS(EstepFeedRate));
               RTS_SndData(EstepFeedRate*10, E_STEPS_FEED_RATE_VP);
               RTS_SndData(EstepFeedDistance*10, E_STEPS_FEED_DIST_VP);
               TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feeding left extruder"));
+              TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Length: ", EstepFeedDistance));
+              TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate));
             }
           }
         }
@@ -3209,13 +3254,18 @@ void RTSSHOW::RTS_HandleData()
             }
             else
             {
-              current_position[E_AXIS_N(1)] += EstepFeedDistance;
-              active_extruder = 1;
               queue.enqueue_now_P(PSTR("T1"));
-              // Assert in case of low nozzle temp => New screen!
-              RTS_line_to_current(E_AXIS_N(1), MMM_TO_MMS(EstepFeedRate));
+              active_extruder = 1;
+              active_extruder_flag = true;
+              active_extruder_font = active_extruder;
+              current_position[E_AXIS] += EstepFeedDistance;
+              //RTS_extruder_move(EstepFeedDistance, MMM_TO_MMS(EstepFeedRate));
+              RTS_line_to_current(E_AXIS, MMM_TO_MMS(EstepFeedRate));
+              RTS_SndData(EstepFeedRate*10, E_STEPS_FEED_RATE_VP);
               RTS_SndData(EstepFeedDistance*10, E_STEPS_FEED_DIST_VP);
               TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feeding right extruder"));
+              TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Length: ", EstepFeedDistance));
+              TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate));
             }
           }
         }
@@ -4103,6 +4153,7 @@ void RTSSHOW::RTS_HandleData()
     default:
       break;
   }
+
   memset(&recdat, 0, sizeof(recdat));
   recdat.head[0] = FHONE;
   recdat.head[1] = FHTWO;
