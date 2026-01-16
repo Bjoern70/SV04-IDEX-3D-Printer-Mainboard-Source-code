@@ -1,6 +1,6 @@
 # Introduction
 
-Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jyers UI some changes were applied to the Sovol SV04 Marlin firmware:
+Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jyers UI following changes were applied to the Sovol SV04 Marlin firmware:
 
  - added bed levelling map visualization for 8x8 grid
  - added soft power off button functionality (supports separate suicide switch to execute g-code command M81)
@@ -46,8 +46,8 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
 
 
 This SV04 Marlin firmware requires matching touchscreen software v1.15.6 that is available here:
-https://github.com/Bjoern70/SV04-Touchscreen/releases/tag/v1.15.6
-(Yes, the display software has not been touched since firmware v1.15.6)
+https://github.com/Bjoern70/SV04-Touchscreen/releases/tag/v1.15.7
+(Yes, the display software has not been touched since firmware v1.15.7)
 
 # About the SV04 IDEX 3D Printer
 
