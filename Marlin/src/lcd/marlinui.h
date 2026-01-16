@@ -63,7 +63,10 @@
   #include "e3v2/creality/dwin.h"
 #elif ENABLED(DWIN_CREALITY_LCD_ENHANCED)
   #include "e3v2/enhanced/dwin.h"
+#elif ENABLED(RTS_AVAILABLE)
+  #include "e3v2/creality/LCD_RTS.h"
 #endif
+
 
 #define START_OF_UTF8_CHAR(C) (((C) & 0xC0u) != 0x80U)
 
@@ -601,7 +604,7 @@ public:
     static inline bool use_click() { return false; }
   #endif
 
-  #if ENABLED(ADVANCED_PAUSE_FEATURE) && ANY(HAS_LCD_MENU, EXTENSIBLE_UI, DWIN_CREALITY_LCD_ENHANCED, DWIN_CREALITY_LCD_JYERSUI)
+  #if ENABLED(ADVANCED_PAUSE_FEATURE) && ANY(HAS_LCD_MENU, EXTENSIBLE_UI, DWIN_CREALITY_LCD_ENHANCED, DWIN_CREALITY_LCD_JYERSUI, RTS_AVAILABLE)
     static void pause_show_message(const PauseMessage message, const PauseMode mode=PAUSE_MODE_SAME, const uint8_t extruder=active_extruder);
   #else
     static inline void _pause_show_message() {}
@@ -613,6 +616,10 @@ public:
   //
   #if HAS_LCD_MENU
     static void reset_settings();
+  #endif
+
+  #if ENABLED(RTS_AVAILABLE)
+     static void reset_settings();
   #endif
 
   #if ENABLED(EEPROM_SETTINGS)

@@ -23,6 +23,7 @@
 #include "../inc/MarlinConfig.h"
 
 #include "../MarlinCore.h" // for printingIsPaused
+#include "../module/temperature.h"
 
 #ifdef LED_BACKLIGHT_TIMEOUT
   #include "../feature/leds/leds.h"
@@ -1718,6 +1719,16 @@ constexpr uint8_t epps = ENCODER_PULSES_PER_STEP;
   }
 #endif
 
+#if ENABLED(RTS_AVAILABLE)
+  void MarlinUI::reset_settings()
+  {
+    //double BEEP
+    rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
+    wait_idle(150);
+    rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
+  }
+#endif
+
 #if BOTH(EXTENSIBLE_UI, ADVANCED_PAUSE_FEATURE)
 
   void MarlinUI::pause_show_message(
@@ -1743,6 +1754,277 @@ constexpr uint8_t epps = ENCODER_PULSES_PER_STEP;
       case PAUSE_MESSAGE_STATUS:
       default: break;
     }
+  }
+
+#endif
+
+#if BOTH(RTS_AVAILABLE, ADVANCED_PAUSE_FEATURE)
+
+  void MarlinUI::pause_show_message(
+    const PauseMessage message,
+    const PauseMode mode/*=PAUSE_MODE_SAME*/,
+    const uint8_t extruder/*=active_extruder*/
+  ) {
+      PGM_P pinfo_msg;
+      uint8_t wait_user = wait_for_user ? 1 : 0;
+      uint8_t wait_heat = wait_for_heatup ? 1 : 0;
+
+      pause_mode = mode;
+      if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+      {
+        //Debug enabled
+        SERIAL_ECHOLNPGM("RTS => pause_show_message. Last screen #", rtscheck.RTS_currentScreen);
+        sprintf(rtscheck.RTS_infoBuf, "ui_Pause_showMessage: Last[%d]<Cur[%d] waitUsr=%d waitHeat=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, wait_user, wait_heat);
+        rtscheck.RTS_Debug_Info();
+      }
+      rtscheck.RTS_lastScreen = rtscheck.RTS_currentScreen;
+      if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
+        else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
+      rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
+      if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
+        else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
+      rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
+      if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+        else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
+      rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
+      if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
+        else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
+      rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
+      rtscheck.RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
+
+      switch (message) {
+        case PAUSE_MESSAGE_PARKING:
+          //"Parking...""
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS =>  PAUSE_MESSAGE_PARKING screen #79 triggered");
+            pinfo_msg = GET_TEXT(MSG_PAUSE_PRINT_PARKING);
+            sprintf(rtscheck.RTS_infoBuf, "ui_%s: Last[%d] Cur[%d]<79", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = 79;
+          rtscheck.RTS_SndData(ExchangePageBase + 79, ExchangepageAddr);
+          //RTSUpdate();
+          break;
+
+        case PAUSE_MESSAGE_CHANGING:
+          //"Wait for", "filament change", "to start"
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS =>  PAUSE_MESSAGE_CHANGING screen #80 triggered");
+            pinfo_msg = GET_TEXT(MSG_FILAMENT_CHANGE_INIT);
+            sprintf(rtscheck.RTS_infoBuf, "ui_%s: Last[%d] Cur[%d]<80", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = 80;
+          rtscheck.RTS_SndData(ExchangePageBase + 80, ExchangepageAddr);
+          //RTSUpdate();
+          break;
+
+        case PAUSE_MESSAGE_UNLOAD:
+          //"Wait for", "filament unload"
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS =>  PAUSE_MESSAGE_UNLOAD screen #66 triggered");
+            pinfo_msg = GET_TEXT(MSG_FILAMENT_CHANGE_UNLOAD);
+            sprintf(rtscheck.RTS_infoBuf, "ui_%s: Last[%d] Cur[%d]<80", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = 66;
+          rtscheck.RTS_SndData(ExchangePageBase + 66, ExchangepageAddr);
+          //RTSUpdate();
+          break;
+
+        case PAUSE_MESSAGE_WAITING:
+          //"Press Button", "to resume print"
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS =>  PAUSE_MESSAGE_WAITING screen #82 triggered");
+            pinfo_msg = GET_TEXT(MSG_ADVANCED_PAUSE_WAITING);
+            sprintf(rtscheck.RTS_infoBuf, "ui_%s: Last[%d] Cur[%d]<82", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = 82;
+          rtscheck.RTS_SndData(ExchangePageBase + 82, ExchangepageAddr);
+          //RTSUpdate();
+          break;
+
+        case PAUSE_MESSAGE_INSERT:
+          //"Insert filament", "and press button", "to continue"
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS =>  PAUSE_MESSAGE_INSERT screen #69 triggered");
+            pinfo_msg = GET_TEXT(MSG_FILAMENT_CHANGE_INSERT);
+            sprintf(rtscheck.RTS_infoBuf, "ui_%s: Last[%d] Cur[%d]<69", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = 69;
+          rtscheck.RTS_SndData(ExchangePageBase + 69, ExchangepageAddr);
+          //RTSUpdate();
+          break;
+
+        case PAUSE_MESSAGE_LOAD:
+          //"Wait for", "filament load"
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS =>  PAUSE_MESSAGE_LOAD screen #67 triggered");
+            pinfo_msg = GET_TEXT(MSG_FILAMENT_CHANGE_LOAD);
+            sprintf(rtscheck.RTS_infoBuf, "ui_%s: Last[%d] Cur[%d]<67", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = 67;
+          rtscheck.RTS_SndData(ExchangePageBase + 67, ExchangepageAddr);
+          //RTSUpdate();
+          break;
+
+        case PAUSE_MESSAGE_PURGE:
+          //"Wait for", "filament load"
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS =>  PAUSE_MESSAGE_PURGE screen #68 triggered");
+            pinfo_msg = GET_TEXT(MSG_FILAMENT_CHANGE_PURGE);
+            sprintf(rtscheck.RTS_infoBuf, "ui_%s: Last[%d] Cur[%d]<68", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = 68;
+          rtscheck.RTS_SndData(ExchangePageBase + 68, ExchangepageAddr);
+          //RTSUpdate();
+          break;
+
+        case PAUSE_MESSAGE_RESUME:
+          //"Wait for print", "to resume..."
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS =>  PAUSE_MESSAGE_RESUME screen #74 triggered");
+            pinfo_msg = GET_TEXT(MSG_FILAMENT_CHANGE_RESUME);
+            sprintf(rtscheck.RTS_infoBuf, "ui_%s: Last[%d] Cur[%d]<74", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = 74;
+          rtscheck.RTS_SndData(ExchangePageBase + 74, ExchangepageAddr);
+          //RTSUpdate();
+          break;
+
+        case PAUSE_MESSAGE_HEAT:
+          //"Press button", "to heat nozzle"
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS =>  PAUSE_MESSAGE_HEAT screen #70 triggered");
+            pinfo_msg = GET_TEXT(MSG_FILAMENT_CHANGE_HEAT);
+            sprintf(rtscheck.RTS_infoBuf, "ui_%s: Last[%d] Cur[%d]<70", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = 70;
+          rtscheck.RTS_SndData(ExchangePageBase + 70, ExchangepageAddr);
+          //RTSUpdate();
+          break;
+
+        case PAUSE_MESSAGE_HEATING:
+          //"Nozzle heating", "Please wait..."
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS =>  PAUSE_MESSAGE_HEATING screen #63 triggered");
+            pinfo_msg = GET_TEXT(MSG_FILAMENT_CHANGE_HEATING);
+            sprintf(rtscheck.RTS_infoBuf, "ui_%s: Last[%d] Cur[%d]<63", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = 63;
+          rtscheck.RTS_SndData(ExchangePageBase + 63, ExchangepageAddr);
+          //RTSUpdate();
+          break;
+
+        case PAUSE_MESSAGE_OPTION:
+          //"Purge more?"
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS =>  PAUSE_MESSAGE_OPTION screen #73 triggered");
+            pinfo_msg = GET_TEXT(MSG_FILAMENT_CHANGE_OPTION_PURGE);
+            sprintf(rtscheck.RTS_infoBuf, "ui_%s: Last[%d] Cur[%d]<33", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = 73;
+          rtscheck.RTS_SndData(ExchangePageBase + 73, ExchangepageAddr);
+          //RTSUpdate();
+          break;
+
+        case PAUSE_MESSAGE_STATUS:
+          //todo add RTS PAUSE_MESSAGE_WAITING screen
+          //Switch pause_mode
+          switch (mode) {
+            case PAUSE_MODE_SAME:
+              RTSUpdate();
+              break;
+            case PAUSE_MODE_LOAD_FILAMENT:
+              //"Wait for", "filament load"
+              if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+              {
+                //Debug enabled
+                SERIAL_ECHOLNPGM("RTS =>  PAUSE_MODE_LOAD_FILAMENT screen #67 triggered");
+                pinfo_msg = GET_TEXT(MSG_FILAMENT_CHANGE_LOAD);
+                sprintf(rtscheck.RTS_infoBuf, "ui_%s: Last[%d] Cur[%d]<67", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                rtscheck.RTS_Debug_Info();
+              }
+              rtscheck.RTS_currentScreen = 67;
+              rtscheck.RTS_SndData(ExchangePageBase + 67, ExchangepageAddr);
+              break;
+            case PAUSE_MODE_UNLOAD_FILAMENT:
+              //"Wait for", "filament unload"
+              if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+              {
+                //Debug enabled
+                SERIAL_ECHOLNPGM("RTS =>  PAUSE_MODE_UNLOAD_FILAMENT screen #66 triggered");
+                pinfo_msg = GET_TEXT(MSG_FILAMENTUNLOAD);
+                sprintf(rtscheck.RTS_infoBuf, "ui_%s: Last[%d] Cur[%d]<66", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                rtscheck.RTS_Debug_Info();
+              }
+              rtscheck.RTS_currentScreen = 66;
+              rtscheck.RTS_SndData(ExchangePageBase + 66, ExchangepageAddr);
+              //RTSUpdate();
+              break;
+            case PAUSE_MODE_CHANGE_FILAMENT:
+              //"Wait for", "filament unload"
+              if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+              {
+                //Debug enabled
+                SERIAL_ECHOLNPGM("RTS =>  PAUSE_MODE_CHANGE_FILAMENT screen #84 triggered");
+                pinfo_msg = GET_TEXT(MSG_FILAMENTCHANGE);
+                sprintf(rtscheck.RTS_infoBuf, "ui_%s: Last[%d] Cur[%d]<84", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                rtscheck.RTS_Debug_Info();
+              }
+              rtscheck.RTS_currentScreen = 84;
+              rtscheck.RTS_SndData(ExchangePageBase + 84, ExchangepageAddr);
+              break;
+            case PAUSE_MODE_PAUSE_PRINT:
+              if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+              {
+                //Debug enabled
+                SERIAL_ECHOLNPGM("RTS =>  PAUSE_MODE_PAUSE_PRINT screen #59 triggered");
+                pinfo_msg = GET_TEXT(MSG_PAUSE_PRINT);
+                sprintf(rtscheck.RTS_infoBuf, "ui_%s: Last[%d] Cur[%d]<59", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                rtscheck.RTS_Debug_Info();
+              }
+              rtscheck.RTS_currentScreen = 59;
+              rtscheck.RTS_SndData(ExchangePageBase + 59, ExchangepageAddr);
+              break;
+            default:
+              break;
+          }
+
+        default:
+          break;
+          RTSUpdate();
+      }
   }
 
 #endif

@@ -75,6 +75,7 @@
 #define DEBUG_OUT ENABLED(DEBUG_PAUSE_RESUME)
 #include "../core/debug_out.h"
 
+
 // private:
 
 static xyze_pos_t resume_position;
@@ -142,10 +143,6 @@ static bool ensure_safe_temperature(const bool wait=true, const PauseMode mode=P
   #endif
 
   ui.pause_show_message(PAUSE_MESSAGE_HEATING, mode); UNUSED(mode);//heat the nozzle and wait for the interface
-  rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
-  rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
-
-
   if (wait) return thermalManager.wait_for_hotend(active_extruder);
 
   // Allow interruption by Emergency Parser M108
@@ -184,10 +181,20 @@ bool load_filament(const_float_t slow_load_length/*=0*/, const_float_t fast_load
 ) {
   DEBUG_SECTION(lf, "load_filament", true);
   DEBUG_ECHOLNPGM("... slowlen:", slow_load_length, " fastlen:", fast_load_length, " purgelen:", purge_length, " maxbeep:", max_beep_count, " showlcd:", show_lcd, " pauseforuser:", pause_for_user, " pausemode:", mode DXC_SAY);
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => load_filament. Last screen #", RTS_currentScreen));
-  RTS_lastScreen = RTS_currentScreen;
+
   if (!ensure_safe_temperature(false, mode)) {
-    if (show_lcd) ui.pause_show_message(PAUSE_MESSAGE_STATUS, mode);
+    if (show_lcd)
+    {
+      ui.pause_show_message(PAUSE_MESSAGE_STATUS, mode);
+      if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+      {
+        //Debug enabled
+        SERIAL_ECHOLNPGM("RTS => load_filament. Last screen #", rtscheck.RTS_currentScreen);
+        sprintf(rtscheck.RTS_infoBuf, "Pause_loadFilament: Last[%d] Cur[%d] waitW=%d DXC=%d saveDXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus, save_dual_x_carriage_mode);
+        rtscheck.RTS_Debug_Info();
+      }
+    }
+
     return false;
   }
 
@@ -195,22 +202,6 @@ bool load_filament(const_float_t slow_load_length/*=0*/, const_float_t fast_load
     if (show_lcd)
     {
       ui.pause_show_message(PAUSE_MESSAGE_INSERT, mode);//insert the silk stock and continue
-      if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
-      else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
-      rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
-      if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
-      else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
-      rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
-      if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
-      else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
-      rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
-      if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
-      else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
-      rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
-
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  Pause screen #8.1 triggered"));
-      RTS_currentScreen = 8;
-      rtscheck.RTS_SndData(ExchangePageBase + 8, ExchangepageAddr);
     }
     SERIAL_ECHO_MSG(_PMSG(STR_FILAMENT_CHANGE_INSERT));
 
@@ -243,7 +234,10 @@ bool load_filament(const_float_t slow_load_length/*=0*/, const_float_t fast_load
     }
   }
 
-  if (show_lcd) ui.pause_show_message(PAUSE_MESSAGE_LOAD, mode);
+  if (show_lcd)
+  {
+    ui.pause_show_message(PAUSE_MESSAGE_LOAD, mode);
+  }
 
   #if ENABLED(DUAL_X_CARRIAGE)
     const int8_t saved_ext        = active_extruder;
@@ -276,11 +270,15 @@ bool load_filament(const_float_t slow_load_length/*=0*/, const_float_t fast_load
 
   #if ENABLED(ADVANCED_PAUSE_CONTINUOUS_PURGE)
 
-    if (show_lcd) ui.pause_show_message(PAUSE_MESSAGE_PURGE);
+    if (show_lcd)
+    {
+      ui.pause_show_message(PAUSE_MESSAGE_PURGE);
+    }
 
     TERN_(EXTENSIBLE_UI, ExtUI::onUserConfirmRequired_P(GET_TEXT(MSG_FILAMENT_CHANGE_PURGE)));
     TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, GET_TEXT(MSG_FILAMENT_CHANGE_PURGE), CONTINUE_STR));
     TERN_(DWIN_CREALITY_LCD_ENHANCED, DWIN_Popup_Confirm(ICON_BLTouch, GET_TEXT(MSG_FILAMENT_CHANGE_PURGE), CONTINUE_STR));
+
     wait_for_user = true; // A click or M108 breaks the purge_length loop
     for (float purge_count = purge_length; purge_count > 0 && wait_for_user; --purge_count)
       unscaled_e_move(1, ADVANCED_PAUSE_PURGE_FEEDRATE);
@@ -294,27 +292,12 @@ bool load_filament(const_float_t slow_load_length/*=0*/, const_float_t fast_load
         if (show_lcd)
         {
           ui.pause_show_message(PAUSE_MESSAGE_PURGE);//Wait for the nozzle to be cleaned
-          if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
-          else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
-          rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
-          if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
-          else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
-          rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
-          if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
-          else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
-          rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
-          if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
-          else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
-          rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
         }
         // Extrude filament to get into hotend
         unscaled_e_move(purge_length, ADVANCED_PAUSE_PURGE_FEEDRATE);
       }
 
       TERN_(HOST_PROMPT_SUPPORT, filament_load_host_prompt()); // Initiate another host prompt.
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  Pause screen #8.2 triggered"));
-      RTS_currentScreen = 8;
-      rtscheck.RTS_SndData(ExchangePageBase + 8, ExchangepageAddr);
 
       #if M600_PURGE_MORE_RESUMABLE
         if (show_lcd) {
@@ -322,6 +305,8 @@ bool load_filament(const_float_t slow_load_length/*=0*/, const_float_t fast_load
           KEEPALIVE_STATE(PAUSED_FOR_USER);
           wait_for_user = false;
           #if EITHER(HAS_LCD_MENU, DWIN_CREALITY_LCD_ENHANCED)
+            ui.pause_show_message(PAUSE_MESSAGE_OPTION); // Also sets PAUSE_RESPONSE_WAIT_FOR
+          #elif ENABLED(RTS_AVAILABLE)
             ui.pause_show_message(PAUSE_MESSAGE_OPTION); // Also sets PAUSE_RESPONSE_WAIT_FOR
           #else
             pause_menu_response = PAUSE_RESPONSE_WAIT_FOR;
@@ -379,25 +364,16 @@ bool unload_filament(const_float_t unload_length, const bool show_lcd/*=false*/,
   #endif
 
   if (!ensure_safe_temperature(false, mode)) {
-    if (show_lcd) ui.pause_show_message(PAUSE_MESSAGE_STATUS);
+    if (show_lcd)
+    {
+      ui.pause_show_message(PAUSE_MESSAGE_STATUS);
+    }
     return false;
   }
 
   if (show_lcd)
   {
     ui.pause_show_message(PAUSE_MESSAGE_UNLOAD, mode);//Wait for the filament to be removed
-    if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
-    else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
-    rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
-    if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
-    else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
-    rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
-    if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
-    else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
-    rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
-    if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
-    else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
-    rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
   }
   // Retract filament
   unscaled_e_move(-(FILAMENT_UNLOAD_PURGE_RETRACT) * mix_multiplier, (PAUSE_PARK_RETRACT_FEEDRATE) * mix_multiplier);
@@ -547,18 +523,6 @@ void show_continue_prompt(const bool is_reload) {
   DEBUG_ECHOLNPGM("... is_reload:", is_reload);
 
   ui.pause_show_message(is_reload ? PAUSE_MESSAGE_INSERT : PAUSE_MESSAGE_WAITING);
-  if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
-  else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
-  rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
-  if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
-  else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
-  rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
-  if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
-  else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
-  rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
-  if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
-  else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
-  rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
   rtscheck.RTS_SndData(Beep, SoundAddr);
   SERIAL_ECHO_START();
   SERIAL_ECHOPGM_P(is_reload ? PSTR(_PMSG(STR_FILAMENT_CHANGE_INSERT) "\n") : PSTR(_PMSG(STR_FILAMENT_CHANGE_WAIT) "\n"));
@@ -567,8 +531,15 @@ void show_continue_prompt(const bool is_reload) {
 void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep_count/*=0*/ DXC_ARGS) {
     DEBUG_SECTION(wfc, "wait_for_confirmation", true);
     DEBUG_ECHOLNPGM("... is_reload:", is_reload, " maxbeep:", max_beep_count DXC_SAY);
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  wait_for_confirmation. Last screen #", RTS_currentScreen));
-    RTS_lastScreen = RTS_currentScreen;
+    if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+    {
+      //Debug enabled
+      SERIAL_ECHOLNPGM("RTS =>  wait_for_confirmation. Last screen #", rtscheck.RTS_currentScreen);
+        sprintf(rtscheck.RTS_infoBuf, "Pause_waitConfirm: Last[%d]<Cur[%d] waitW=%d DXC=%d saveDXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus, save_dual_x_carriage_mode);
+        rtscheck.RTS_Debug_Info();
+
+    }
+    rtscheck.RTS_lastScreen = rtscheck.RTS_currentScreen;
     bool nozzle_timed_out = false;
 
     show_continue_prompt(is_reload);
@@ -590,9 +561,7 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
     KEEPALIVE_STATE(PAUSED_FOR_USER);
     TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, GET_TEXT(MSG_NOZZLE_PARKED), CONTINUE_STR));
     TERN_(EXTENSIBLE_UI, ExtUI::onUserConfirmRequired_P(GET_TEXT(MSG_NOZZLE_PARKED)));
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  Pause screen #60.1 triggered"));
-    RTS_currentScreen = 60;
-    rtscheck.RTS_SndData(ExchangePageBase + 60, ExchangepageAddr);
+    //TERN_(RTS_AVAILABLE, rtscheck.RTSUpdate());
     wait_for_user = true;    // LCD click or M108 will clear this
     while (wait_for_user) {
       impatient_beep(max_beep_count);
@@ -605,27 +574,18 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
       // re-heat the nozzle, re-show the continue prompt, restart idle timers, start over
       if (nozzle_timed_out) {
         ui.pause_show_message(PAUSE_MESSAGE_HEAT);//Press to confirm to heat the nozzle
-        if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
-        else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
-        rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
-        if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
-        else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
-        rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
-        if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
-        else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
-        rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
-        if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
-        else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
-        rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  Pause screen #60.2 triggered"));
-        RTS_currentScreen = 60;
-        rtscheck.RTS_SndData(ExchangePageBase + 60, ExchangepageAddr);
 
         TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, GET_TEXT(MSG_HEATER_TIMEOUT), GET_TEXT(MSG_REHEAT)));
 
         TERN_(EXTENSIBLE_UI, ExtUI::onUserConfirmRequired_P(GET_TEXT(MSG_HEATER_TIMEOUT)));
 
         TERN_(HAS_RESUME_CONTINUE, wait_for_user_response(0, true)); // Wait for LCD click or M108
+        if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+        {
+          //Debug enabled
+          sprintf(rtscheck.RTS_infoBuf, "Pause_nozzleTimeOut: Last[%d] Cur[%d] waitW=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway);
+          rtscheck.RTS_Debug_Info();
+        }
 
         queue.enqueue_one_P(PSTR("M117 Reheating..."));
 
@@ -634,6 +594,19 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
         TERN_(EXTENSIBLE_UI, ExtUI::onStatusChanged_P(GET_TEXT(MSG_REHEATING)));
 
         TERN_(DWIN_CREALITY_LCD_ENHANCED, ui.set_status_P(GET_TEXT(MSG_REHEATING)));
+
+        #if ENABLED(RTS_AVAILABLE)
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS =>  MSG_REHEATING screen #71 triggered");
+            sprintf(rtscheck.RTS_infoBuf, "Pause_reheating...: Last[%d] Cur[%d]<71 waitW=%d DXC=%d saveDXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus, save_dual_x_carriage_mode);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = 71;
+          rtscheck.RTS_SndData(ExchangePageBase + 71, ExchangepageAddr);
+        #endif
+
 
         // Re-enable the heaters if they timed out
         HOTEND_LOOP() thermalManager.reset_hotend_idle_timer(e);
@@ -649,13 +622,21 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
 
         HOTEND_LOOP() thermalManager.heater_idle[e].start(nozzle_timeout);
 
-        queue.enqueue_one_P(PSTR("M117 Reheat Done."));
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  Pause screen #60.3 triggered"));
-        RTS_currentScreen = 60;
-        rtscheck.RTS_SndData(ExchangePageBase + 60, ExchangepageAddr);
         TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, GET_TEXT(MSG_REHEATDONE), CONTINUE_STR));
         TERN_(EXTENSIBLE_UI, ExtUI::onUserConfirmRequired_P(GET_TEXT(MSG_REHEATDONE)));
         TERN_(DWIN_CREALITY_LCD_ENHANCED, ui.set_status_P(GET_TEXT(MSG_REHEATDONE)));
+
+        #if ENABLED(RTS_AVAILABLE)
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS =>  MSG_REHEATDONE screen #72 triggered");
+            sprintf(rtscheck.RTS_infoBuf, "Pause_reheatDone: Last[%d] Cur[%d]<72 waitW=%d DXC=%d saveDXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus, save_dual_x_carriage_mode);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = 72;
+          rtscheck.RTS_SndData(ExchangePageBase + 72, ExchangepageAddr);
+        #endif
 
         IF_DISABLED(PAUSE_REHEAT_FAST_RESUME, wait_for_user = true);
 
@@ -664,7 +645,6 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
       }
       idle_no_sleep();
     }
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  End Wait for user."));
     #if ENABLED(DUAL_X_CARRIAGE)
       set_duplication_enabled(saved_ext_dup_mode, saved_ext);
     #endif
@@ -693,14 +673,16 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
 void resume_print(const_float_t slow_load_length/*=0*/, const_float_t fast_load_length/*=0*/, const_float_t purge_length/*=ADVANCED_PAUSE_PURGE_LENGTH*/, const int8_t max_beep_count/*=0*/, const celsius_t targetTemp/*=0*/ DXC_ARGS) {
   DEBUG_SECTION(rp, "resume_print", true);
   DEBUG_ECHOLNPGM("... slowlen:", slow_load_length, " fastlen:", fast_load_length, " purgelen:", purge_length, " maxbeep:", max_beep_count, " targetTemp:", targetTemp DXC_SAY);
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  resume_print. Last screen #", RTS_currentScreen));
-  RTS_lastScreen = RTS_currentScreen;
-
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM(
-    "RTS =>  resume_print: dual_x_carriage_mode:", dual_x_carriage_mode,
-    "\nRTS =>  extruder_duplication_enabled:", extruder_duplication_enabled,
-    "\nRTS =>  active_extruder:", active_extruder
-  ));
+  if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+  {
+    //Debug enabled
+    SERIAL_ECHOLNPGM("RTS =>  resume_print. Last screen #", rtscheck.RTS_currentScreen);
+    SERIAL_ECHOLNPGM("RTS =>  resume_print: dual_x_carriage_mode:", dual_x_carriage_mode,
+    "\nRTS =>  extruder_duplication_enabled:", extruder_duplication_enabled, "\nRTS =>  active_extruder:", active_extruder);
+    sprintf(rtscheck.RTS_infoBuf, "Pause_resumePrint: Last[%d]<Cur[%d] waitW=%d DXC=%d saveDXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus, save_dual_x_carriage_mode);
+    rtscheck.RTS_Debug_Info();
+  }
+  rtscheck.RTS_lastScreen = rtscheck.RTS_currentScreen;
 
   if (!did_pause_print) return;
 
@@ -731,7 +713,15 @@ void resume_print(const_float_t slow_load_length/*=0*/, const_float_t fast_load_
 
   // Retract to prevent oozing
   unscaled_e_move(-(PAUSE_PARK_RETRACT_LENGTH), feedRate_t(PAUSE_PARK_RETRACT_FEEDRATE));
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  check for home"));
+
+  if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+  {
+    //Debug enabled
+    SERIAL_ECHOLNPGM("RTS =>  check for home");
+        sprintf(rtscheck.RTS_infoBuf, "Pause_loadingFilament: Last[%d] Cur[%d] waitW=%d DXC=%d saveDXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus, save_dual_x_carriage_mode);
+        rtscheck.RTS_Debug_Info();
+  }
+
   if (!axes_should_home()) {
     // Move XY back to saved position
     destination.set(resume_position.x, resume_position.y, current_position.z, current_position.e);
@@ -796,9 +786,18 @@ void resume_print(const_float_t slow_load_length/*=0*/, const_float_t fast_load_
   TERN_(HAS_LCD_MENU, ui.return_to_status());
   TERN_(DWIN_CREALITY_LCD_ENHANCED, HMI_ReturnScreen());
   #if ENABLED(RTS_AVAILABLE)
+    if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+    {
+      //Debug enabled
+      SERIAL_ECHOLNPGM("RTS =>  Resumed print. Last screen #", rtscheck.RTS_lastScreen);
+      SERIAL_ECHOLNPGM("RTS =>  Resumed print. Current screen #", rtscheck.RTS_currentScreen);
+      sprintf(rtscheck.RTS_infoBuf, "Pause_resumedPrint: Last[%d]<11 Cur[%d]<11 waitW=%d DXC=%d saveDXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus, save_dual_x_carriage_mode);
+      rtscheck.RTS_Debug_Info();
+    }
     //return to previous RTS screen
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  Resumed print. Return to display screen #", RTS_currentScreen));
-    rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
+    rtscheck.RTS_lastScreen = 11; //Reset screen history
+    rtscheck.RTS_currentScreen = 11;
+    rtscheck.RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
   #endif
 }
 

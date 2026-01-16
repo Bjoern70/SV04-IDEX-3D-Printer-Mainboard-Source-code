@@ -45,7 +45,13 @@ void GcodeSuite::G4() {
 
   dwell(dwell_ms);
   #if ENABLED(RTS_AVAILABLE)
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  G4. Return to display screen #", RTS_currentScreen));
-    rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);//Display update
+    if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+    {
+      //Debug enabled
+      SERIAL_ECHOLNPGM("RTS =>  G4. Return to display screen #", rtscheck.RTS_currentScreen);
+      sprintf(rtscheck.RTS_infoBuf, "G4: Last[%d] Goto Cur[%d] waitW=%d DXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus);
+      rtscheck.RTS_Debug_Info();
+    }
+    rtscheck.RTS_SndData(ExchangePageBase + rtscheck.RTS_currentScreen, ExchangepageAddr);//Display update
   #endif
 }

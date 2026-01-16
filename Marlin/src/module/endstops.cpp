@@ -386,15 +386,22 @@ void Endstops::not_homing() {
 #if ENABLED(VALIDATE_HOMING_ENDSTOPS)
   // If the last move failed to trigger an endstop, call kill
   void Endstops::validate_homing_move() {
+    PGM_P pinfo_msg;
     if (trigger_state()) hit_on_purpose();
     else
     {
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => validate_homing_move. Last screen #", RTS_currentScreen));
-      RTS_lastScreen = RTS_currentScreen;
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Auto home failed. screen #55 triggered"));
-      RTS_currentScreen = 55;
+      if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+      {
+        //Debug enabled
+        SERIAL_ECHOLNPGM("RTS => validate_homing_move. Last screen #", rtscheck.RTS_currentScreen);
+        SERIAL_ECHOLNPGM("RTS => Auto home failed. screen #55 triggered");
+        pinfo_msg = GET_TEXT(MSG_KILL_HOMING_FAILED);
+        sprintf(rtscheck.RTS_infoBuf, "Endstops: %s Last[%d] Cur[%d]<55", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+        rtscheck.RTS_Debug_Info();
+      }
+      rtscheck.RTS_lastScreen = rtscheck.RTS_currentScreen;
+      rtscheck.RTS_currentScreen = 55;
       rtscheck.RTS_SndData(ExchangePageBase + 55, ExchangepageAddr);
-
       kill(GET_TEXT(MSG_KILL_HOMING_FAILED));
     }
   }

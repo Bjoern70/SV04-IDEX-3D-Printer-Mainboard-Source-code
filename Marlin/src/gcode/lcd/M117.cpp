@@ -45,8 +45,14 @@ void GcodeSuite::M117() {
         rtscheck.RTS_SndData(0, PRINT_FILE_TEXT_VP + j);
       }
       rtscheck.RTS_SndData(parser.string_arg, PRINT_FILE_TEXT_VP);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  M117. Return to display screen #", RTS_currentScreen));
-      rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
+      if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+      {
+        //Debug enabled
+        SERIAL_ECHOLNPGM("RTS =>  M117. Return to display screen #", rtscheck.RTS_currentScreen);
+        sprintf(rtscheck.RTS_infoBuf, "M117: Last[%d] Goto Cur[%d] waitW=%d DXC=%d saveDXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus, save_dual_x_carriage_mode);
+        rtscheck.RTS_Debug_Info();
+      }
+      rtscheck.RTS_SndData(ExchangePageBase + rtscheck.RTS_currentScreen, ExchangepageAddr);
     }
   #else
     if (parser.string_arg && parser.string_arg[0])

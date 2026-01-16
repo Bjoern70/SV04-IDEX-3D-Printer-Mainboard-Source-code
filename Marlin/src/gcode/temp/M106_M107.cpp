@@ -110,8 +110,13 @@ void GcodeSuite::M106() {
     } else {
       rtscheck.RTS_SndData(speed, HEAD1_FAN_SPEED_VP);
     }
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  M106. Return to display screen #", RTS_currentScreen));
-    rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);//Display update
+    if (rtscheck.RTS_presets.debug_enabled)  //get saved debug state
+    {
+      SERIAL_ECHOLNPGM("RTS =>  M106. Return to display screen #", rtscheck.RTS_currentScreen);
+        sprintf(rtscheck.RTS_infoBuf, "M106: Last[%d] Goto Cur[%d] waitW=%d DXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus);
+        rtscheck.RTS_Debug_Info();
+    }
+    rtscheck.RTS_SndData(ExchangePageBase + rtscheck.RTS_currentScreen, ExchangepageAddr);//Display update
   #endif
 }
 
@@ -144,8 +149,13 @@ void GcodeSuite::M107() {
     } else {
       rtscheck.RTS_SndData(0, HEAD1_FAN_SPEED_VP);
     }
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  M107. Return to display screen #", RTS_currentScreen));
-    rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);//Display update
+    if (rtscheck.RTS_presets.debug_enabled)  //get saved debug state
+    {
+      SERIAL_ECHOLNPGM("RTS =>  M107. Return to display screen #", rtscheck.RTS_currentScreen);
+        sprintf(rtscheck.RTS_infoBuf, "M107: Last[%d] Goto Cur[%d] waitW=%d DXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus);
+        rtscheck.RTS_Debug_Info();
+    }
+    rtscheck.RTS_SndData(ExchangePageBase + rtscheck.RTS_currentScreen, ExchangepageAddr);//Display update
   #endif
 }
 

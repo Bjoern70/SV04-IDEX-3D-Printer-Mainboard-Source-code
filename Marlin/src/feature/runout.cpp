@@ -26,10 +26,13 @@
 
 #include "../inc/MarlinConfigPre.h"
 
+
 #if HAS_FILAMENT_SENSOR
 
 #include "runout.h"
-
+#if ENABLED(RTS_AVAILABLE)
+    #include "../lcd/e3v2/creality/LCD_RTS.h"
+#endif
 FilamentMonitor runout;
 
 bool FilamentMonitorBase::enabled = true,
@@ -89,6 +92,12 @@ void event_filament_runout(const uint8_t extruder) {
 
   TERN_(EXTENSIBLE_UI, ExtUI::onFilamentRunout(ExtUI::getTool(extruder)));
   TERN_(DWIN_CREALITY_LCD_ENHANCED, DWIN_FilamentRunout(extruder));
+  if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+  {
+    //Debug enabled
+    sprintf(rtscheck.RTS_infoBuf, "Runout_FilamentRunout: Last[%d] Cur[%d] waitW=%d DXC=%d T=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus, extruder);
+    rtscheck.RTS_Debug_Info();
+  }
 
   #if ANY(HOST_PROMPT_SUPPORT, HOST_ACTION_COMMANDS, MULTI_FILAMENT_SENSOR)
     const char tool = '0' + TERN0(MULTI_FILAMENT_SENSOR, extruder);
@@ -134,6 +143,12 @@ void event_filament_runout(const uint8_t extruder) {
       #if ENABLED(FILAMENT_RUNOUT_SENSOR_DEBUG)
         SERIAL_ECHOLNPGM("Runout Command: ", script);
       #endif
+      if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+      {
+        //Debug enabled
+        sprintf(rtscheck.RTS_infoBuf, "Runout_Script: Last[%d] Cur[%d] waitW=%d Command=%s", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, script);
+        rtscheck.RTS_Debug_Info();
+      }
       queue.inject(script);
     #else
       #if ENABLED(FILAMENT_RUNOUT_SENSOR_DEBUG)

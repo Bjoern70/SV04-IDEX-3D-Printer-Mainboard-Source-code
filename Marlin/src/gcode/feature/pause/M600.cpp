@@ -109,8 +109,16 @@ void GcodeSuite::M600() {
     // Change toolhead if specified
     const uint8_t active_extruder_before_filament_change = active_extruder;
     if (active_extruder != target_extruder && TERN1(DUAL_X_CARRIAGE, !idex_is_duplicating()))
+    {
       tool_change(target_extruder, false);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => tool_change:",target_extruder));
+    }
+    if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+    {
+      //Debug enabled
+      SERIAL_ECHOLNPGM("M600 => tool_change:",target_extruder);
+      sprintf(rtscheck.RTS_infoBuf, "M600_toolChange: Last[%d] Cur[%d] waitW=%d extr=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, target_extruder);
+      rtscheck.RTS_Debug_Info();
+    }
   #endif
 
   // Initial retract before move to filament change position
@@ -141,6 +149,13 @@ void GcodeSuite::M600() {
     constexpr float slow_load_length = FILAMENT_CHANGE_SLOW_LOAD_LENGTH;
     // Fast load filament
     const float fast_load_length = ABS(parser.axisunitsval('L', E_AXIS, fc_settings[active_extruder].load_length));
+    if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+    {
+      //Debug enabled
+      SERIAL_ECHOLNPGM("M600 => unload_filament:",active_extruder);
+      sprintf(rtscheck.RTS_infoBuf, "M600_unloadFilament: Last[%d] Cur[%d] extr=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, active_extruder);
+      rtscheck.RTS_Debug_Info();
+    }
   #endif
 
   const int beep_count = parser.intval('B', -1
@@ -157,6 +172,13 @@ void GcodeSuite::M600() {
       wait_for_confirmation(true, beep_count DXC_PASS);
       resume_print(slow_load_length, fast_load_length, ADVANCED_PAUSE_PURGE_LENGTH,
                    beep_count, (parser.seenval('R') ? parser.value_celsius() : 0) DXC_PASS);
+      if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+      {
+        //Debug enabled
+        SERIAL_ECHOLNPGM("M600 => resume_print:",active_extruder_before_filament_change);
+        sprintf(rtscheck.RTS_infoBuf, "M600_resumePrint: Last[%d] Cur[%d] extr=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, active_extruder_before_filament_change);
+        rtscheck.RTS_Debug_Info();
+      }
     #endif
   }
 
@@ -164,6 +186,13 @@ void GcodeSuite::M600() {
     // Restore toolhead if it was changed
     if (active_extruder_before_filament_change != active_extruder)
       tool_change(active_extruder_before_filament_change, false);
+    if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+    {
+      //Debug enabled
+      SERIAL_ECHOLNPGM("M600 => tool_change:",active_extruder_before_filament_change);
+      sprintf(rtscheck.RTS_infoBuf, "M600_toolChange: Last[%d] Cur[%d] extr=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, active_extruder_before_filament_change);
+      rtscheck.RTS_Debug_Info();
+    }
   #endif
 
   TERN_(MIXING_EXTRUDER, mixer.T(old_mixing_tool)); // Restore original mixing tool

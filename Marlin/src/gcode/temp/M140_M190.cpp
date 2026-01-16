@@ -94,8 +94,13 @@ void GcodeSuite::M140_M190(const bool isM190) {
   if (isM190)
     thermalManager.wait_for_bed(no_wait_for_cooling);
   #if ENABLED(RTS_AVAILABLE)
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  M140_M190. Return to display screen #", RTS_currentScreen));
-    rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);//Display update
+    if (rtscheck.RTS_presets.debug_enabled)  //get saved debug state
+    {
+      SERIAL_ECHOLNPGM("RTS =>  M140_M190. Return to display screen #", rtscheck.RTS_currentScreen);
+      sprintf(rtscheck.RTS_infoBuf, "M140_M190: Last[%d] Goto Cur[%d] waitW=%d DXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus);
+      rtscheck.RTS_Debug_Info();
+    }
+    rtscheck.RTS_SndData(ExchangePageBase + rtscheck.RTS_currentScreen, ExchangepageAddr);//Display update
   #endif
 }
 

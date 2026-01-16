@@ -558,6 +558,8 @@ volatile bool Temperature::raw_temps_ready = false;
    * temperature to succeed.
    */
   void Temperature::PID_autotune(const celsius_t target, const heater_id_t heater_id, const int8_t ncycles, const bool set_result/*=false*/) {
+
+    PGM_P pinfo_msg;
     celsius_float_t current_temp = 0.0;
     int cycles = 0;
     bool heating = true;
@@ -574,9 +576,15 @@ volatile bool Temperature::raw_temps_ready = false;
     int16_t rts_target = target;
     millis_t rts_ms = next_temp_ms + 500UL;
 
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PID_autotune. Last screen #", RTS_lastScreen));
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PID_autotune. Called from screen #", RTS_currentScreen));
-    RTS_lastScreen = RTS_currentScreen;
+    if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+    {
+      //Debug enabled
+      SERIAL_ECHOLNPGM("RTS => PID_autotune. Last screen #", rtscheck.RTS_lastScreen);
+      SERIAL_ECHOLNPGM("RTS => PID_autotune. Called from screen #", rtscheck.RTS_currentScreen);
+      sprintf(rtscheck.RTS_infoBuf, "Temperature: Last[%d]<Cur[%d]", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+      rtscheck.RTS_Debug_Info();
+    }
+    rtscheck.RTS_lastScreen = rtscheck.RTS_currentScreen;
 
     #if ENABLED(PIDTEMPCHAMBER)
       #define C_TERN(T,A,B) ((T) ? (A) : (B))
@@ -725,10 +733,10 @@ volatile bool Temperature::raw_temps_ready = false;
               case H_E0:
                 //left nozzle report
                 if (rts_target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
-                else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
+                  else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
                 rtscheck.RTS_SndData(rts_target, HEAD0_SET_TEMP_VP);
                 if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
-                else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
+                  else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
                 rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
                 rtscheck.RTS_SndData((uint16_t)cycles, TUNE_CURRENT_CYCLE_VP);
                 rtscheck.RTS_SndData((uint16_t)ncycles, SET_TUNE_CYCLES_VP);
@@ -739,8 +747,14 @@ volatile bool Temperature::raw_temps_ready = false;
                 rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), HEAD0_TUNE_KD_VP);
                 rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kd * 100)) & 0xFFFF), HEAD0_TUNE_KD_VP + 1);
 
-                TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  PID. Screen #93.1 triggered"));
-                RTS_currentScreen = 93;
+                if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+                {
+                  //Debug enabled
+                  SERIAL_ECHOLNPGM("RTS =>  PID. Screen #93.1 triggered");
+                  sprintf(rtscheck.RTS_infoBuf, "Temperature_PID_L: Last[%d] Cur[%d]<93", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                  rtscheck.RTS_Debug_Info();
+                }
+                rtscheck.RTS_currentScreen = 93;
                 rtscheck.RTS_SndData(ExchangePageBase + 93, ExchangepageAddr);
                 break;
               case H_E1:
@@ -759,9 +773,14 @@ volatile bool Temperature::raw_temps_ready = false;
                 rtscheck.RTS_SndData((((uint16_t)(tune_pid.Ki * 100)) & 0xFFFF), HEAD1_TUNE_KI_VP + 1);
                 rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), HEAD1_TUNE_KD_VP);
                 rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kd * 100)) & 0xFFFF), HEAD1_TUNE_KD_VP + 1);
-
-                TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  PID. Screen #94.1 triggered"));
-                RTS_currentScreen = 94;
+                if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+                {
+                  //Debug enabled
+                  SERIAL_ECHOLNPGM("RTS =>  PID. Screen #94.1 triggered");
+                  sprintf(rtscheck.RTS_infoBuf, "Temperature_PID_R: Last[%d] Cur[%d]<94", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                  rtscheck.RTS_Debug_Info();
+                }
+                rtscheck.RTS_currentScreen = 94;
                 rtscheck.RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
                 break;
               case H_BED:
@@ -776,9 +795,14 @@ volatile bool Temperature::raw_temps_ready = false;
                 rtscheck.RTS_SndData((((uint16_t)(tune_pid.Ki * 100)) & 0xFFFF), BED_TUNE_KI_VP + 1);
                 rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), BED_TUNE_KD_VP);
                 rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kd * 100)) & 0xFFFF), BED_TUNE_KD_VP + 1);
-
-                TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  PID. Screen #95.1 triggered"));
-                RTS_currentScreen = 95;
+                if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+                {
+                  //Debug enabled
+                  SERIAL_ECHOLNPGM("RTS =>  PID. Screen #95.1 triggered");
+                  sprintf(rtscheck.RTS_infoBuf, "Temperature_PID_bed: Last[%d] Cur[%d]<95", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                  rtscheck.RTS_Debug_Info();
+                }
+                rtscheck.RTS_currentScreen = 95;
                 rtscheck.RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
                 break;
               default:
@@ -826,9 +850,14 @@ volatile bool Temperature::raw_temps_ready = false;
               rtscheck.RTS_SndData((((uint16_t)(tune_pid.Ki * 100)) & 0xFFFF), HEAD0_TUNE_KI_VP + 1);
               rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), HEAD0_TUNE_KD_VP);
               rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kd * 100)) & 0xFFFF), HEAD0_TUNE_KD_VP + 1);
-
-              TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  PID. Screen #93.2 triggered"));
-              RTS_currentScreen = 93;
+              if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+              {
+                //Debug enabled
+                SERIAL_ECHOLNPGM("RTS =>  PID. Screen #93.2 triggered");
+                sprintf(rtscheck.RTS_infoBuf, "Temperature_PID_L: Last[%d] Cur[%d]<93", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                rtscheck.RTS_Debug_Info();
+              }
+              rtscheck.RTS_currentScreen = 93;
               rtscheck.RTS_SndData(ExchangePageBase + 93, ExchangepageAddr);
               break;
             case H_E1:
@@ -847,9 +876,14 @@ volatile bool Temperature::raw_temps_ready = false;
               rtscheck.RTS_SndData((((uint16_t)(tune_pid.Ki * 100)) & 0xFFFF), HEAD1_TUNE_KI_VP + 1);
               rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), HEAD1_TUNE_KD_VP);
               rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kd * 100)) & 0xFFFF), HEAD1_TUNE_KD_VP + 1);
-
-              TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  PID. Screen #94.2 triggered"));
-              RTS_currentScreen = 94;
+              if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+              {
+                //Debug enabled
+                SERIAL_ECHOLNPGM("RTS =>  PID. Screen #94.2 triggered");
+                sprintf(rtscheck.RTS_infoBuf, "Temperature_PID_R: Last[%d] Cur[%d]<94", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                rtscheck.RTS_Debug_Info();
+              }
+              rtscheck.RTS_currentScreen = 94;
               rtscheck.RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
               break;
             case H_BED:
@@ -864,9 +898,14 @@ volatile bool Temperature::raw_temps_ready = false;
               rtscheck.RTS_SndData((((uint16_t)(tune_pid.Ki * 100)) & 0xFFFF), BED_TUNE_KI_VP + 1);
               rtscheck.RTS_SndData(((((uint16_t)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), BED_TUNE_KD_VP);
               rtscheck.RTS_SndData((((uint16_t)(tune_pid.Kd * 100)) & 0xFFFF), BED_TUNE_KD_VP + 1);
-
-              TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  PID. Screen #95.2 triggered"));
-              RTS_currentScreen = 95;
+              if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+              {
+                //Debug enabled
+                SERIAL_ECHOLNPGM("RTS =>  PID. Screen #95.2 triggered");
+                  sprintf(rtscheck.RTS_infoBuf, "Temperature_PID_bed: Last[%d] Cur[%d]<95", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                  rtscheck.RTS_Debug_Info();
+              }
+              rtscheck.RTS_currentScreen = 95;
               rtscheck.RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
               break;
             default:
@@ -887,8 +926,30 @@ volatile bool Temperature::raw_temps_ready = false;
               else if (ELAPSED(ms, temp_change_ms))                   // Watch timer expired
               {
                 #if ENABLED(RTS_AVAILABLE)
-                  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  PID. Screen #53.1 triggered"));
-                  RTS_currentScreen = 53;
+                  if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+                  {
+                    //Debug enabled
+                    SERIAL_ECHOLNPGM("RTS =>  Heating failed. Screen #53.1 triggered");
+                    pinfo_msg = GET_TEXT(MSG_HEATING_FAILED_LCD);
+                    switch (heater_id){
+                      case H_BED:
+                        sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<53 bed", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                        break;
+                      case H_CHAMBER:
+                        sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<53 chamber", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                        break;
+                      case H_E0:
+                        sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<53 l_nozzle", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                        break;
+                      case H_E1:
+                        sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<53 r_nozzle", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                        break;
+                      default:
+                        break;
+                    }
+                    rtscheck.RTS_Debug_Info();
+                  }
+                  rtscheck.RTS_currentScreen = 53;
                   rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
                 #endif
                  _temp_error(heater_id, str_t_heating_failed, GET_TEXT(MSG_HEATING_FAILED_LCD));
@@ -898,8 +959,30 @@ volatile bool Temperature::raw_temps_ready = false;
             else if (current_temp < target - (MAX_OVERSHOOT_PID_AUTOTUNE)) // Heated, then temperature fell too far?
             {
               #if ENABLED(RTS_AVAILABLE)
-              TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  PID. Screen #52.1 triggered"));
-              RTS_currentScreen = 52;
+              if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+              {
+                //Debug enabled
+                SERIAL_ECHOLNPGM("RTS =>  PID MAX OVERSHOOT. Screen #52.1 triggered");
+                pinfo_msg = GET_TEXT(MSG_THERMAL_RUNAWAY);
+                switch (heater_id){
+                  case H_BED:
+                    sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<52 bed", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                    break;
+                  case H_CHAMBER:
+                    sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<52 chamber", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                    break;
+                  case H_E0:
+                    sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<52 l_nozzle", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                    break;
+                  case H_E1:
+                    sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<52 r_nozzle", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                    break;
+                  default:
+                    break;
+                }
+                rtscheck.RTS_Debug_Info();
+              }
+              rtscheck.RTS_currentScreen = 52;
                 rtscheck.RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
               #endif
               _temp_error(heater_id, str_t_thermal_runaway, GET_TEXT(MSG_THERMAL_RUNAWAY));
@@ -917,8 +1000,15 @@ volatile bool Temperature::raw_temps_ready = false;
         TERN_(DWIN_CREALITY_LCD_ENHANCED, DWIN_PidTuning(PID_TUNING_TIMEOUT));
         TERN_(EXTENSIBLE_UI, ExtUI::onPidTuning(ExtUI::result_t::PID_TUNING_TIMEOUT));
         #if ENABLED(RTS_AVAILABLE)
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  PID. Screen #53.2 triggered"));
-          RTS_currentScreen = 53;
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS =>  PID TIMEOUT. Screen #53.2 triggered");
+            pinfo_msg = STR_PID_TIMEOUT;
+            sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<53", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = 53;
           rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
         #endif
         SERIAL_ECHOLNPGM(STR_PID_TIMEOUT);
@@ -996,9 +1086,14 @@ volatile bool Temperature::raw_temps_ready = false;
                 rtscheck.RTS_SndData((((unsigned short)(tune_pid.Ki * 100)) & 0xFFFF), HEAD0_TUNE_KI_VP + 1);
                 rtscheck.RTS_SndData(((((unsigned short)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), HEAD0_TUNE_KD_VP);
                 rtscheck.RTS_SndData((((unsigned short)(tune_pid.Kd * 100)) & 0xFFFF), HEAD0_TUNE_KD_VP + 1);
-
-                TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  PID. Screen #93.3 triggered"));
-                RTS_currentScreen = 93;
+                if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+                {
+                  //Debug enabled
+                  SERIAL_ECHOLNPGM("RTS =>  PID DONE. Screen #93.3 triggered");
+                  sprintf(rtscheck.RTS_infoBuf, "Temperature_PID_L_done: Last[%d] Cur[%d]<93", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                  rtscheck.RTS_Debug_Info();
+                }
+                rtscheck.RTS_currentScreen = 93;
                 rtscheck.RTS_SndData(ExchangePageBase + 93, ExchangepageAddr);
                 break;
               case H_E1:
@@ -1017,9 +1112,14 @@ volatile bool Temperature::raw_temps_ready = false;
                 rtscheck.RTS_SndData((((unsigned short)(tune_pid.Ki * 100)) & 0xFFFF), HEAD1_TUNE_KI_VP + 1);
                 rtscheck.RTS_SndData(((((unsigned short)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), HEAD1_TUNE_KD_VP);
                 rtscheck.RTS_SndData((((unsigned short)(tune_pid.Kd * 100)) & 0xFFFF), HEAD1_TUNE_KD_VP + 1);
-
-                TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  PID. Screen #94.3 triggered"));
-                RTS_currentScreen = 94;
+                if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+                {
+                  //Debug enabled
+                  SERIAL_ECHOLNPGM("RTS =>  PID. Screen #94.3 triggered");
+                  sprintf(rtscheck.RTS_infoBuf, "Temperature_PID_R_done: Last[%d] Cur[%d]<94", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                  rtscheck.RTS_Debug_Info();
+                }
+                rtscheck.RTS_currentScreen = 94;
                 rtscheck.RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
                 break;
               case H_BED:
@@ -1034,9 +1134,14 @@ volatile bool Temperature::raw_temps_ready = false;
                 rtscheck.RTS_SndData((((unsigned short)(tune_pid.Ki * 100)) & 0xFFFF), BED_TUNE_KI_VP + 1);
                 rtscheck.RTS_SndData(((((unsigned short)(tune_pid.Kd * 100)) >> 16) & 0xFFFF), BED_TUNE_KD_VP);
                 rtscheck.RTS_SndData((((unsigned short)(tune_pid.Kd * 100)) & 0xFFFF), BED_TUNE_KD_VP + 1);
-
-                TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  PID. Screen #95.3 triggered"));
-                RTS_currentScreen = 95;
+                if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+                {
+                  //Debug enabled
+                  SERIAL_ECHOLNPGM("RTS =>  PID. Screen #95.3 triggered");
+                  sprintf(rtscheck.RTS_infoBuf, "Temperature_PID_bed_done: Last[%d] Cur[%d]<95", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                  rtscheck.RTS_Debug_Info();
+                }
+                rtscheck.RTS_currentScreen = 95;
                 rtscheck.RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
                 break;
               default:
@@ -1282,18 +1387,34 @@ void Temperature::_temp_error(const heater_id_t heater_id, PGM_P const serial_ms
 }
 
 void Temperature::max_temp_error(const heater_id_t heater_id) {
-  #if HAS_DWIN_E3V2_BASIC && (HAS_HOTEND || HAS_HEATED_BED)
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => max_temp_error. Screen #54.1 triggered"));
-    RTS_currentScreen = 54;
+  #if ENABLED(RTS_AVAILABLE) && (HAS_HOTEND || HAS_HEATED_BED)
+    PGM_P pinfo_msg;
+    if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+    {
+      //Debug enabled
+      SERIAL_ECHOLNPGM("RTS => max_temp_error. Screen #54.1 triggered");
+      pinfo_msg = GET_TEXT(MSG_ERR_MAXTEMP);
+      sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<54", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+      rtscheck.RTS_Debug_Info();
+    }
+    rtscheck.RTS_currentScreen = 54;
     rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
   #endif
   _temp_error(heater_id, PSTR(STR_T_MAXTEMP), GET_TEXT(MSG_ERR_MAXTEMP));
 }
 
 void Temperature::min_temp_error(const heater_id_t heater_id) {
-  #if HAS_DWIN_E3V2_BASIC && (HAS_HOTEND || HAS_HEATED_BED)
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => min_temp_error. Screen #54.2 triggered"));
-    RTS_currentScreen = 54;
+  #if ENABLED(RTS_AVAILABLE) && (HAS_HOTEND || HAS_HEATED_BED)
+  PGM_P pinfo_msg;
+    if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+    {
+      //Debug enabled
+      SERIAL_ECHOLNPGM("RTS => min_temp_error. Screen #54.2 triggered");
+      pinfo_msg = GET_TEXT(MSG_ERR_MINTEMP);
+      sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<54", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+      rtscheck.RTS_Debug_Info();
+    }
+    rtscheck.RTS_currentScreen = 54;
     rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
   #endif
   _temp_error(heater_id, PSTR(STR_T_MINTEMP), GET_TEXT(MSG_ERR_MINTEMP));
@@ -1546,8 +1667,9 @@ void Temperature::min_temp_error(const heater_id_t heater_id) {
  */
 void Temperature::manage_heater() {
   //insert counter here iot limit messages
-  //TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => manage_heater. Called from screen #", RTS_currentScreen));
-  //TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => manage_heater. Last screen #", RTS_lastScreen));
+  //TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => manage_heater. Called from screen #", rtscheck.RTS_currentScreen));
+  //TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => manage_heater. Last screen #", Rrtscheck.TS_lastScreen));
+  PGM_P pinfo_msg;
 
   if (marlin_state == MF_INITIALIZING) return watchdog_refresh(); // If Marlin isn't started, at least reset the watchdog!
 
@@ -1590,11 +1712,33 @@ void Temperature::manage_heater() {
         if (degHotend(e) > temp_range[e].maxtemp)
         {
           #if ENABLED(RTS_AVAILABLE)
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => manage_heater. Screen #54.3 triggered"));
-            RTS_currentScreen = 54;
+            if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+            {
+              //Debug enabled
+              SERIAL_ECHOLNPGM("RTS => Manage_heater. Screen #54.3 triggered");
+              switch ((heater_id_t)e) {
+                case H_BED:
+                  pinfo_msg = PSTR("bed");
+                  break;
+                case H_CHAMBER:
+                  pinfo_msg = PSTR("chamber");
+                  break;
+                case H_E0:
+                  pinfo_msg = PSTR("l_nozzle");
+                  break;
+                case H_E1:
+                  pinfo_msg = PSTR("r_nozzle");
+                  break;
+                default:
+                  break;
+              }
+              sprintf(rtscheck.RTS_infoBuf, "Temperature_aboveMaxtemp: Last[%d] Cur[%d]<54 heater=%s", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, pinfo_msg);
+              rtscheck.RTS_Debug_Info();
+            }
+            rtscheck.RTS_currentScreen = 54;
             rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
           #endif
-           max_temp_error((heater_id_t)e);
+            max_temp_error((heater_id_t)e);
         }
       #endif
 
@@ -1614,8 +1758,30 @@ void Temperature::manage_heater() {
             start_watching_hotend(e);               // If temp reached, turn off elapsed check
           else {
             #if ENABLED(RTS_AVAILABLE)
-              TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => manage_heater. Screen #53.3 triggered"));
-              RTS_currentScreen = 53;
+              if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+              {
+                //Debug enabled
+                SERIAL_ECHOLNPGM("RTS => manage_heater. Screen #53.3 triggered");
+                pinfo_msg = GET_TEXT(MSG_HEATING_FAILED_LCD);
+                switch (e) {
+                  case H_BED:
+                    sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<53 bed", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                    break;
+                  case H_CHAMBER:
+                    sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<53 chamber", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                    break;
+                  case H_E0:
+                    sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<53 l_nozzle", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                    break;
+                  case H_E1:
+                    sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<53 r_nozzle", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                    break;
+                  default:
+                    break;
+                }
+                rtscheck.RTS_Debug_Info();
+              }
+              rtscheck.RTS_currentScreen = 53;
               rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
             #endif
             _temp_error((heater_id_t)e, str_t_heating_failed, GET_TEXT(MSG_HEATING_FAILED_LCD));
@@ -1654,8 +1820,15 @@ void Temperature::manage_heater() {
       if (degBed() > BED_MAXTEMP)
       {
         #if ENABLED(RTS_AVAILABLE)
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => manage_heater. Screen #54.4 triggered"));
-          RTS_currentScreen = 54;
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS => manage_heater. Screen #54.4 triggered");
+            pinfo_msg = GET_TEXT(MSG_ERR_MAXTEMP);
+            sprintf(rtscheck.RTS_infoBuf, "Temperature_%s hot-bed: Last[%d] Cur[%d]<54", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = 54;
           rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
         #endif
         max_temp_error(H_BED);
@@ -1669,8 +1842,15 @@ void Temperature::manage_heater() {
           start_watching_bed();                 // If temp reached, turn off elapsed check
         else {
           #if ENABLED(RTS_AVAILABLE)
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => manage_heater. Screen #53.4 triggered"));
-            RTS_currentScreen = 53;
+            if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+            {
+              //Debug enabled
+              SERIAL_ECHOLNPGM("RTS => manage_heater. Screen #53.4 triggered");
+              pinfo_msg = GET_TEXT(MSG_HEATING_FAILED_LCD);
+              sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<53 bed", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+              rtscheck.RTS_Debug_Info();
+            }
+            rtscheck.RTS_currentScreen = 53;
             rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
           #endif
           _temp_error(H_BED, str_t_heating_failed, GET_TEXT(MSG_HEATING_FAILED_LCD));
@@ -2807,7 +2987,7 @@ void Temperature::init() {
    * TODO: Embed the last 3 parameters during init, if not less optimal
    */
   void Temperature::tr_state_machine_t::run(const_celsius_float_t current, const_celsius_float_t target, const heater_id_t heater_id, const uint16_t period_seconds, const celsius_t hysteresis_degc) {
-
+    PGM_P pinfo_msg;
     #if HEATER_IDLE_HANDLER
       // Convert the given heater_id_t to an idle array index
       const IdleIndex idle_index = idle_index_for_id(heater_id);
@@ -2883,8 +3063,31 @@ void Temperature::init() {
 
       case TRRunaway:
         #if ENABLED(RTS_AVAILABLE)
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => manage_heater. Screen #52.2 triggered"));
-          RTS_currentScreen = 52;
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+
+            SERIAL_ECHOLNPGM("RTS => manage_heater. Screen #52.2 triggered");
+            pinfo_msg = GET_TEXT(MSG_THERMAL_RUNAWAY);
+            switch (heater_id){
+              case H_BED:
+                sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<52 bed", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                break;
+              case H_CHAMBER:
+                sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<52 chamber", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                break;
+              case H_E0:
+                sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<52 l_nozzle", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                break;
+              case H_E1:
+                sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<52 r_nozzle", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+                break;
+              default:
+                break;
+            }
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = 52;
           rtscheck.RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
         #endif
         _temp_error(heater_id, str_t_thermal_runaway, GET_TEXT(MSG_THERMAL_RUNAWAY));
@@ -3927,9 +4130,15 @@ void Temperature::isr() {
     bool Temperature::wait_for_hotend(const uint8_t target_extruder, const bool no_wait_for_cooling/*=true*/
       OPTARG(G26_CLICK_CAN_CANCEL, const bool click_to_cancel/*=false*/)
     ) {
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_hotend. Called from screen #", RTS_currentScreen));
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_hotend. Last screen #", RTS_lastScreen));
-
+        uint8_t no_wait_cooling = no_wait_for_cooling ? 1 : 0;
+        if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+        {
+          //Debug enabled
+          SERIAL_ECHOLNPGM("RTS => wait_for_hotend. Called from screen #", rtscheck.RTS_currentScreen);
+          SERIAL_ECHOLNPGM("RTS => wait_for_hotend. Last screen #", rtscheck.RTS_lastScreen);
+          sprintf(rtscheck.RTS_infoBuf, "Temperature_wait_for_hotend: Last[%d] Cur[%d] noWait=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, no_wait_cooling);
+          rtscheck.RTS_Debug_Info();
+        }
       #if ENABLED(AUTOTEMP)
         REMEMBER(1, planner.autotemp_enabled, false);
       #endif
@@ -4034,8 +4243,14 @@ void Temperature::isr() {
         ui.reset_status();
         #if ENABLED(RTS_AVAILABLE)
           //return to previous RTS screen
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Wait for wait_for_hotend. Return to display screen #", RTS_currentScreen));
-          rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS => Wait for hotend. Return to display screen #", rtscheck.RTS_currentScreen);
+          sprintf(rtscheck.RTS_infoBuf, "Temperature_wait_for_hotend: Last[%d] Cur[%d] noWait=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, no_wait_cooling);
+          rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_SndData(ExchangePageBase + rtscheck.RTS_currentScreen, ExchangepageAddr);
         #endif
         TERN_(PRINTER_EVENT_LEDS, printerEventLEDs.onHeatingDone());
         return true;
@@ -4046,8 +4261,16 @@ void Temperature::isr() {
 
     #if ENABLED(WAIT_FOR_HOTEND)
       void Temperature::wait_for_hotend_heating(const uint8_t target_extruder) {
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_hotend_heating. Called from screen #", RTS_currentScreen));
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_hotend_heating. Last screen #", RTS_lastScreen));
+        PGM_P pinfo_msg;
+
+        if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+        {
+          //Debug enabled
+          SERIAL_ECHOLNPGM("RTS => wait_for_hotend_heating. Called from screen #", rtscheck.RTS_currentScreen);
+          SERIAL_ECHOLNPGM("RTS => wait_for_hotend_heating. Last screen #", rtscheck.RTS_lastScreen);
+          sprintf(rtscheck.RTS_infoBuf, "Temperature_wait_for_hotendHeating: Last[%d] Cur[%d]", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+          rtscheck.RTS_Debug_Info();
+        }
 
         if (isHeatingHotend(target_extruder)) {
           SERIAL_ECHOLNPGM("Wait for hotend heating...");
@@ -4070,8 +4293,15 @@ void Temperature::isr() {
             rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
             rtscheck.RTS_SndData(thermalManager.temp_bed.celsius, BED_CURRENT_TEMP_VP);
             rtscheck.RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_hotend. Screen #63 triggered"));
-            RTS_currentScreen = 63; //Skip return to this screen
+            if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+            {
+              //Debug enabled
+              SERIAL_ECHOLNPGM("RTS => wait_for_hotend. Screen #63 triggered");
+              pinfo_msg = GET_TEXT(MSG_HEATING);
+              sprintf_P(rtscheck.RTS_infoBuf, PSTR("Temperature_%s: Last[%d] Cur[%d]<63", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+              rtscheck.RTS_Debug_Info();
+            }
+            rtscheck.RTS_currentScreen = 63; //Skip return to this screen
             rtscheck.RTS_SndData(ExchangePageBase + 63, ExchangepageAddr);
           #endif
         }
@@ -4092,8 +4322,15 @@ void Temperature::isr() {
     bool Temperature::wait_for_bed(const bool no_wait_for_cooling/*=true*/
       OPTARG(G26_CLICK_CAN_CANCEL, const bool click_to_cancel/*=false*/)
     ) {
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_bed. Called from screen #", RTS_currentScreen));
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_bed. Last screen #", RTS_lastScreen));
+        uint8_t no_wait_cooling = no_wait_for_cooling ? 1 : 0;
+        if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+        {
+          //Debug enabled
+          SERIAL_ECHOLNPGM("RTS => wait_for_bed. Called from screen #", rtscheck.RTS_currentScreen);
+          SERIAL_ECHOLNPGM("RTS => wait_for_bed. Last screen #", rtscheck.RTS_lastScreen);
+          sprintf(rtscheck.RTS_infoBuf, "Temperature_wait_for_bed: Last[%d] Cur[%d] noWait=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, no_wait_cooling);
+          rtscheck.RTS_Debug_Info();
+        }
 
       #if TEMP_BED_RESIDENCY_TIME > 0
         millis_t residency_start_ms = 0;
@@ -4197,8 +4434,14 @@ void Temperature::isr() {
         ui.reset_status();
         #if ENABLED(RTS_AVAILABLE)
           //return to previous RTS screen
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_bed. Return to display screen #", RTS_currentScreen));
-          rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS => wait_for_bed. Return to display screen #", rtscheck.RTS_currentScreen);
+          sprintf(rtscheck.RTS_infoBuf, "Temperature_wait_for_bed: Last[%d] Cur[%d]", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+          rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_SndData(ExchangePageBase + rtscheck.RTS_currentScreen, ExchangepageAddr);
         #endif
         return true;
       }
@@ -4207,35 +4450,38 @@ void Temperature::isr() {
     }
 
     void Temperature::wait_for_bed_heating() {
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_bed_heating. Called from screen #", RTS_currentScreen));
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_bed_heating. Last screen #", RTS_lastScreen));
+      PGM_P pinfo_msg;
       if (isHeatingBed()) {
         SERIAL_ECHOLNPGM("Wait for bed heating...");
         LCD_MESSAGEPGM(MSG_BED_HEATING);
+        if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+        {
+          //Debug enabled
+          SERIAL_ECHOLNPGM("RTS => wait_for_bed_heating. Called from screen #", rtscheck.RTS_currentScreen);
+          SERIAL_ECHOLNPGM("RTS => wait_for_bed_heating. Last screen #", rtscheck.RTS_lastScreen);
+          pinfo_msg = GET_TEXT(MSG_BED_HEATING);
+          sprintf(rtscheck.RTS_infoBuf, "Temperature_%s: Last[%d] Cur[%d]<64 isHeating=1", pinfo_msg, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+          rtscheck.RTS_Debug_Info();
+        }
         wait_for_bed();
         ui.reset_status();
-          #if ENABLED(RTS_AVAILABLE)
-            Update_Time_Value = RTS_UPDATE_VALUE;
-            if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
-            else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
-            rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
-            if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
-            else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
-            rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
-            if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
-            else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
-            rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
-            if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
-            else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
-            rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
-            rtscheck.RTS_SndData(thermalManager.temp_bed.celsius, BED_CURRENT_TEMP_VP);
-            rtscheck.RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
-
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_bed_heating. Screen #64 triggered"));
-            RTS_currentScreen = 64; //Skip return to this screen
-            rtscheck.RTS_SndData(ExchangePageBase + 64, ExchangepageAddr);
-          #endif
-
+        Update_Time_Value = RTS_UPDATE_VALUE;
+        if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
+        else {rtscheck.RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
+        rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
+        if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD0_SET_ICON_VP);}
+        else {rtscheck.RTS_SndData(1, HEAD0_SET_ICON_VP);}
+        rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
+        if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
+        else {rtscheck.RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
+        rtscheck.RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
+        if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {rtscheck.RTS_SndData(0, HEAD1_SET_ICON_VP);}
+        else {rtscheck.RTS_SndData(1, HEAD1_SET_ICON_VP);}
+        rtscheck.RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
+        rtscheck.RTS_SndData(thermalManager.temp_bed.celsius, BED_CURRENT_TEMP_VP);
+        rtscheck.RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
+        rtscheck.RTS_currentScreen = 64; //Skip return to this screen
+        rtscheck.RTS_SndData(ExchangePageBase + 64, ExchangepageAddr);
       }
     }
 
@@ -4251,10 +4497,15 @@ void Temperature::isr() {
     #endif
 
     bool Temperature::wait_for_probe(const celsius_t target_temp, bool no_wait_for_cooling/*=true*/) {
-
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_probe. Called from screen #", RTS_currentScreen));
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_probe. Last screen #", RTS_lastScreen));
-
+      uint8_t no_wait_cooling = no_wait_for_cooling ? 1 : 0;
+      if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+      {
+        //Debug enabled
+        SERIAL_ECHOLNPGM("RTS => wait_for_probe. Called from screen #", rtscheck.RTS_currentScreen);
+        SERIAL_ECHOLNPGM("RTS => wait_for_probe. Last screen #", rtscheck.RTS_lastScreen);
+        sprintf(rtscheck.RTS_infoBuf, PSTR("Temperature_wait_for_probe: Last[%d] Cur[%d] noWait=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, no_wait_cooling);
+        rtscheck.RTS_Debug_Info();
+      }
       const bool wants_to_cool = isProbeAboveTemp(target_temp),
                  will_wait = !(wants_to_cool && no_wait_for_cooling);
       if (will_wait)
@@ -4307,8 +4558,14 @@ void Temperature::isr() {
         ui.reset_status();
         #if ENABLED(RTS_AVAILABLE)
           //return to previous RTS screen
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_probe. Return to display screen #", RTS_currentScreen));
-          rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS => wait_for_probe. Return to display screen #", rtscheck.RTS_currentScreen);
+            sprintf(rtscheck.RTS_infoBuf, PSTR("Temperature_wait_for_probe: Last[%d] Cur[%d]", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_SndData(ExchangePageBase + rtscheck.RTS_currentScreen, ExchangepageAddr);
         #endif
         return true;
       }
@@ -4330,10 +4587,15 @@ void Temperature::isr() {
     #endif
 
     bool Temperature::wait_for_chamber(const bool no_wait_for_cooling/*=true*/) {
-
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_chamber. Called from screen #", RTS_currentScreen));
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_chamber. Last screen #", RTS_lastScreen));
-
+      uint8_t no_wait_cooling = no_wait_for_cooling ? 1 : 0;
+      if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+      {
+        //Debug enabled
+        SERIAL_ECHOLNPGM("RTS => wait_for_chamber. Called from screen #", rtscheck.RTS_currentScreen);
+        SERIAL_ECHOLNPGM("RTS => wait_for_chamber. Last screen #", rtscheck.RTS_lastScreen);
+        sprintf(rtscheck.RTS_infoBuf, PSTR("Temperature_wait_for_chamber: Last[%d] Cur[%d] noWait=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, no_wait_cooling);
+        rtscheck.RTS_Debug_Info();
+      }
       #if TEMP_CHAMBER_RESIDENCY_TIME > 0
         millis_t residency_start_ms = 0;
         bool first_loop = true;
@@ -4415,8 +4677,14 @@ void Temperature::isr() {
         ui.reset_status();
         #if ENABLED(RTS_AVAILABLE)
           //return to previous RTS screen
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_chamber. Return to display screen #", RTS_currentScreen));
-          rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS => wait_for_chamber. Return to display screen #", rtscheck.RTS_currentScreen);
+            sprintf(rtscheck.RTS_infoBuf, PSTR("Temperature_wait_for_chamber_return: Last[%d] Cur[%d]", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_SndData(ExchangePageBase + rtscheck.RTS_currentScreen, ExchangepageAddr);
         #endif
         return true;
       }
@@ -4436,9 +4704,15 @@ void Temperature::isr() {
     #endif
 
     bool Temperature::wait_for_cooler(const bool no_wait_for_cooling/*=true*/) {
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_cooler. Called from screen #", RTS_currentScreen));
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_cooler. Last screen #", RTS_lastScreen));
-
+      uint8_t no_wait_cooling = no_wait_for_cooling ? 1 : 0;
+      if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+      {
+        //Debug enabled
+        SERIAL_ECHOLNPGM("RTS => wait_for_cooler. Called from screen #", rtscheck.RTS_currentScreen);
+        SERIAL_ECHOLNPGM("RTS => wait_for_cooler. Last screen #", rtscheck.RTS_lastScreen);
+        sprintf(rtscheck.RTS_infoBuf, "Temperature_wait_for_cooler: Last[%d] Cur[%d]", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+        rtscheck.RTS_Debug_Info();
+      }
       #if TEMP_COOLER_RESIDENCY_TIME > 0
         millis_t residency_start_ms = 0;
         bool first_loop = true;
@@ -4521,8 +4795,14 @@ void Temperature::isr() {
         ui.reset_status();
         #if ENABLED(RTS_AVAILABLE)
           //return to previous RTS screen);
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => wait_for_cooler. Return to display screen #", RTS_currentScreen));
-          rtscheck.RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS => wait_for_heatup. Return to display screen #", rtscheck.RTS_currentScreen);
+            sprintf(rtscheck.RTS_infoBuf, "Temperature_wait_for_heatup. Return to %d: Last[%d] Cur[%d]", rtscheck.RTS_currentScreen, rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_SndData(ExchangePageBase + rtscheck.RTS_currentScreen, ExchangepageAddr);
         #endif
         return true;
       }

@@ -36,10 +36,6 @@
   #include "../../../feature/runout.h"
 #endif
 
-// Enable verbose output from display handler to terminal.
-// Can be disabled for production build.
-//#define RTS_DEBUG
-
 #if ENABLED(RTS_AVAILABLE)
 RTS_preset_data RTS_presets; // Initialized by settings.load()
 float zprobe_zoffset = 0.0;
@@ -57,11 +53,11 @@ float current_position_x0_axis = X_MIN_POS;
 float current_position_x1_axis = X2_MAX_POS;
 int PrintFlag = 0;
 
-char RTS_heatway = 0;
+uint8_t RTS_heatway = 0;
 millis_t next_rts_update_ms = 0;
 int last_target_temperature[4] = {0};
 int last_target_temperature_bed;
-char RTS_waitway = 0;
+uint8_t RTS_waitway = 0;
 unsigned char Percentrecord = 0;
 
 bool pause_action_flag = false;
@@ -76,6 +72,15 @@ extern CardReader card;
 bool lcd_sd_status;
 
 char cmdbuf[20] = {0};
+char RTS_infoBuf[80] = {0};  //Debug display input buffer
+char RTS_infoBuf0[80] = {0};  //Debug display info buffer
+char RTS_infoBuf1[80] = {0};  //Debug display info buffer
+char RTS_infoBuf2[80] = {0};  //Debug display info buffer
+char RTS_infoBuf3[80] = {0};  //Debug display info buffer
+char RTS_infoBuf4[80] = {0};  //Debug display info buffer
+char RTS_infoBuf5[80] = {0};  //Debug display info buffer
+char RTS_infoBuf6[80] = {0};  //Debug display info buffer
+char RTS_infoBuf7[80] = {0};  //Debug display info buffer
 float Filament0LOAD = 0.0;
 float Filament1LOAD = 0.0;
 
@@ -101,7 +106,7 @@ float BackupKp = 0.0; //Backup Kp param
 float BackupKi = 0.0; //Backup Ki param
 float BackupKd = 0.0; //Backup Kd param
 uint16_t FileScrollSpeed = 1;
-char RTS_cyclesIcon = 0;
+uint8_t RTS_cyclesIcon = 0;
 uint8_t RTS_currentScreen = 0;
 uint8_t RTS_lastScreen = 0;
 
@@ -132,14 +137,7 @@ inline void RTS_line_to_current(AxisEnum axis, float manual_feedrate_mms)
   if (!planner.is_full())
   {
     planner.buffer_line(current_position, manual_feedrate_mms, active_extruder);
-  }
-}
-
-inline void RTS_extruder_move(float length, float manual_feedrate_mms)
-{
-  if (!planner.is_full())
-  {
-    unscaled_e_move(length, manual_feedrate_mms);
+    planner.synchronize();
   }
 }
 
@@ -356,10 +354,9 @@ void RTSSHOW::RTS_SDCardUpate(void)
 
 void RTSSHOW::RTS_Init()
 {
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS Init"));
   //enable Auto Power Off
-  autoPowerOffEnabled = RTS_presets.auto_power_off_enable; //get auto power-off preset
-  if (autoPowerOffEnabled == true)
+  autoPowerOffEnabled = RTS_presets.auto_power_off_enabled; //get auto power-off preset
+  if (autoPowerOffEnabled)
   {
     RTS_SndData(0, AUTO_POWER_OFF_ICON_VP);
     RTS_SndData(0, PRESET_AUTO_POWER_OFF_VP);
@@ -369,11 +366,39 @@ void RTSSHOW::RTS_Init()
     RTS_SndData(1, AUTO_POWER_OFF_ICON_VP);
     RTS_SndData(1, PRESET_AUTO_POWER_OFF_VP);
   }
+
+  //clear input buffer
+  memset(RTS_infoBuf, 32, 79);
+  RTS_infoBuf[79] = 0;
+  //clear info buffers
+  memcpy(RTS_infoBuf0, RTS_infoBuf, 80); //zero buffer
+  memcpy(RTS_infoBuf1, RTS_infoBuf, 80);
+  memcpy(RTS_infoBuf2, RTS_infoBuf, 80);
+  memcpy(RTS_infoBuf3, RTS_infoBuf, 80);
+  memcpy(RTS_infoBuf4, RTS_infoBuf, 80);
+  memcpy(RTS_infoBuf5, RTS_infoBuf, 80);
+  memcpy(RTS_infoBuf6, RTS_infoBuf, 80);
+  memcpy(RTS_infoBuf7, RTS_infoBuf, 80);
+  //display buffers
+  RTS_Debug_Info();
+
+  //Debug enabled
+  if (RTS_presets.debug_enabled)  //get saved debug state
+  {
+    RTS_SndData(0, PRESET_DEBUG_ENABLED_VP);  //on icon
+    SERIAL_ECHOLNPGM("RTS => RTS Init; dualXPrintingModeStatus=",dualXPrintingModeStatus);
+    sprintf(RTS_infoBuf, "RTS_Init: Last[%d] Cur[%d] DXC=%d", RTS_lastScreen, RTS_currentScreen, dualXPrintingModeStatus);
+    RTS_Debug_Info();
+  }
+  else
+  {
+    RTS_SndData(1, PRESET_DEBUG_ENABLED_VP);  //off icon
+  }
+
   AxisUnitMode = 3;
 
   #if ENABLED(DUAL_X_CARRIAGE)
     save_dual_x_carriage_mode = dualXPrintingModeStatus; //get last mode before power-off
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS Init; dualXPrintingModeStatus=",dualXPrintingModeStatus));
 
     if(save_dual_x_carriage_mode == 1)      //DXC_AUTO_PARK_MODE => DUAL MODE
     {
@@ -446,14 +471,6 @@ void RTSSHOW::RTS_Init()
   RTS_SndData(RTS_presets.petg_hotend_t, PRESET_PETG_HOTEND_VP);         //nozzle temperature, type int16_t
   RTS_SndData(RTS_presets.petg_bed_t, PRESET_PETG_BED_VP);               //hot-bed temperature, type int16_t
   RTS_SndData(RTS_presets.motor_hold_time, PRESET_MOTOR_HOLD_TIME_VP);   //DEFAULT_STEPPER_DEACTIVE_TIME in sec
-  if (RTS_presets.auto_power_off_enable)                                 //auto power-off enabled, type boolean
-  {
-    RTS_SndData(0, PRESET_AUTO_POWER_OFF_VP);
-  }
-  else
-  {
-    RTS_SndData(1, PRESET_AUTO_POWER_OFF_VP);
-  }
 
   // clean screen.
   for (int j = 0; j < FileNameLen; j ++)
@@ -498,8 +515,8 @@ void RTSSHOW::RTS_Init()
   CardUpdate = false;
   hasSelected = false;
   previousSelectionIndex = 0;
-  Filament0LOAD = (float)FILAMENT_LOAD_LENGTH_0;
-  Filament1LOAD = (float)FILAMENT_LOAD_LENGTH_1;
+  Filament0LOAD = (float)FILAMENT_CHANGE_SLOW_LOAD_LENGTH;
+  Filament1LOAD = (float)FILAMENT_CHANGE_SLOW_LOAD_LENGTH;
   AutoHomeIconNum = 0 ;
   memset(commandbuf, 0, sizeof(commandbuf));
   remain_time = 0;
@@ -517,7 +534,7 @@ void RTSSHOW::RTS_Init()
   RTS_SndData(SOFTVERSION, PRINTER_VERSION_TEXT_VP);
   RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
   RTS_SndData(sizebuf, PRINTER_PRINTSIZE_TEXT_VP);
-  RTS_SndData(CORP_WEBSITE, PRINTER_WEBSITE_TEXT_VP);
+  RTS_SndData(EEPROM_VERSION, PRINTER_EEPROM_VERSION_TEXT_VP);
   memset(sizebuf, 0, 20);
   sprintf(sizebuf, "  .    ");
   RTS_SndData(sizebuf, SCROLL_DIS_VP);
@@ -811,6 +828,8 @@ void RTSSHOW::RTS_SndData(unsigned long n, unsigned long addr, unsigned char cmd
 
 void RTSSHOW::RTS_SDcardStop()
 {
+  uint8_t pause_action = pause_action_flag ? 1 : 0;
+  uint8_t sd_pause_chck = sdcard_pause_check ? 1 : 0;
   RTS_waitway = 7;
   #if ENABLED(REALTIME_REPORTING_COMMANDS)
     planner.quick_pause();
@@ -833,9 +852,14 @@ void RTSSHOW::RTS_SDcardStop()
   RTS_SndData(StartSoundSet, SoundAddr);
   */
   PoweroffContinue = false;
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_SDcardStop. Last screen #", RTS_currentScreen));
+  if (RTS_presets.debug_enabled)  //get saved debug state
+  {
+    SERIAL_ECHOLNPGM("RTS => RTS_SDcardStop. Last screen #", RTS_currentScreen);
+    SERIAL_ECHOLNPGM("RTS => RTS_SDcardStop. Screen #40.1 triggered");
+    sprintf(RTS_infoBuf, "RTS_SDcardStop: Last[%d] Cur[%d]<40 waitW=%d pauseAct=%d SDpChck=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, pause_action, sd_pause_chck);
+    RTS_Debug_Info();
+  }
   RTS_lastScreen = RTS_currentScreen;
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_SDcardStop. Screen #40.1 triggered"));
   RTS_currentScreen = 40;
   RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
   //RTS_waitway = 7;
@@ -959,8 +983,8 @@ void RTSSHOW::RTS_Restart()
   CardUpdate = false;
   hasSelected = false;
   previousSelectionIndex = 0;
-  Filament0LOAD = (float)FILAMENT_LOAD_LENGTH_0;
-  Filament1LOAD = (float)FILAMENT_LOAD_LENGTH_1;
+  Filament0LOAD = (float)FILAMENT_CHANGE_SLOW_LOAD_LENGTH;
+  Filament1LOAD = (float)FILAMENT_CHANGE_SLOW_LOAD_LENGTH;
   AutoHomeIconNum = 0 ;
   memset(commandbuf, 0, sizeof(commandbuf));
   remain_time = 0;
@@ -1025,10 +1049,18 @@ void RTSSHOW::RTS_Restart()
 
 void RTSSHOW::RTS_ProcessPause()
 {
+  uint8_t pause_action = pause_action_flag ? 1 : 0;
+  uint8_t sd_pause_chck = sdcard_pause_check ? 1 : 0;
+
   //RTS_waitway = 1; Skip screen lock
   RTS_waitway = 0;
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessPause. Last screen #", RTS_currentScreen));
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessPause. Screen #40.2 triggered"));
+  if (RTS_presets.debug_enabled)  //get saved debug state
+  {
+    SERIAL_ECHOLNPGM("RTS => RTS_ProcessPause. Last screen #", RTS_currentScreen);
+    SERIAL_ECHOLNPGM("RTS => RTS_ProcessPause. Screen #40.2 triggered");
+    sprintf(RTS_infoBuf, "RTS_ProcessPause: Last[%d] Cur[%d]<40 waitW=%d pauseAct=%d SDpChck=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, pause_action, sd_pause_chck);
+    RTS_Debug_Info();
+  }
   RTS_currentScreen = 40;
   RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
   //pause command
@@ -1037,9 +1069,14 @@ void RTSSHOW::RTS_ProcessPause()
   Update_Time_Value = 0;
   sdcard_pause_check = false;
   PrintFlag = 1;
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessPause. Override Last Screen to #12"));
+  if (RTS_presets.debug_enabled)  //get saved debug state
+  {
+    SERIAL_ECHOLNPGM("RTS => RTS_ProcessPause. Override Last Screen to #12");
+    SERIAL_ECHOLNPGM("RTS => RTS_ProcessPause. Screen #12 triggered");
+    sprintf(RTS_infoBuf, "RTS_ProcessPause: Last[%d]<12 Cur[%d]<12 waitW=%d pauseAct=1 SDpChck=0", RTS_lastScreen, RTS_currentScreen, RTS_waitway);
+    RTS_Debug_Info();
+  }
   RTS_lastScreen = 12; //Override to get back to info screen while pausing
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessPause. Screen #12 triggered"));
   RTS_currentScreen = 12;
   RTS_SndData(ExchangePageBase + 12, ExchangepageAddr);
   //change_page_number = 12;
@@ -1049,8 +1086,16 @@ void RTSSHOW::RTS_ProcessPause()
 
 void RTSSHOW::RTS_ProcessResume()
 {
+  uint8_t pause_action = pause_action_flag ? 1 : 0;
+  uint8_t sd_pause_chck = sdcard_pause_check ? 1 : 0;
+  uint8_t wait_user = wait_for_user ? 1 : 0;
   RTS_waitway = 0;
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessResume. Last screen #", RTS_currentScreen));
+  if (RTS_presets.debug_enabled)  //get saved debug state
+  {
+    SERIAL_ECHOLNPGM("RTS => RTS_ProcessResume. Last screen #", RTS_currentScreen);
+    sprintf(RTS_infoBuf, "RTS_ProcessResume: Last[%d] Cur[%d] waitW=%d waitUsr=%d pauseAct=%d SDpChck=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, pause_action, sd_pause_chck);
+    RTS_Debug_Info();
+  }
   RTS_lastScreen = RTS_currentScreen;
   //queue.enqueue_one_P(PSTR("M117 Resuming..."));
   RTS_SndData(fileInfo.currentDisplayFilename, PRINT_FILE_TEXT_VP);
@@ -1064,10 +1109,16 @@ void RTSSHOW::RTS_ProcessResume()
   Update_Time_Value = 0;
   sdcard_pause_check = true;
   pause_action_flag = false;
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessResume. Override Last Screen to #11"));
+   if (RTS_presets.debug_enabled)  //get saved debug state
+  {
+    SERIAL_ECHOLNPGM("RTS => RTS_ProcessResume. Override Last Screen to #11");
+    SERIAL_ECHOLNPGM("RTS => RTS_ProcessResume. Screen #11 triggered");
+    sprintf(RTS_infoBuf, "RTS_ProcessResume: Last[%d]<11 Cur[%d]<11 waitW=%d waitUsr=%d pauseAct=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, pause_action);
+    RTS_Debug_Info();
+  }
   RTS_lastScreen = 11; //Override to get back to info screen while printing
   RTS_currentScreen = 11; //Override to get back to info screen while printing
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessResume. Screen #11 triggered"));
+
   RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
   PrintFlag = 2;
   queue.enqueue_one_P(PSTR("M75"));
@@ -1076,17 +1127,30 @@ void RTSSHOW::RTS_ProcessResume()
 void RTSSHOW::RTS_ProcessM25()
 {
   //pause command
+  uint8_t pause_action = pause_action_flag ? 1 : 0;
+  uint8_t sd_pause_chck = sdcard_pause_check ? 1 : 0;
+  uint8_t wait_user = wait_for_user ? 1 : 0;
   RTS_waitway = 0;
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  RTS_ProcessM25. Last screen #", RTS_currentScreen));
+  if (RTS_presets.debug_enabled)  //get saved debug state
+  {
+    SERIAL_ECHOLNPGM("RTS =>  RTS_ProcessM25. Last screen #", RTS_currentScreen);
+    sprintf(RTS_infoBuf, "ProcessM25: Last[%d] Cur[%d] waitW=%d waitUsr=%d pauseAct=%d SDpChck=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, pause_action, sd_pause_chck);
+    RTS_Debug_Info();
+  }
   RTS_SndData(PSTR("Pausing..."), PRINT_FILE_TEXT_VP);
   card.pauseSDPrint();
   pause_action_flag = true;
   Update_Time_Value = 0;
   sdcard_pause_check = false;
   PrintFlag = 1;
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessM25. Override Last Screen to #12"));
+  if (RTS_presets.debug_enabled)  //get saved debug state
+  {
+    SERIAL_ECHOLNPGM("RTS => RTS_ProcessM25. Override Last Screen to #12");
+    SERIAL_ECHOLNPGM("RTS => RTS_ProcessM25. Pause screen #60.6 triggered");
+    sprintf(RTS_infoBuf, "RTS_ProcessM25: Last[%d]<12 Cur[%d]<60 waitW=%d waitUsr=%d pauseAct=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, pause_action);
+    RTS_Debug_Info();
+  }
   RTS_lastScreen = 12; //Override to get back to info screen while pausing
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessM25. Pause screen #60.6 triggered"));
   RTS_currentScreen = 60;
   RTS_SndData(ExchangePageBase + 60, ExchangepageAddr);
 }
@@ -1094,7 +1158,15 @@ void RTSSHOW::RTS_ProcessM25()
 void RTSSHOW::RTS_ProcessM24()
 {
   //resume command
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  RTS_ProcessM24. Last screen #", RTS_currentScreen));
+  uint8_t pause_action = pause_action_flag ? 1 : 0;
+  uint8_t sd_pause_chck = sdcard_pause_check ? 1 : 0;
+  uint8_t wait_user = wait_for_user ? 1 : 0;
+  if (RTS_presets.debug_enabled)  //get saved debug state
+  {
+    SERIAL_ECHOLNPGM("RTS =>  RTS_ProcessM24. Last screen #", RTS_currentScreen);
+    sprintf(RTS_infoBuf, "RTS_ProcessM24: Last[%d] Cur[%d] waitW=%d waitUsr=%d pauseAct=%d SDpChck=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, pause_action, sd_pause_chck);
+    RTS_Debug_Info();
+  }
   RTS_waitway = 0;
   RTS_SndData(fileInfo.currentDisplayFilename, PRINT_FILE_TEXT_VP);
   #if BOTH(M600_PURGE_MORE_RESUMABLE, ADVANCED_PAUSE_FEATURE)
@@ -1106,10 +1178,15 @@ void RTSSHOW::RTS_ProcessM24()
   Update_Time_Value = 0;
   sdcard_pause_check = true;
   pause_action_flag = false;
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessM24. Override Last Screen to #11"));
+  if (RTS_presets.debug_enabled)  //get saved debug state
+  {
+    SERIAL_ECHOLNPGM("RTS => RTS_ProcessM24. Override Last Screen to #11");
+    SERIAL_ECHOLNPGM("RTS => RTS_ProcessM24. Printing screen #11 triggered");
+    sprintf(RTS_infoBuf, "RTS_ProcessM24: Last[%d]<11 Cur[%d]<11 waitW=%d waitUsr=%d pauseAct=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, pause_action);
+    RTS_Debug_Info();
+  }
   RTS_lastScreen = 11; //Override to get back to info screen while printing
   RTS_currentScreen = 11; //Override to get back to info screen while printing
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => RTS_ProcessM24. Printing screen #11 triggered"));
   RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
   PrintFlag = 2;
 }
@@ -1117,6 +1194,10 @@ void RTSSHOW::RTS_ProcessM24()
 void RTSSHOW::RTS_HandleData()
 {
   int Checkkey = -1;
+  uint8_t pause_action = pause_action_flag ? 1 : 0;
+  uint8_t sd_pause_chck = sdcard_pause_check ? 1 : 0;
+  uint8_t trusted = all_axes_trusted() ? 1 : 0;
+  uint8_t wait_user = wait_for_user ? 1 : 0;
   // for waiting
 /*RTS_waitway states:
   0: no waiting
@@ -1138,7 +1219,12 @@ void RTSSHOW::RTS_HandleData()
     {
       RTS_waitway = 0;
     }
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Ignoring RTS input. RTS_waitway: ", RTS_waitway));
+    if (RTS_presets.debug_enabled)  //get saved debug state
+    {
+      SERIAL_ECHOLNPGM("RTS => Ignoring RTS input. RTS_waitway: ", RTS_waitway);
+      sprintf(RTS_infoBuf, "RTS_Ignoring input: Last[%d] Cur[%d] waitW=%d waitUsr=%d pauseAct=%d SDpChck=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, pause_action, sd_pause_chck);
+      RTS_Debug_Info();
+    }
     return;
   }
   for(int i = 0;Addrbuf[i] != 0;i ++)
@@ -1163,12 +1249,18 @@ void RTSSHOW::RTS_HandleData()
 
   switch(Checkkey)
   {
-  case MainPageKey:
+    case MainPageKey:
       if(recdat.data[0] == 1)
       {
         CardUpdate = true;
         if(CardReader::flag.mounted)
         {
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => MainPageKey=1. RTS_waitway: ", RTS_waitway);
+            sprintf(RTS_infoBuf, "RTS_MenuPrint: Last[%d] Cur[%d]<2 waitW=%d waitUsr=%d pauseAct=%d SDpChck=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, pause_action, sd_pause_chck);
+            RTS_Debug_Info();
+          }
           for (int j = 0; j < FileNameLen; j ++)
           {
             RTS_SndData(0, SELECT_DIR_TEXT_VP + j);
@@ -1182,12 +1274,24 @@ void RTSSHOW::RTS_HandleData()
         }
         else
         {
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => MainPageKey=1; no SD Card");
+            sprintf(RTS_infoBuf, "RTS_NoSDcard: Last[%d] Cur[%d]<47 waitW=%d waitUsr=%d pauseAct=%d SDpChck=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, pause_action, sd_pause_chck);
+            RTS_Debug_Info();
+          }
           RTS_currentScreen = 47;
           RTS_SndData(ExchangePageBase + 47, ExchangepageAddr);
         }
       }
       else if(recdat.data[0] == 2) //from screen #9 print finished
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => MainPageKey=2");
+          sprintf(RTS_infoBuf, "RTS_Print_finished: Last[%d] Cur[%d]<1 waitW=%d waitUsr=%d pauseAct=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, pause_action);
+          RTS_Debug_Info();
+        }
         //clean screen
         Update_Time_Value = 0;
         wait_idle(2);
@@ -1210,6 +1314,12 @@ void RTSSHOW::RTS_HandleData()
       }
       else if(recdat.data[0] == 3)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => MainPageKey=3");
+          sprintf(RTS_infoBuf, "RTS_MenuTemp: Last[%d] Cur[%d]<15 waitW=%d waitUsr=%d pauseAct=%d SDpChck=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, pause_action, sd_pause_chck);
+          RTS_Debug_Info();
+        }
         RTS_SndData(thermalManager.fan_speed[0], HEAD0_FAN_SPEED_VP);
         RTS_SndData(thermalManager.fan_speed[1], HEAD1_FAN_SPEED_VP);
         RTS_currentScreen = 15;
@@ -1217,6 +1327,12 @@ void RTSSHOW::RTS_HandleData()
       }
       else if(recdat.data[0] == 4)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => MainPageKey=4");
+          sprintf(RTS_infoBuf, "RTS_MenuTemp: Last[%d] Cur[%d]<21 waitW=%d waitUsr=%d pauseAct=%d SDpChck=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, pause_action, sd_pause_chck);
+          RTS_Debug_Info();
+        }
         if (stepper.is_awake() == true)
         {
           RTS_SndData(0, MOTOR_FREE_ICON_VP); //motors enabled
@@ -1232,7 +1348,12 @@ void RTSSHOW::RTS_HandleData()
       {
         #if ENABLED(DUAL_X_CARRIAGE)
           save_dual_x_carriage_mode = dualXPrintingModeStatus;
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => MainPageKey=5"));
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => MainPageKey=5");
+            sprintf(RTS_infoBuf, "RTS_MenuMode: Last[%d] Cur[%d]<34 waitW=%d waitUsr=%d DXC=%d pauseAct=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, dualXPrintingModeStatus, pause_action);
+            RTS_Debug_Info();
+          }
           SetExtruderMode(save_dual_x_carriage_mode, true);
           RTS_currentScreen = 34;
           RTS_SndData(ExchangePageBase + 34, ExchangepageAddr);
@@ -1242,14 +1363,25 @@ void RTSSHOW::RTS_HandleData()
       {
         //go to main screen
         RTS_currentScreen = 1;
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Stop - go to main screen #1"));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => MainPageKey=6. Stop - go to main screen #1");
+            sprintf(RTS_infoBuf, "RTS_MenuMode: Last[%d] Cur[%d]<1 waitW=%d waitUsr=%d DXC=%d pauseAct=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, dualXPrintingModeStatus, pause_action);
+            RTS_Debug_Info();
+        }
+        RTS_currentScreen = 1;
         RTS_SDcardStop();
       }
       else if(recdat.data[0] == 7) //resume key from #60
       {
         //return to previous RTS screen
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Resume-Key. Last screen #", RTS_currentScreen));
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Go to last screen #", RTS_lastScreen));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => MainPageKey=7. Resume to last screen #", RTS_currentScreen);
+          SERIAL_ECHOLNPGM("RTS => Go to last screen #", RTS_lastScreen);
+          sprintf(RTS_infoBuf, "RTS_ResumeKey: Goto [%d] Cur[%d] waitW=%d waitUsr=%d DXC=%d pauseAct=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, dualXPrintingModeStatus, pause_action);
+          RTS_Debug_Info();
+        }
         RTS_SndData(ExchangePageBase + RTS_lastScreen, ExchangepageAddr);
       }
       break;
@@ -1333,6 +1465,37 @@ void RTSSHOW::RTS_HandleData()
       {
         RTS_ProcessPause();
       }
+      else if(recdat.data[0] == 0) //from screen #69: OK, filament inserted
+      {
+        wait_for_user = false;
+      }
+      else if(recdat.data[0] == 1) //from screen #70: OK, start to heat nozzles
+      {
+        wait_for_user = false;
+      }
+      else if(recdat.data[0] == 2) //from screen #72: OK, to resume after reheat done
+      {
+        wait_for_user = false;
+      }
+      else if(recdat.data[0] == 3) //from screen #73: purge more
+      {
+        wait_for_user = false;
+        pause_menu_response = PAUSE_RESPONSE_EXTRUDE_MORE;
+      }
+      else if(recdat.data[0] == 4) //from screen #73: continue
+      {
+        //RTS_ProcessResume();
+        wait_for_user = false;
+        pause_menu_response = PAUSE_RESPONSE_RESUME_PRINT;
+      }
+      else if(recdat.data[0] == 5) //from screen #74: OK, resume
+      {
+        wait_for_user = false;
+      }
+      else if(recdat.data[0] == 6) //from screen #82: OK, resume
+      {
+        wait_for_user = false;
+      }
       break;
 
     case ResumePrintKey:
@@ -1349,9 +1512,14 @@ void RTSSHOW::RTS_HandleData()
         #endif
         wait_for_user = false;
         //change filament and resume
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => ResumePrintKey.2. Last screen #", RTS_currentScreen));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => ResumePrintKey=2. Last screen #", RTS_currentScreen);
+          SERIAL_ECHOLNPGM("RTS => ResumePrintKey=2. Screen #40.3 triggered");
+          sprintf(RTS_infoBuf, "RTS_ResumePrintKey: Last[%d] Cur[%d]<40 waitW=%d waitUsr=%d pauseAct=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, pause_action);
+          RTS_Debug_Info();
+        }
         RTS_lastScreen = RTS_currentScreen;
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => ResumePrintKey.2. Screen #40.3 triggered"));
         RTS_currentScreen = 40;
         RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
         //card.startOrResumeFilePrinting();
@@ -1381,7 +1549,7 @@ void RTSSHOW::RTS_HandleData()
         if(PoweroffContinue == true)
         {
           RTS_currentScreen = 8;
-          RTS_SndData(ExchangePageBase + 8, ExchangepageAddr);
+            RTS_SndData(ExchangePageBase + 8, ExchangepageAddr);
           PoweroffContinue = false; // added by John Carlson to reset the flag
         }
         else if(PoweroffContinue == false)
@@ -1432,9 +1600,14 @@ void RTSSHOW::RTS_HandleData()
         }
         else
         {
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => ResumePrintKey.4. Last screen #", RTS_currentScreen));
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => ResumePrintKey=4. Last screen #", RTS_currentScreen);
+            SERIAL_ECHOLNPGM("RTS => ResumePrintKey=4. Screen #40.4 triggered");
+            sprintf(RTS_infoBuf, "RTS_ResumePrintKey: Last[%d] Cur[%d]<40 waitW=%d waitUsr=%d pauseAct=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, pause_action);
+            RTS_Debug_Info();
+          }
           RTS_lastScreen = RTS_currentScreen;
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => ResumePrintKey.4. Screen #40.4 triggered"));
           RTS_currentScreen = 40;
           RTS_SndData(ExchangePageBase + 40, ExchangepageAddr);
 
@@ -1470,59 +1643,58 @@ void RTSSHOW::RTS_HandleData()
       thermalManager.temp_bed.target = recdat.data[0];
       thermalManager.setTargetBed(thermalManager.temp_bed.target);
       RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => HotBedEnterKey: ", recdat.data[0]));
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => HotBedEnterKey: ", recdat.data[0]);
+        sprintf(RTS_infoBuf, "RTS_HotBedEnterKey: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+        RTS_Debug_Info();
+      }
       break;
 
     case TempScreenKey:
       if (recdat.data[0] == 1)
       {
         RTS_SndData(thermalManager.fan_speed[0], HEAD0_FAN_SPEED_VP);
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => TempScreenKey= ", recdat.data[0]);
+          sprintf(RTS_infoBuf, "RTS_MenuTempLeft: Last[%d] Cur[%d]<16 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 16;
         RTS_SndData(ExchangePageBase + 16, ExchangepageAddr);
       }
       else if (recdat.data[0] == 2)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => TempScreenKey= ", recdat.data[0]);
+          sprintf(RTS_infoBuf, "RTS_MenuTempRight: Last[%d] Cur[%d]<17 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_SndData(thermalManager.fan_speed[1], HEAD1_FAN_SPEED_VP);
         RTS_currentScreen = 17;
         RTS_SndData(ExchangePageBase + 17, ExchangepageAddr);
       }
       else if (recdat.data[0] == 3)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => TempScreenKey= ", recdat.data[0]);
+          sprintf(RTS_infoBuf, "RTS_MenuTempBed: Last[%d] Cur[%d]<18 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 18;
         RTS_SndData(ExchangePageBase + 18, ExchangepageAddr);
       }
       else if (recdat.data[0] == 4)
       {
-        RTS_currentScreen = 15;
-        RTS_SndData(ExchangePageBase + 15, ExchangepageAddr);
-      }
-      else if (recdat.data[0] == 0xF1)
-      {
-        #if FAN_COUNT > 0
-          for (uint8_t i = 0; i < FAN_COUNT; i++)
-          {
-            thermalManager.fan_speed[i] = 255;
-          }
-        #endif
-        RTS_SndData(thermalManager.fan_speed[0], HEAD0_FAN_SPEED_VP);
-        RTS_SndData(thermalManager.fan_speed[1], HEAD1_FAN_SPEED_VP);
-        thermalManager.setTargetHotend(0, 0);
-        RTS_SndData(0, HEAD0_SET_ICON_VP);
-        RTS_SndData(0, HEAD0_SET_TEMP_VP);
-        delay(1);
-        thermalManager.setTargetHotend(0, 1);
-        RTS_SndData(0, HEAD1_SET_ICON_VP);
-        RTS_SndData(0, HEAD1_SET_TEMP_VP);
-        delay(1);
-        thermalManager.setTargetBed(0);
-        RTS_SndData(0, BED_SET_TEMP_VP);
-        delay(1);
-
-        RTS_currentScreen = 15;
-        RTS_SndData(ExchangePageBase + 15, ExchangepageAddr);
-      }
-      else if (recdat.data[0] == 0xF0)
-      {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => TempScreenKey= ", recdat.data[0]);
+          sprintf(RTS_infoBuf, "RTS_ReturnMenuTemp: Last[%d] Cur[%d]<15 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 15;
         RTS_SndData(ExchangePageBase + 15, ExchangepageAddr);
       }
@@ -1531,6 +1703,12 @@ void RTSSHOW::RTS_HandleData()
     case CoolScreenKey:
       if (recdat.data[0] == 1)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => CoolScreenKey=", recdat.data[0]);
+          sprintf(RTS_infoBuf, "RTS_Cooling_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         thermalManager.setTargetHotend(0, 0);
         RTS_SndData(0, HEAD0_SET_ICON_VP);
         RTS_SndData(0, HEAD0_SET_TEMP_VP);
@@ -1539,11 +1717,23 @@ void RTSSHOW::RTS_HandleData()
       }
       else if (recdat.data[0] == 2)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => CoolScreenKey=", recdat.data[0]);
+          sprintf(RTS_infoBuf, "RTS_Cooling_Bed: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         thermalManager.setTargetBed(0);
         RTS_SndData(0, BED_SET_TEMP_VP);
       }
       else if (recdat.data[0] == 3)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => CoolScreenKey=", recdat.data[0]);
+          sprintf(RTS_infoBuf, "RTS_Cooling_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         thermalManager.setTargetHotend(0, 1);
         RTS_SndData(0, HEAD1_SET_ICON_VP);
         RTS_SndData(0, HEAD1_SET_TEMP_VP);
@@ -1552,11 +1742,23 @@ void RTSSHOW::RTS_HandleData()
       }
       else if (recdat.data[0] == 4)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => CoolScreenKey=", recdat.data[0]);
+          sprintf(RTS_infoBuf, "RTS_Cooling>Return: Last[%d] Cur[%d]<15 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 15;
         RTS_SndData(ExchangePageBase + 15, ExchangepageAddr);
       }
       else if (recdat.data[0] == 5)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => CoolScreenKey=", recdat.data[0]);
+          sprintf(RTS_infoBuf, "RTS_Preheat_PLA_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         thermalManager.temp_hotend[0].target = RTS_presets.pla_hotend_t;
         thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
         if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {RTS_SndData(0, HEAD0_SET_ICON_VP);}
@@ -1568,6 +1770,12 @@ void RTSSHOW::RTS_HandleData()
       }
       else if (recdat.data[0] == 6)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => CoolScreenKey=", recdat.data[0]);
+          sprintf(RTS_infoBuf, "RTS_Preheat_PETG_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         thermalManager.temp_hotend[0].target = RTS_presets.petg_hotend_t;
         thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
         if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {RTS_SndData(0, HEAD0_SET_ICON_VP);}
@@ -1579,6 +1787,12 @@ void RTSSHOW::RTS_HandleData()
       }
       else if (recdat.data[0] == 7)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => CoolScreenKey=", recdat.data[0]);
+          sprintf(RTS_infoBuf, "RTS_Preheat_PLA_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         thermalManager.temp_hotend[1].target = RTS_presets.pla_hotend_t;
         thermalManager.setTargetHotend(thermalManager.temp_hotend[1].target, 1);
         if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {RTS_SndData(0, HEAD1_SET_ICON_VP);}
@@ -1590,6 +1804,12 @@ void RTSSHOW::RTS_HandleData()
       }
       else if (recdat.data[0] == 8)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => CoolScreenKey=", recdat.data[0]);
+          sprintf(RTS_infoBuf, "RTS_Preheat_PETG_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         thermalManager.temp_hotend[1].target = RTS_presets.petg_hotend_t;
         thermalManager.setTargetHotend(thermalManager.temp_hotend[1].target, 1);
         if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {RTS_SndData(0, HEAD1_SET_ICON_VP);}
@@ -1615,7 +1835,12 @@ void RTSSHOW::RTS_HandleData()
       if (thermalManager.temp_hotend[0].target < NozzleWarningLimit) {RTS_SndData(0, HEAD0_SET_ICON_VP);}
       else {RTS_SndData(1, HEAD0_SET_ICON_VP);}
       RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Heater0TempEnterKey: ", recdat.data[0]));
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => Heater0TempEnterKey: ", recdat.data[0]);
+        sprintf(RTS_infoBuf, "RTS_Heater0TempEnterKey_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d target=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, recdat.data[0]);
+        RTS_Debug_Info();
+      }
       break;
 
     case Heater1TempEnterKey:
@@ -1631,11 +1856,19 @@ void RTSSHOW::RTS_HandleData()
       if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {RTS_SndData(0, HEAD1_SET_ICON_VP);}
       else {RTS_SndData(1, HEAD1_SET_ICON_VP);}
       RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Heater1TempEnterKey: ", recdat.data[0]));
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => Heater1TempEnterKey: ", recdat.data[0]);
+        sprintf(RTS_infoBuf, "RTS_Heater1TempEnterKey_R: Last[%d] Cur[%d] waitW=%d target=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, recdat.data[0]);
+        RTS_Debug_Info();
+      }
       break;
 
     case SettingScreenKey: //'Settings' screen #21
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Settings Button ID: ", recdat.data[0]));
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => SettingScreenKey=", recdat.data[0]);
+      }
       if(recdat.data[0] == 1) //'Leveling' button
       {
         // Motor Icon
@@ -1647,6 +1880,13 @@ void RTSSHOW::RTS_HandleData()
         active_extruder_flag = false;
         active_extruder_font = active_extruder;
         Update_Time_Value = 0;
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Settings leveling");
+          SERIAL_ECHOLNPGM("RTS => Settings. Screen #32 triggered");
+          sprintf(RTS_infoBuf, "RTS_Leveling: Last[%d] Cur[%d]<32 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+          RTS_Debug_Info();
+        }
         queue.enqueue_now_P(PSTR("G28"));
         queue.enqueue_now_P(PSTR("G0 F600 Z0.0"));
         RTS_currentScreen = 32;
@@ -1663,8 +1903,8 @@ void RTSSHOW::RTS_HandleData()
       }
       else if(recdat.data[0] == 2) //'Refuel' button
       {
-        Filament0LOAD = (float)FILAMENT_LOAD_LENGTH_0;
-        Filament1LOAD = (float)FILAMENT_LOAD_LENGTH_1;
+        Filament0LOAD = (float)FILAMENT_CHANGE_SLOW_LOAD_LENGTH;
+        Filament1LOAD = (float)FILAMENT_CHANGE_SLOW_LOAD_LENGTH;
         RTS_SndData(10 * Filament0LOAD, HEAD0_FILAMENT_LOAD_DATA_VP);
         RTS_SndData(10 * Filament1LOAD, HEAD1_FILAMENT_LOAD_DATA_VP);
         if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
@@ -1682,13 +1922,24 @@ void RTSSHOW::RTS_HandleData()
         if (thermalManager.temp_hotend[1].target < NozzleWarningLimit) {RTS_SndData(0, HEAD1_SET_ICON_VP);}
         else {RTS_SndData(1, HEAD1_SET_ICON_VP);}
         RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
-
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Settings refuel");
+          sprintf(RTS_infoBuf, "RTS_Refuel: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+          RTS_Debug_Info();
+        }
         delay(2);
         RTS_currentScreen = 23;
         RTS_SndData(ExchangePageBase + 23, ExchangepageAddr); //call 'Refuel' screen
       }
       else if (recdat.data[0] == 3) //'Move' button
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Settings move");
+          sprintf(RTS_infoBuf, "RTS_Move: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+          RTS_Debug_Info();
+        }
         if(active_extruder == 0)
         {
           RTS_SndData(0, EXCHANGE_NOZZLE_ICON_VP);
@@ -1707,6 +1958,12 @@ void RTSSHOW::RTS_HandleData()
         }
         else
         {
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => Settings move");
+            sprintf(RTS_infoBuf, "RTS_Move>G28 X: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+            RTS_Debug_Info();
+          }
           //Show hazard warning
           RTS_SndData(1, COLLISION_HAZARD_ICON_VP);
           //home x axis in order to avoid damage
@@ -1742,6 +1999,12 @@ void RTSSHOW::RTS_HandleData()
           sprintf_P(commandbuf, PSTR("G92.9 X%6.3f"), current_position_x1_axis);
           queue.enqueue_one_now(commandbuf);
         }
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Settings move");
+          sprintf(RTS_infoBuf, "RTS_Move: Last[%d] Cur[%d]<29 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+          RTS_Debug_Info();
+        }
         RTS_SndData(10 * current_position[Y_AXIS], AXIS_Y_COORD_VP);
         RTS_SndData(10 * current_position[Z_AXIS], AXIS_Z_COORD_VP);
         RTS_currentScreen = 29;
@@ -1749,28 +2012,58 @@ void RTSSHOW::RTS_HandleData()
       }
       else if (recdat.data[0] == 4) //'Set hotend offset' button
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Settings set hotend offset");
+          sprintf(RTS_infoBuf, "RTS_HotendOffset: Last[%d] Cur[%d]<35 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 35;
         RTS_SndData(ExchangePageBase + 35, ExchangepageAddr); //call 'Set hotend offset' screen
       }
       else if (recdat.data[0] == 5) //'Printer info' button
       {
-        RTS_SndData(CORP_WEBSITE, PRINTER_WEBSITE_TEXT_VP);
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Settings printer info");
+          sprintf(RTS_infoBuf, "RTS_Printer info: Last[%d] Cur[%d]<33 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
+        RTS_SndData(EEPROM_VERSION, PRINTER_EEPROM_VERSION_TEXT_VP);
         RTS_currentScreen = 33;
         RTS_SndData(ExchangePageBase + 33, ExchangepageAddr); //call 'Printer info' screen
       }
       else if (recdat.data[0] == 6) //'Disable motor' button
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Settings disable motor");
+          sprintf(RTS_infoBuf, "RTS_Disable motor: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         queue.enqueue_now_P(PSTR("M84"));
         RTS_SndData(1, MOTOR_FREE_ICON_VP);
       }
       else if (recdat.data[0] == 7) //Return button
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Settings return");
+          sprintf(RTS_infoBuf, "RTS_Settings>Return: Last[%d] Cur[%d]<1 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 1;
         RTS_SndData(ExchangePageBase + 1, ExchangepageAddr); //call main screen
       }
       //'Power Off' button has ID "SuicideKey" & calls popup menu screen #88 'Power off?' that returns key codes 0xF1 (Yes) / 0xF0 (No)
       else if (recdat.data[0] == 8) //Extra settings button
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Settings extra settings");
+          sprintf(RTS_infoBuf, "RTS_Settings>Return: Last[%d] Cur[%d]<90 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 90;
         RTS_SndData(ExchangePageBase + 90, ExchangepageAddr); //call 'Extra settings' screen
       }
@@ -1793,6 +2086,12 @@ void RTSSHOW::RTS_HandleData()
         ConvertL = (uint16_t)ConvertLong & 0xFFFF;
         RTS_SndData((uint16_t)ConvertH, HEAD0_E_STEPS_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD0_E_STEPS_VP + 1);
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Extra settings e-steps left");
+          sprintf(RTS_infoBuf, "RTS_ExtraEstep_L: Last[%d] Cur[%d]<91 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 91;
         RTS_SndData(ExchangePageBase + 91, ExchangepageAddr); //call 'Nozzle 1 E-steps' screen
       }
@@ -1815,6 +2114,12 @@ void RTSSHOW::RTS_HandleData()
         ConvertL = (uint16_t)ConvertLong & 0xFFFF;
         RTS_SndData((uint16_t)ConvertH, HEAD1_E_STEPS_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD1_E_STEPS_VP + 1);
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Extra settings e-steps right");
+          sprintf(RTS_infoBuf, "RTS_ExtraEstep_R: Last[%d] Cur[%d]<92 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 92;
         RTS_SndData(ExchangePageBase + 92, ExchangepageAddr); //call 'Nozzle 2 E-steps' screen
       }
@@ -1849,6 +2154,12 @@ void RTSSHOW::RTS_HandleData()
         ConvertL = (uint16_t)ConvertLong & 0xFFFF;
         RTS_SndData((uint16_t)ConvertH, HEAD0_TUNE_KD_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD0_TUNE_KD_VP + 1);
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Extra settings PID left");
+          sprintf(RTS_infoBuf, "RTS_ExtraPID_L: Last[%d] Cur[%d]<93 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 93;
         RTS_SndData(ExchangePageBase + 93, ExchangepageAddr); //call 'Nozzle 1 PID' screen
       }
@@ -1882,6 +2193,12 @@ void RTSSHOW::RTS_HandleData()
         ConvertH = (uint16_t)(ConvertLong >>16) & 0xFFFF;
         ConvertL = (uint16_t)ConvertLong & 0xFFFF;
         RTS_SndData((uint16_t)ConvertH, HEAD1_TUNE_KD_VP);
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Extra settings PID right");
+          sprintf(RTS_infoBuf, "RTS_ExtraPID_R: Last[%d] Cur[%d]<94 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_SndData((uint16_t)ConvertL, HEAD1_TUNE_KD_VP + 1);
         RTS_currentScreen = 94;
         RTS_SndData(ExchangePageBase + 94, ExchangepageAddr); //call 'Nozzle 2 PID' screen
@@ -1913,6 +2230,12 @@ void RTSSHOW::RTS_HandleData()
         ConvertL = (uint16_t)ConvertLong & 0xFFFF;
         RTS_SndData((uint16_t)ConvertH, BED_TUNE_KD_VP);
         RTS_SndData((uint16_t)ConvertL, BED_TUNE_KD_VP + 1);
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Extra settings PID bed");
+          sprintf(RTS_infoBuf, "RTS_ExtraPID_bed: Last[%d] Cur[%d]<95 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 95;
         RTS_SndData(ExchangePageBase + 95, ExchangepageAddr); //call 'Hot-bed PID' screen
       }
@@ -1972,6 +2295,12 @@ void RTSSHOW::RTS_HandleData()
         ConvertL = (uint16_t)ConvertLong & 0xFFFF;
         RTS_SndData((uint16_t)ConvertH, BED_TUNE_KD_VP);
         RTS_SndData((uint16_t)ConvertL, BED_TUNE_KD_VP + 1);
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Extra manual PID");
+          sprintf(RTS_infoBuf, "RTS_ExtraManualPID: Last[%d] Cur[%d]<96 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 96;
         RTS_SndData(ExchangePageBase + 96, ExchangepageAddr); //call 'Manual PID' screen
       }
@@ -1983,13 +2312,24 @@ void RTSSHOW::RTS_HandleData()
         RTS_SndData(RTS_presets.petg_hotend_t, PRESET_PETG_HOTEND_VP);         //nozzle temperature, type int16_t
         RTS_SndData(RTS_presets.petg_bed_t, PRESET_PETG_BED_VP);               //hot-bed temperature, type int16_t
         RTS_SndData(RTS_presets.motor_hold_time, PRESET_MOTOR_HOLD_TIME_VP);   //DEFAULT_STEPPER_DEACTIVE_TIME in sec
-        if (RTS_presets.auto_power_off_enable)                                 //auto power-off enabled, type boolean
+        if (RTS_presets.auto_power_off_enabled)                                 //auto power-off enabled, type boolean
         {
-          RTS_SndData(0, PRESET_AUTO_POWER_OFF_VP);
+          RTS_SndData(0, PRESET_AUTO_POWER_OFF_VP);  //on icon
         }
         else
         {
-          RTS_SndData(1, PRESET_AUTO_POWER_OFF_VP);
+          RTS_SndData(1, PRESET_AUTO_POWER_OFF_VP);  //off icon
+        }
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          RTS_SndData(0, PRESET_DEBUG_ENABLED_VP);  //on icon
+          SERIAL_ECHOLNPGM("RTS => Extra preset menu");
+          sprintf(RTS_infoBuf, "RTS_ExtraMenuPreset: Last[%d] Cur[%d]<97 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
+        else
+        {
+          RTS_SndData(1, PRESET_DEBUG_ENABLED_VP);  //off icon
         }
         RTS_currentScreen = 97;
         RTS_SndData(ExchangePageBase + 97, ExchangepageAddr); //call 'Presets' screen;
@@ -1997,7 +2337,10 @@ void RTSSHOW::RTS_HandleData()
       break;
 
     case SettingBackKey:
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Settings Button ID: ", recdat.data[0]));
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => Settings Button ID: ", recdat.data[0]);
+      }
       if (recdat.data[0] == 1)
       {
         Update_Time_Value = RTS_UPDATE_VALUE;
@@ -2010,6 +2353,11 @@ void RTSSHOW::RTS_HandleData()
         {
           RTS_SndData(1, MOTOR_FREE_ICON_VP); //motors disabled
         }
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          sprintf(RTS_infoBuf, "RTS_SettingBack: Last[%d] Cur[%d]<21 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 21;
         RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
       }
@@ -2018,8 +2366,13 @@ void RTSSHOW::RTS_HandleData()
         if(!planner.has_blocks_queued())
         {
           #if ENABLED(HAS_LEVELING)
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              sprintf(RTS_infoBuf, "RTS_SettingBack: Last[%d] Cur[%d]<22 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+              RTS_Debug_Info();
+            }
             RTS_currentScreen = 22;
-        RTS_SndData(ExchangePageBase + 22, ExchangepageAddr);
+            RTS_SndData(ExchangePageBase + 22, ExchangepageAddr);
           #else
             if (stepper.is_awake() == true)
             {
@@ -2029,14 +2382,24 @@ void RTSSHOW::RTS_HandleData()
             {
               RTS_SndData(1, MOTOR_FREE_ICON_VP); //motors disabled
             }
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              sprintf(RTS_infoBuf, "RTS_SettingBack: Last[%d] Cur[%d]<21 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+              RTS_Debug_Info();
+            }
             RTS_currentScreen = 21;
-        RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
+            RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
           #endif
           queue.enqueue_now_P(PSTR("M420 S1"));
         }
       }
       else if (recdat.data[0] == 3)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          sprintf(RTS_infoBuf, "RTS_HotendOffsets: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         memset(commandbuf, 0, sizeof(commandbuf));
         sprintf_P(commandbuf, PSTR("M218 T1 X%4.1f"), hotend_offset[1].x);
         queue.enqueue_now_P(commandbuf);
@@ -2052,21 +2415,41 @@ void RTSSHOW::RTS_HandleData()
       }
       else if (recdat.data[0] == 5) //Return button fom mesh view #81
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          sprintf(RTS_infoBuf, "RTS_Meshview: Last[%d] Cur[%d]<22 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 22;
         RTS_SndData(ExchangePageBase + 22, ExchangepageAddr); //return to leveling mode screen
       }
       else if (recdat.data[0] == 6) //Return button fom extra settings screen #90
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          sprintf(RTS_infoBuf, "RTS_Return: Last[%d] Cur[%d]<21 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 21;
         RTS_SndData(ExchangePageBase + 21, ExchangepageAddr); //return to settings screen
       }
       else if (recdat.data[0] == 7) //Return button fom E-steps left extruder screen #91
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          sprintf(RTS_infoBuf, "RTS_Return: Last[%d] Cur[%d]<90 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 90;
         RTS_SndData(ExchangePageBase + 90, ExchangepageAddr); //return to extra settings screen
       }
       else if (recdat.data[0] == 8) //Return button fom E-steps right extruder screen #92
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          sprintf(RTS_infoBuf, "RTS_Return: Last[%d] Cur[%d]<90 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 90;
         RTS_SndData(ExchangePageBase + 90, ExchangepageAddr); //return to extra settings screen
       }
@@ -2080,6 +2463,11 @@ void RTSSHOW::RTS_HandleData()
           wait_idle(150);
           RTS_SndData(StartSoundSet, SoundAddr);
           break;
+        }
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          sprintf(RTS_infoBuf, "RTS_Return: Last[%d] Cur[%d]<90 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
         }
         //reset Autotuning indicator
         RTS_cyclesIcon = 0;
@@ -2097,6 +2485,11 @@ void RTSSHOW::RTS_HandleData()
           RTS_SndData(StartSoundSet, SoundAddr);
           break;
         }
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          sprintf(RTS_infoBuf, "RTS_Return: Last[%d] Cur[%d]<90 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 90;
         RTS_SndData(ExchangePageBase + 90, ExchangepageAddr); //return to extra settings screen
       }
@@ -2111,16 +2504,31 @@ void RTSSHOW::RTS_HandleData()
           RTS_SndData(StartSoundSet, SoundAddr);
           break;
         }
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          sprintf(RTS_infoBuf, "RTS_Return: Last[%d] Cur[%d]<90 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 90;
         RTS_SndData(ExchangePageBase + 90, ExchangepageAddr); //return to extra settings screen
       }
       else if (recdat.data[0] == 12) //Return button fom PID tune hot-bed screen #96
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          sprintf(RTS_infoBuf, "RTS_Return: Last[%d] Cur[%d]<90 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 90;
         RTS_SndData(ExchangePageBase + 90, ExchangepageAddr); //return to extra settings screen
       }
       else if (recdat.data[0] == 13) //Return button fom Presets screen #97
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          sprintf(RTS_infoBuf, "RTS_Return: Last[%d] Cur[%d]<90 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 90;
         RTS_SndData(ExchangePageBase + 90, ExchangepageAddr); //return to extra settings screen
       }
@@ -2137,11 +2545,23 @@ void RTSSHOW::RTS_HandleData()
           active_extruder_flag = false;
           active_extruder_font = active_extruder;
           queue.enqueue_now_P(PSTR("G28"));
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => Homing all axes. Screen #32 triggered");
+            sprintf(RTS_infoBuf, "RTS_HomeAllaxes: Last[%d] Cur[%d]<32 waitW=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, trusted, active_extruder);
+            RTS_Debug_Info();
+          }
           RTS_currentScreen = 32;
-        RTS_SndData(ExchangePageBase + 32, ExchangepageAddr); //call 'Auto home, wait...' screen
+          RTS_SndData(ExchangePageBase + 32, ExchangepageAddr); //call 'Auto home, wait...' screen
         }
         else
         {
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => Homing Z-axis");
+            sprintf(RTS_infoBuf, "RTS_HomeZaxis: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+            RTS_Debug_Info();
+          }
           queue.enqueue_now_P(PSTR("G28 Z"));
         }
         queue.enqueue_now_P(PSTR("G0 F1500 Y150.0")); // added to move nozzle to probe position - John Carlson
@@ -2153,6 +2573,12 @@ void RTSSHOW::RTS_HandleData()
         if (WITHIN((zprobe_zoffset + 0.01), Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX))
         {
           #if ENABLED(HAS_LEVELING)
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.2. Last screen #", RTS_currentScreen);
+              sprintf(RTS_infoBuf, "RTS_+Z: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+              RTS_Debug_Info();
+            }
             zprobe_zoffset = zprobe_zoffset + 0.01;
             //zprobe_zoffset = zprobe_zoffset + 0.00001;
           #endif
@@ -2167,6 +2593,12 @@ void RTSSHOW::RTS_HandleData()
         if (WITHIN((zprobe_zoffset - 0.01), Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX))
         {
           #if ENABLED(HAS_LEVELING)
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.3. Last screen #", RTS_currentScreen);
+              sprintf(RTS_infoBuf, "RTS_-Z: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+              RTS_Debug_Info();
+            }
             zprobe_zoffset = zprobe_zoffset - 0.01;
             //zprobe_zoffset = zprobe_zoffset - 0.00001;
           #endif
@@ -2177,9 +2609,16 @@ void RTSSHOW::RTS_HandleData()
       }
       else if (recdat.data[0] == 4) //'AUX leveling' button
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.4. Last screen #", RTS_currentScreen);
+          SERIAL_ECHOLNPGM("RTS => Auto leveling. Screen #28 triggered");
+          sprintf(RTS_infoBuf, "RTS_AuxLevelling: Last[%d] Cur[%d]<28 waitW=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, trusted, active_extruder);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 28;
         RTS_SndData(ExchangePageBase + 28, ExchangepageAddr); //call 'AUX leveling' screen
-        if(active_extruder == 0)
+        if (active_extruder == 0)
         {
           RTS_SndData(0, EXCHANGE_NOZZLE_ICON_VP);
         }
@@ -2194,6 +2633,13 @@ void RTSSHOW::RTS_HandleData()
         #if ENABLED(BLTOUCH)
           RTS_waitway = 3;
           RTS_SndData(0, AUTO_BED_LEVEL_ICON_VP); //prepare 'Auto leveling, wait...' screen
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.5. Last screen #", RTS_currentScreen);
+            SERIAL_ECHOLNPGM("RTS => Auto leveling. Screen #38 triggered");
+            sprintf(RTS_infoBuf, "RTS_AutoLevelling: Last[%d] Cur[%d]<38 waitW=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, trusted, active_extruder);
+            RTS_Debug_Info();
+          }
           RTS_currentScreen = 38;
           RTS_SndData(ExchangePageBase + 38, ExchangepageAddr); //call 'Auto leveling, wait...' screen
           if (!all_axes_trusted()) {
@@ -2208,6 +2654,12 @@ void RTSSHOW::RTS_HandleData()
         if(!planner.has_blocks_queued())
         {
           RTS_waitway = 4;
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.6. Current screen #", RTS_currentScreen);
+            sprintf(RTS_infoBuf, "RTS_Button 1: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+            RTS_Debug_Info();
+          }
           queue.enqueue_now_P(PSTR("G0 F600 Z3"));
           queue.enqueue_now_P(PSTR("G0 X150 Y150 F3000"));
           queue.enqueue_now_P(PSTR("G0 F600 Z0"));
@@ -2220,6 +2672,12 @@ void RTSSHOW::RTS_HandleData()
         if(!planner.has_blocks_queued())
         {
           RTS_waitway = 4;
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.7. Current screen #", RTS_currentScreen);
+            sprintf(RTS_infoBuf, "RTS_Button 2: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+            RTS_Debug_Info();
+          }
           queue.enqueue_now_P(PSTR("G0 F600 Z3"));
           queue.enqueue_now_P(PSTR("G0 X30 Y30 F3000"));
           queue.enqueue_now_P(PSTR("G0 F600 Z0"));
@@ -2232,6 +2690,12 @@ void RTSSHOW::RTS_HandleData()
         if(!planner.has_blocks_queued())
         {
           RTS_waitway = 4;
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.8. Current screen #", RTS_currentScreen);
+            sprintf(RTS_infoBuf, "RTS_Button 3: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+            RTS_Debug_Info();
+          }
           queue.enqueue_now_P(PSTR("G0 F600 Z3"));
           queue.enqueue_now_P(PSTR("G0 X275 Y30 F3000"));
           queue.enqueue_now_P(PSTR("G0 F600 Z0"));
@@ -2244,6 +2708,12 @@ void RTSSHOW::RTS_HandleData()
         if(!planner.has_blocks_queued())
         {
           RTS_waitway = 4;
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.9. Current screen #", RTS_currentScreen);
+            sprintf(RTS_infoBuf, "RTS_Button 4: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+            RTS_Debug_Info();
+          }
           queue.enqueue_now_P(PSTR("G0 F600 Z3"));
           queue.enqueue_now_P(PSTR("G0 X275 Y275 F3000"));
           queue.enqueue_now_P(PSTR("G0 F600 Z0"));
@@ -2256,6 +2726,12 @@ void RTSSHOW::RTS_HandleData()
         if(!planner.has_blocks_queued())
         {
           RTS_waitway = 4;
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.10. Current screen #", RTS_currentScreen);
+            sprintf(RTS_infoBuf, "RTS_Button 5: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+            RTS_Debug_Info();
+          }
           queue.enqueue_now_P(PSTR("G0 F600 Z3"));
           queue.enqueue_now_P(PSTR("G0 X30 Y275 F3000"));
           queue.enqueue_now_P(PSTR("G0 F600 Z0"));
@@ -2265,25 +2741,36 @@ void RTSSHOW::RTS_HandleData()
       else if (recdat.data[0] == 11) //'Auto Z-align' button from screen #22
       {
         RTS_waitway = 3;
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.11. Last screen #", RTS_currentScreen));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.11. Last screen #", RTS_currentScreen);
+          SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.11. Screen #40.5 triggered");
+          sprintf(RTS_infoBuf, "RTS_AutoZalign: Last[%d] Cur[%d]<40 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+          RTS_Debug_Info();
+        }
         RTS_lastScreen = RTS_currentScreen;
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.11. Screen #40.5 triggered"));
         RTS_currentScreen = 40;
         RTS_SndData(ExchangePageBase + 40, ExchangepageAddr); //call 'Processing, wait...' screen
         //queue.enqueue_now_P(PSTR("G28 X"));
         active_extruder_flag = false;
         active_extruder = 0;
         active_extruder_font = active_extruder;
-        RTS_SndData(0, EXCHANGE_NOZZLE_ICON_VP);        queue.enqueue_now_P(PSTR("G34"));
+        RTS_SndData(0, EXCHANGE_NOZZLE_ICON_VP);
+        queue.enqueue_now_P(PSTR("G34"));
         Update_Time_Value = 0;
         RTS_waitway = 0;
       }
       else if (recdat.data[0] == 12) //'Tramming' key or 'Run Again' key
       {
         //RTS_waitway = 3;
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.12. Last screen #", RTS_currentScreen));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.12. Last screen #", RTS_currentScreen);
+          SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.12. Screen #40.6 triggered");
+          sprintf(RTS_infoBuf, "RTS_Tramming: Last[%d] Cur[%d]<40 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+          RTS_Debug_Info();
+        }
         RTS_lastScreen = RTS_currentScreen;
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.12. Screen #40.6 triggered"));
         RTS_currentScreen = 40;
         RTS_SndData(ExchangePageBase + 40, ExchangepageAddr); //call 'Processing, wait...' screen
         //queue.enqueue_now_P(PSTR("G28 X"));
@@ -2298,6 +2785,12 @@ void RTSSHOW::RTS_HandleData()
       }
       else if (recdat.data[0] == 13) //'Mesh viewer' button
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.13. Last screen #", RTS_currentScreen);
+          sprintf(RTS_infoBuf, "RTS_MeshView: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+          RTS_Debug_Info();
+        }
         RTS_ViewMesh();
         RTS_waitway = 0;
       }
@@ -2309,6 +2802,12 @@ void RTSSHOW::RTS_HandleData()
           #if ENABLED(HAS_LEVELING)
             zprobe_zoffset = zprobe_zoffset + 0.1;
             //zprobe_zoffset = zprobe_zoffset + 0.00001;
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.14. Last screen #", RTS_currentScreen);
+              sprintf(RTS_infoBuf, "RTS_++Z: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+              RTS_Debug_Info();
+            }
           #endif
           babystep.add_mm(Z_AXIS, (float)zprobe_zoffset - last_zoffset);
           probe.offset.z = zprobe_zoffset;
@@ -2323,7 +2822,13 @@ void RTSSHOW::RTS_HandleData()
           #if ENABLED(HAS_LEVELING)
             zprobe_zoffset = zprobe_zoffset - 0.1;
             //zprobe_zoffset = zprobe_zoffset - 0.00001;
-          #endif
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => BedLevelFunKey.15. Last screen #", RTS_currentScreen);
+              sprintf(RTS_infoBuf, "RTS_--Z: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+              RTS_Debug_Info();
+            }
+            #endif
           babystep.add_mm(Z_AXIS, (float)zprobe_zoffset - last_zoffset);
           probe.offset.z = zprobe_zoffset;
         }
@@ -2334,6 +2839,11 @@ void RTSSHOW::RTS_HandleData()
     case AxisPageSelectKey:
       if(recdat.data[0] == 5)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          sprintf(RTS_infoBuf, "RTS_Axis 100: Last[%d] Cur[%d]<58 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+          RTS_Debug_Info();
+        }
         AxisUnitMode = 4;
         axis_unit = 100.0;
         RTS_currentScreen = 58;
@@ -2341,6 +2851,11 @@ void RTSSHOW::RTS_HandleData()
       }
       else if(recdat.data[0] == 1)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          sprintf(RTS_infoBuf, "RTS_Axis 10: Last[%d] Cur[%d]<29 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+          RTS_Debug_Info();
+        }
         AxisUnitMode = 3;
         axis_unit = 10.0;
         RTS_currentScreen = 29;
@@ -2348,6 +2863,11 @@ void RTSSHOW::RTS_HandleData()
       }
       else if(recdat.data[0] == 2)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          sprintf(RTS_infoBuf, "RTS_Axis 1: Last[%d] Cur[%d]<30 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+          RTS_Debug_Info();
+        }
         AxisUnitMode = 2;
         axis_unit = 1.0;
         RTS_currentScreen = 30;
@@ -2355,6 +2875,11 @@ void RTSSHOW::RTS_HandleData()
       }
       else if(recdat.data[0] == 3)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          sprintf(RTS_infoBuf, "RTS_Axis 0.1: Last[%d] Cur[%d]<31 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+          RTS_Debug_Info();
+        }
         AxisUnitMode = 1;
         axis_unit = 0.1;
         RTS_currentScreen = 31;
@@ -2367,11 +2892,16 @@ void RTSSHOW::RTS_HandleData()
           // Motor Icon
           RTS_SndData(0, MOTOR_FREE_ICON_VP);
           RTS_waitway = 4;
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            sprintf(RTS_infoBuf, "RTS_Home: Last[%d] Cur[%d]<32 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+            RTS_Debug_Info();
+          }
           AutoHomeIconNum = 0;
           queue.enqueue_now_P(PSTR("G28"));
           Update_Time_Value = 0;
           RTS_currentScreen = 32;
-        RTS_SndData(ExchangePageBase + 32, ExchangepageAddr);
+          RTS_SndData(ExchangePageBase + 32, ExchangepageAddr);
         }
       }
       break;
@@ -2380,6 +2910,11 @@ void RTSSHOW::RTS_HandleData()
     if(!planner.has_blocks_queued())
       {
         RTS_waitway = 4;
+        if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+          sprintf(RTS_infoBuf, "RTS_X: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+          RTS_Debug_Info();
+        }
         if(active_extruder == 0)
         {
           active_extruder_flag = false;
@@ -2451,6 +2986,11 @@ void RTSSHOW::RTS_HandleData()
       {
         float y_min, y_max;
         RTS_waitway = 4;
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          sprintf(RTS_infoBuf, "RTS_Y: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+          RTS_Debug_Info();
+        }
         y_min = Y_MIN_POS;
         y_max = Y_MAX_POS;
         current_position[Y_AXIS] = ((float)recdat.data[0]) / 10;
@@ -2474,6 +3014,11 @@ void RTSSHOW::RTS_HandleData()
       {
         float z_min, z_max;
         RTS_waitway = 4;
+        if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+          sprintf(RTS_infoBuf, "RTS_Z: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+          RTS_Debug_Info();
+        }
         z_min = Z_MIN_POS;
         z_max = Z_MAX_POS;
         current_position[Z_AXIS] = ((float)recdat.data[0]) / 10;
@@ -2550,10 +3095,22 @@ void RTSSHOW::RTS_HandleData()
           RTS_waitway = 0;
         }
       }
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => SelectExtruderKey. Current screen #", RTS_currentScreen);
+        sprintf(RTS_infoBuf, "RTS_SelectExtruder: Last[%d] Cur[%d] waitW=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, trusted, active_extruder);
+        RTS_Debug_Info();
+      }
       break;
 
     case Heater0LoadEnterKey:
       Filament0LOAD = ((float)recdat.data[0]) / 10;
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => Heater0LoadEnterKey. Current screen #", RTS_currentScreen);
+        sprintf(RTS_infoBuf, "RTS_Load_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+        RTS_Debug_Info();
+      }
       break;
 
     case FilamentLoadKey:
@@ -2561,14 +3118,26 @@ void RTSSHOW::RTS_HandleData()
       {
         if(!planner.has_blocks_queued())
         {
-          if(READ(FIL_RUNOUT_PIN) == 0)
+          if(READ(FIL_RUNOUT_PIN) == 0)  //1
           {
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => FilamentLoadKey=1. Current screen #", RTS_currentScreen);
+              sprintf(RTS_infoBuf, "RTS_Runout_L: Last[%d] Cur[%d]<20 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+              RTS_Debug_Info();
+            }
             RTS_currentScreen = 20;
             RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
           }
-          if(thermalManager.temp_hotend[0].celsius < (FILAMENT_CHANGE_TEMPERATURE_0 - 5))
+          if(thermalManager.temp_hotend[0].celsius < last_target_temperature[0])
           {
-            RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_0, CHANGE_FILAMENT0_TEMP_VP);
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => FilamentLoadKey=1. Current screen #", RTS_currentScreen);
+              sprintf(RTS_infoBuf, "RTS_Heat_L: Last[%d] Cur[%d]<24 waitW=%d waitUsr=%d target=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, last_target_temperature[0], active_extruder);
+              RTS_Debug_Info();
+            }
+            RTS_SndData(last_target_temperature[0], CHANGE_FILAMENT0_TEMP_VP);
             RTS_currentScreen = 24;
             RTS_SndData(ExchangePageBase + 24, ExchangepageAddr);
           }
@@ -2579,13 +3148,17 @@ void RTSSHOW::RTS_HandleData()
             active_extruder_flag = false;
             active_extruder_font = active_extruder;
             current_position[E_AXIS] -= Filament0LOAD;
-            //RTS_extruder_move(0.0-Filament0LOAD, MMM_TO_MMS(EstepFeedRate));
             RTS_line_to_current(E_AXIS, MMM_TO_MMS(EstepFeedRate));
             RTS_SndData(10 * Filament0LOAD, HEAD0_FILAMENT_LOAD_DATA_VP);
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => FilamentLoadKey 1"));
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Retracting left extruder"));
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Length: ", Filament0LOAD));
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate));
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => FilamentLoadKey=1");
+              SERIAL_ECHOLNPGM("RTS => Retracting left extruder");
+              SERIAL_ECHOLNPGM("RTS => Length: ", Filament0LOAD);
+              SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate);
+              sprintf(RTS_infoBuf, "RTS_Retract_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d length=%4.1f rate=%4.1f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, Filament0LOAD, EstepFeedRate);
+              RTS_Debug_Info();
+            }
           }
         }
       }
@@ -2595,12 +3168,24 @@ void RTSSHOW::RTS_HandleData()
         {
           if(READ(FIL_RUNOUT_PIN) == 0)
           {
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => FilamentLoadKey=2. Current screen #", RTS_currentScreen);
+              sprintf(RTS_infoBuf, "RTS_Runout_L: Last[%d] Cur[%d]<20 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+              RTS_Debug_Info();
+            }
             RTS_currentScreen = 20;
             RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
           }
-          if(thermalManager.temp_hotend[0].celsius < (FILAMENT_CHANGE_TEMPERATURE_0 - 5))
+          if(thermalManager.temp_hotend[0].celsius < last_target_temperature[0])
           {
-            RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_0, CHANGE_FILAMENT0_TEMP_VP);
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => FilamentLoadKey=2. Current screen #", RTS_currentScreen);
+              sprintf(RTS_infoBuf, "RTS_Heat_L: Last[%d] Cur[%d]<24 waitW=%d waitUsr=%d target=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, last_target_temperature[0], active_extruder);
+              RTS_Debug_Info();
+            }
+            RTS_SndData(last_target_temperature[0], CHANGE_FILAMENT0_TEMP_VP);
             RTS_currentScreen = 24;
             RTS_SndData(ExchangePageBase + 24, ExchangepageAddr);
           }
@@ -2611,13 +3196,17 @@ void RTSSHOW::RTS_HandleData()
             active_extruder_flag = false;
             active_extruder_font = active_extruder;
             current_position[E_AXIS] += Filament0LOAD;
-            //RTS_extruder_move(Filament0LOAD, MMM_TO_MMS(EstepFeedRate));
             RTS_line_to_current(E_AXIS, MMM_TO_MMS(EstepFeedRate));
             RTS_SndData(10 * Filament0LOAD, HEAD0_FILAMENT_LOAD_DATA_VP);
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => FilamentLoadKey 2"));
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feeding left extruder"));
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Length: ", Filament0LOAD));
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate));
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => FilamentLoadKey=2");
+              SERIAL_ECHOLNPGM("RTS => Feeding left extruder");
+              SERIAL_ECHOLNPGM("RTS => Length: ", Filament0LOAD);
+              SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate);
+              sprintf(RTS_infoBuf, "RTS_Feed_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d length=%4.1f rate=%4.1f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, Filament0LOAD, EstepFeedRate);
+              RTS_Debug_Info();
+            }
           }
         }
       }
@@ -2625,15 +3214,26 @@ void RTSSHOW::RTS_HandleData()
       {
         if(!planner.has_blocks_queued())
         {
-          if(READ(FIL_RUNOUT2_PIN) == 0)
+          if(READ(FIL_RUNOUT2_PIN) == 0)  //3
           {
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => FilamentLoadKey=3. Current screen #", RTS_currentScreen);
+              sprintf(RTS_infoBuf, "RTS_Runout_R: Last[%d] Cur[%d]<20 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+              RTS_Debug_Info();
+            }
             RTS_currentScreen = 20;
             RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
           }
-          if (thermalManager.temp_hotend[1].celsius < (FILAMENT_CHANGE_TEMPERATURE_1 - 5))
+          if (thermalManager.temp_hotend[1].celsius < last_target_temperature[1])
           {
-            RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_1, CHANGE_FILAMENT1_TEMP_VP);
-
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => FilamentLoadKey=3. Current screen #", RTS_currentScreen);
+              sprintf(RTS_infoBuf, "RTS_Heat_R: Last[%d] Cur[%d]<25 waitW=%d waitUsr=%d target=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, last_target_temperature[1], active_extruder);
+              RTS_Debug_Info();
+            }
+            RTS_SndData(last_target_temperature[1], CHANGE_FILAMENT1_TEMP_VP);
             RTS_currentScreen = 25;
             RTS_SndData(ExchangePageBase + 25, ExchangepageAddr);
           }
@@ -2644,13 +3244,17 @@ void RTSSHOW::RTS_HandleData()
             active_extruder_flag = true;
             active_extruder_font = active_extruder;
             current_position[E_AXIS] -= Filament1LOAD;
-            //RTS_extruder_move(0.0-Filament1LOAD, MMM_TO_MMS(EstepFeedRate));
             RTS_line_to_current(E_AXIS, MMM_TO_MMS(EstepFeedRate));
             RTS_SndData(10 * Filament1LOAD, HEAD1_FILAMENT_LOAD_DATA_VP);
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => FilamentLoadKey 3"));
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Retracting right extruder"));
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Length: ", Filament0LOAD));
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate));
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => FilamentLoadKey=3");
+              SERIAL_ECHOLNPGM("RTS => Retracting right extruder");
+              SERIAL_ECHOLNPGM("RTS => Length: ", Filament1LOAD);
+              SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate);
+              sprintf(RTS_infoBuf, "RTS_Retract_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d length=%4.1f rate=%4.1f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, Filament1LOAD, EstepFeedRate);
+              RTS_Debug_Info();
+            }
           }
         }
       }
@@ -2658,14 +3262,26 @@ void RTSSHOW::RTS_HandleData()
       {
         if(!planner.has_blocks_queued())
         {
-          if(READ(FIL_RUNOUT2_PIN) == 0)
+          if(READ(FIL_RUNOUT2_PIN) == 0)  //4
           {
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => FilamentLoadKey=4. Current screen #", RTS_currentScreen);
+              sprintf(RTS_infoBuf, "RTS_Runout_R: Last[%d] Cur[%d]<20 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+              RTS_Debug_Info();
+            }
             RTS_currentScreen = 20;
             RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
           }
-          if(thermalManager.temp_hotend[1].celsius < (FILAMENT_CHANGE_TEMPERATURE_1 - 5))
+          if(thermalManager.temp_hotend[1].celsius < last_target_temperature[1])
           {
-            RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_1, CHANGE_FILAMENT1_TEMP_VP);
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => FilamentLoadKey=4. Current screen #", RTS_currentScreen);
+              sprintf(RTS_infoBuf, "RTS_Heat_R: Last[%d] Cur[%d]<25 waitW=%d waitUsr=%d target=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, last_target_temperature[1], active_extruder);
+              RTS_Debug_Info();
+            }
+            RTS_SndData(last_target_temperature[1], CHANGE_FILAMENT1_TEMP_VP);
             RTS_currentScreen = 25;
             RTS_SndData(ExchangePageBase + 25, ExchangepageAddr);
           }
@@ -2676,13 +3292,17 @@ void RTSSHOW::RTS_HandleData()
             active_extruder_flag = true;
             active_extruder_font = active_extruder;
             current_position[E_AXIS] += Filament1LOAD;
-            //RTS_extruder_move(Filament1LOAD, MMM_TO_MMS(EstepFeedRate));
             RTS_line_to_current(E_AXIS, MMM_TO_MMS(EstepFeedRate));
             RTS_SndData(10 * Filament1LOAD, HEAD1_FILAMENT_LOAD_DATA_VP);
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => FilamentLoadKey 4"));
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feeding right extruder"));
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Length: ", Filament0LOAD));
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate));
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => FilamentLoadKey=4");
+              SERIAL_ECHOLNPGM("RTS => Feeding right extruder");
+              SERIAL_ECHOLNPGM("RTS => Length: ", Filament1LOAD);
+              SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate);
+              sprintf(RTS_infoBuf, "RTS_Feed_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d length=%4.1f rate=%4.1f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, Filament1LOAD, EstepFeedRate);
+              RTS_Debug_Info();
+            }
           }
         }
       }
@@ -2693,10 +3313,16 @@ void RTSSHOW::RTS_HandleData()
           if (thermalManager.temp_hotend[0].celsius < NozzleWarningLimit) {RTS_SndData(0, HEAD0_CURRENT_ICON_VP);}
           else {RTS_SndData(1, HEAD0_CURRENT_ICON_VP);}
           RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
-          thermalManager.setTargetHotend(FILAMENT_CHANGE_TEMPERATURE_0, 0);
-          if (FILAMENT_CHANGE_TEMPERATURE_0 < NozzleWarningLimit) {RTS_SndData(0, HEAD0_SET_ICON_VP);}
+          thermalManager.setTargetHotend(last_target_temperature[0], 0);
+          if (last_target_temperature[0] < NozzleWarningLimit) {RTS_SndData(0, HEAD0_SET_ICON_VP);}
           else {RTS_SndData(1, HEAD0_SET_ICON_VP);}
-          RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_0, HEAD0_SET_TEMP_VP);
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => FilamentLoadKey=5. Current screen #", RTS_currentScreen);
+            sprintf(RTS_infoBuf, "RTS_Yes, heat_L: Last[%d] Cur[%d]<26 waitW=%d waitUsr=%d target=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, last_target_temperature[0],active_extruder);
+            RTS_Debug_Info();
+          }
+          RTS_SndData(last_target_temperature[0], HEAD0_SET_TEMP_VP);
           RTS_currentScreen = 26;
           RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
           RTS_heatway = 1;
@@ -2706,10 +3332,16 @@ void RTSSHOW::RTS_HandleData()
       {
         if(!planner.has_blocks_queued())
         {
-          Filament0LOAD = (float)FILAMENT_LOAD_LENGTH_0;
-          Filament1LOAD = (float)FILAMENT_LOAD_LENGTH_1;
+          Filament0LOAD = (float)FILAMENT_CHANGE_SLOW_LOAD_LENGTH;
+          Filament1LOAD = (float)FILAMENT_CHANGE_SLOW_LOAD_LENGTH;
           RTS_SndData(10 * Filament0LOAD, HEAD0_FILAMENT_LOAD_DATA_VP);
           RTS_SndData(10 * Filament1LOAD, HEAD1_FILAMENT_LOAD_DATA_VP);
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => FilamentLoadKey=6. Current screen #", RTS_currentScreen);
+            sprintf(RTS_infoBuf, "RTS_No, back: Last[%d] Cur[%d]<23 waitW=%d waitUsr=%d target=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, last_target_temperature[0],active_extruder);
+            RTS_Debug_Info();
+          }
           RTS_currentScreen = 23;
           RTS_SndData(ExchangePageBase + 23, ExchangepageAddr);
         }
@@ -2721,10 +3353,16 @@ void RTSSHOW::RTS_HandleData()
           if (thermalManager.temp_hotend[1].celsius < NozzleWarningLimit) {RTS_SndData(0, HEAD1_CURRENT_ICON_VP);}
           else {RTS_SndData(1, HEAD1_CURRENT_ICON_VP);}
           RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
-          thermalManager.setTargetHotend(FILAMENT_CHANGE_TEMPERATURE_1, 1);
-          if (FILAMENT_CHANGE_TEMPERATURE_1 < NozzleWarningLimit) {RTS_SndData(0, HEAD1_SET_ICON_VP);}
+          thermalManager.setTargetHotend(last_target_temperature[1], 1);
+          if (last_target_temperature[1] < NozzleWarningLimit) {RTS_SndData(0, HEAD1_SET_ICON_VP);}
           else {RTS_SndData(1, HEAD1_SET_ICON_VP);}
-          RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_1, HEAD1_SET_TEMP_VP);
+          RTS_SndData(last_target_temperature[1], HEAD1_SET_TEMP_VP);
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => FilamentLoadKey=7. Current screen #", RTS_currentScreen);
+            sprintf(RTS_infoBuf, "RTS_Yes, heat_R: Last[%d] Cur[%d]<26 waitW=%d waitUsr=%d target=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, last_target_temperature[1],active_extruder);
+            RTS_Debug_Info();
+          }
           RTS_currentScreen = 26;
           RTS_SndData(ExchangePageBase + 26, ExchangepageAddr);
           RTS_heatway = 2;
@@ -2734,10 +3372,16 @@ void RTSSHOW::RTS_HandleData()
       {
         if(!planner.has_blocks_queued())
         {
-          Filament0LOAD = (float)FILAMENT_LOAD_LENGTH_0;
-          Filament1LOAD = (float)FILAMENT_LOAD_LENGTH_1;
+          Filament0LOAD = (float)FILAMENT_CHANGE_SLOW_LOAD_LENGTH;
+          Filament1LOAD = (float)FILAMENT_CHANGE_SLOW_LOAD_LENGTH;
           RTS_SndData(10 * Filament0LOAD, HEAD0_FILAMENT_LOAD_DATA_VP);
           RTS_SndData(10 * Filament1LOAD, HEAD1_FILAMENT_LOAD_DATA_VP);
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => FilamentLoadKey.8. Current screen #", RTS_currentScreen);
+            sprintf(RTS_infoBuf, "RTS_No, back: Last[%d] Cur[%d]<23 waitW=%d waitUsr=%d target=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, last_target_temperature[0],active_extruder);
+            RTS_Debug_Info();
+          }
           RTS_currentScreen = 23;
           RTS_SndData(ExchangePageBase + 23, ExchangepageAddr);
         }
@@ -2752,10 +3396,16 @@ void RTSSHOW::RTS_HandleData()
           RTS_SndData(0, HEAD1_SET_ICON_VP);
           RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
           RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => FilamentLoadKey.F1. Current screen #", RTS_currentScreen);
+            sprintf(RTS_infoBuf, "RTS_Still heating: Last[%d] Cur[%d]<23 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+            RTS_Debug_Info();
+          }
           RTS_currentScreen = 23;
           RTS_SndData(ExchangePageBase + 23, ExchangepageAddr);
-          Filament0LOAD = (float)FILAMENT_LOAD_LENGTH_0;
-          Filament1LOAD = (float)FILAMENT_LOAD_LENGTH_1;
+          Filament0LOAD = (float)FILAMENT_CHANGE_SLOW_LOAD_LENGTH;
+          Filament1LOAD = (float)FILAMENT_CHANGE_SLOW_LOAD_LENGTH;
           RTS_SndData(10 * Filament0LOAD, HEAD0_FILAMENT_LOAD_DATA_VP);
           RTS_SndData(10 * Filament1LOAD, HEAD1_FILAMENT_LOAD_DATA_VP);
           break;
@@ -2763,12 +3413,24 @@ void RTSSHOW::RTS_HandleData()
       }
       else if(recdat.data[0] == 0xF0)
       {
-        break;
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => FilamentLoadKey.F0. Current screen #", RTS_currentScreen);
+            sprintf(RTS_infoBuf, "RTS_No, back: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+            RTS_Debug_Info();
+          }
+          break;
       }
       break;
 
     case Heater1LoadEnterKey:
       Filament1LOAD = ((float)recdat.data[0]) / 10;
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => Heater1LoadEnterKey. Current screen #", RTS_currentScreen);
+        sprintf(RTS_infoBuf, "RTS_Load_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+        RTS_Debug_Info();
+      }
       break;
 
     case FilamentCheckKey:
@@ -2776,11 +3438,23 @@ void RTSSHOW::RTS_HandleData()
       {
         if(((READ(FIL_RUNOUT_PIN) == 0) && (active_extruder == 0)) || ((READ(FIL_RUNOUT2_PIN) == 0) && (active_extruder == 1)))
         {
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => FilamentCheckKey.1. Current screen #", RTS_currentScreen);
+            sprintf(RTS_infoBuf, "RTS_Runout: Last[%d] Cur[%d]<20 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+            RTS_Debug_Info();
+          }
           RTS_currentScreen = 20;
           RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
         }
         else
         {
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => FilamentCheckKey.1. Current screen #", RTS_currentScreen);
+            sprintf(RTS_infoBuf, "RTS_Goto refuel: Last[%d] Cur[%d]<23 waitW=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, trusted, active_extruder);
+            RTS_Debug_Info();
+          }
           RTS_currentScreen = 23;
           RTS_SndData(ExchangePageBase + 23, ExchangepageAddr);
         }
@@ -2795,10 +3469,16 @@ void RTSSHOW::RTS_HandleData()
         {
           RTS_SndData(1, MOTOR_FREE_ICON_VP); //motors disabled
         }
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => FilamentCheckKey.2. Current screen #", RTS_currentScreen);
+          sprintf(RTS_infoBuf, "RTS_Return: Last[%d] Cur[%d]<21 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 21;
         RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
-        Filament0LOAD = (float)FILAMENT_LOAD_LENGTH_0;
-        Filament1LOAD = (float)FILAMENT_LOAD_LENGTH_1;
+        Filament0LOAD = (float)FILAMENT_CHANGE_SLOW_LOAD_LENGTH;
+        Filament1LOAD = (float)FILAMENT_CHANGE_SLOW_LOAD_LENGTH;
       }
       break;
 
@@ -2817,6 +3497,12 @@ void RTSSHOW::RTS_HandleData()
           Update_Time_Value = 0;
           sdcard_pause_check = true;
           pause_action_flag = false;
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => PowerContinuePrintKey.1. Current screen #", RTS_currentScreen);
+            sprintf(RTS_infoBuf, "RTS_ResumePause: Last[%d] Cur[%d]<11 waitW=%d waitUsr=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, active_extruder);
+            RTS_Debug_Info();
+          }
           RTS_currentScreen = 11;
           RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
           PrintFlag = 2;
@@ -2827,7 +3513,6 @@ void RTSSHOW::RTS_HandleData()
         {
           #if ENABLED(DUAL_X_CARRIAGE)
             save_dual_x_carriage_mode = dualXPrintingModeStatus;
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PowerContinuePrintKey=1"));
             switch(save_dual_x_carriage_mode)
             {
               case 1:
@@ -2847,6 +3532,12 @@ void RTSSHOW::RTS_HandleData()
           #endif
           if (recovery.info.recovery_flag)
           {
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => PowerContinuePrintKey.1. Current screen #", RTS_currentScreen);
+              sprintf(RTS_infoBuf, "RTS_Resume pause: Last[%d] Cur[%d]<11 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+              RTS_Debug_Info();
+            }
             power_off_type_yes = 1;
             Update_Time_Value = 0;
             RTS_currentScreen = 11;
@@ -2866,6 +3557,12 @@ void RTSSHOW::RTS_HandleData()
       else if (recdat.data[0] == 2) //screen #36 resume print "no"
       {
         Update_Time_Value = RTS_UPDATE_VALUE;
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => PowerContinuePrintKey.2. Current screen #", RTS_currentScreen);
+          sprintf(RTS_infoBuf, "RTS_No resume: Last[%d] Cur[%d]<1 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+          RTS_Debug_Info();
+        }
         #if ENABLED(DUAL_X_CARRIAGE)
           extruder_duplication_enabled = false;
           dual_x_carriage_mode = DEFAULT_DUAL_X_CARRIAGE_MODE;
@@ -2898,6 +3595,12 @@ void RTSSHOW::RTS_HandleData()
       break;
 
     case PrintSelectModeKey:
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => PrintSelectModeKey. Current screen #", RTS_currentScreen);
+        sprintf(RTS_infoBuf, "RTS_Mode: Last[%d] Cur[%d]<1 waitW=%d trusted=%d mode=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, trusted, recdat.data[0], active_extruder);
+        RTS_Debug_Info();
+      }
       SetExtruderMode(recdat.data[0], false);
       break;
 
@@ -2915,6 +3618,12 @@ void RTSSHOW::RTS_HandleData()
         hotend_offset[1].x = hotend_offset[1].x + (float)X2_MAX_POS;
       }
       //RTS_SndData((hotend_offset[1].x - X2_MAX_POS)* 100, TWO_EXTRUDER_HOTEND_XOFFSET_VP);
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => XhotendOffsetKey. Current screen #", RTS_currentScreen);
+        sprintf(RTS_infoBuf, "RTS_Offset_X: Last[%d] Cur[%d]<1 waitW=%d waitUsr=%d offset=%4.2f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, hotend_offset[1].x);
+        RTS_Debug_Info();
+      }
       RTS_SndData(recdat.data[0], TWO_EXTRUDER_HOTEND_XOFFSET_VP);
       break;
 
@@ -2930,13 +3639,24 @@ void RTSSHOW::RTS_HandleData()
         //hotend_offset[1].y = hotend_offset[1].y + 0.00001;
       }
       //RTS_SndData(hotend_offset[1].y * 100, TWO_EXTRUDER_HOTEND_YOFFSET_VP);
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => XhotendOffsetKey. Current screen #", RTS_currentScreen);
+        sprintf(RTS_infoBuf, "RTS_Offset_Y: Last[%d] Cur[%d]<1 waitW=%d waitUsr=%d offset=%4.2f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, hotend_offset[1].y);
+        RTS_Debug_Info();
+      }
       RTS_SndData(recdat.data[0] , TWO_EXTRUDER_HOTEND_YOFFSET_VP);
       break;
 
     case StoreMemoryKey:
       if(recdat.data[0] == 0xF1) //Yes to initialize
       {
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => StoreMemoryKey: Yes"));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => StoreMemoryKey: Yes");
+          sprintf(RTS_infoBuf, "RTS_InitEEPROM: Last[%d] Cur[%d]<21 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         settings.init_eeprom();
         bool zig = false;
         int8_t inStart, inStop, inInc, showcount;
@@ -2964,60 +3684,97 @@ void RTSSHOW::RTS_HandleData()
             showcount++;
           }
         }
-      queue.enqueue_now_P(PSTR("M420 S1"));
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Command: M420 S1"));
-      last_zoffset = zprobe_zoffset = probe.offset.z;
-      //zprobe_zoffset = 0;
-      //last_zoffset = 0;
-      RTS_SndData(probe.offset.z * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
-      RTS_SndData(0, MOTOR_FREE_ICON_VP); //motors enabled
-      RTS_currentScreen = 21;
-      RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
-      RTS_SndData((hotend_offset[1].x - X2_MAX_POS) * 100, TWO_EXTRUDER_HOTEND_XOFFSET_VP);
-      RTS_SndData(hotend_offset[1].y * 100, TWO_EXTRUDER_HOTEND_YOFFSET_VP);
-    }
-    else if (recdat.data[0] == 0xF0) //No, do to initialize
-    {
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => StoreMemoryKey: No"));
-      memset(commandbuf, 0, sizeof(commandbuf));
-      sprintf_P(commandbuf, PSTR("M218 T1 X%4.1f"), hotend_offset[1].x);
-      queue.enqueue_now_P(commandbuf);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf));
-      sprintf_P(commandbuf, PSTR("M218 T1 Y%4.1f"), hotend_offset[1].y);
-      queue.enqueue_now_P(commandbuf);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf));
-      sprintf_P(commandbuf, PSTR("M218 T1 Z%4.1f"), hotend_offset[1].z);
-      queue.enqueue_now_P(commandbuf);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf));
-      //settings.save();
-      RTS_currentScreen = 35;
-      RTS_SndData(ExchangePageBase + 35, ExchangepageAddr);
-    }
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Command: M420 S1");
+        }
+        queue.enqueue_now_P(PSTR("M420 S1"));
+        last_zoffset = zprobe_zoffset = probe.offset.z;
+        //zprobe_zoffset = 0;
+        //last_zoffset = 0;
+        RTS_SndData(probe.offset.z * 100, AUTO_BED_LEVEL_ZOFFSET_VP);
+        RTS_SndData(0, MOTOR_FREE_ICON_VP); //motors enabled
+        RTS_currentScreen = 21;
+        RTS_SndData(ExchangePageBase + 21, ExchangepageAddr);
+        RTS_SndData((hotend_offset[1].x - X2_MAX_POS) * 100, TWO_EXTRUDER_HOTEND_XOFFSET_VP);
+        RTS_SndData(hotend_offset[1].y * 100, TWO_EXTRUDER_HOTEND_YOFFSET_VP);
+      }
+      else if (recdat.data[0] == 0xF0) //No, do to initialize
+      {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => StoreMemoryKey: No");
+          sprintf(RTS_infoBuf, "RTS_Keep_EEPROM: Last[%d] Cur[%d]<35 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
+        memset(commandbuf, 0, sizeof(commandbuf));
+        sprintf_P(commandbuf, PSTR("M218 T1 X%4.1f"), hotend_offset[1].x);
+        queue.enqueue_now_P(commandbuf);
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf);
+        }
+        sprintf_P(commandbuf, PSTR("M218 T1 Y%4.1f"), hotend_offset[1].y);
+        queue.enqueue_now_P(commandbuf);
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf);
+        }
+        sprintf_P(commandbuf, PSTR("M218 T1 Z%4.1f"), hotend_offset[1].z);
+        queue.enqueue_now_P(commandbuf);
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf);
+        }
+        //settings.save();
+        RTS_currentScreen = 35;
+        RTS_SndData(ExchangePageBase + 35, ExchangepageAddr);
+      }
     break;
 
     case Fan0SpeedEnterKey:
       thermalManager.set_fan_speed(0, recdat.data[0]);
       RTS_SndData(recdat.data[0], HEAD0_FAN_SPEED_VP);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Fan0SpeedEnterKey: ", recdat.data[0]));
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => Fan0SpeedEnterKey: ", recdat.data[0]);
+        sprintf(RTS_infoBuf, "RTS_Fan_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d speed=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, recdat.data[0]);
+        RTS_Debug_Info();
+      }
     break;
 
     case Fan1SpeedEnterKey:
       thermalManager.set_fan_speed(1, recdat.data[0]);
       RTS_SndData(recdat.data[0], HEAD1_FAN_SPEED_VP);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Fan1SpeedEnterKey: ", recdat.data[0]));
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => Fan1SpeedEnterKey: ", recdat.data[0]);
+        sprintf(RTS_infoBuf, "RTS_Fan_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d speed=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, recdat.data[0]);
+        RTS_Debug_Info();
+      }
     break;
 
     case Flow0EnterKey:
       planner.set_flow(0, recdat.data[0]);
       RTS_SndData(recdat.data[0], HEAD0_FLOW_RATE_VP);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Flow0EnterKey: ", recdat.data[0]));
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => Flow0EnterKey: ", recdat.data[0]);
+        sprintf(RTS_infoBuf, "RTS_Flow_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d flow=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, recdat.data[0]);
+        RTS_Debug_Info();
+      }
     break;
 
     case Flow1EnterKey:
       planner.set_flow(1, recdat.data[0]);
       RTS_SndData(recdat.data[0], HEAD1_FLOW_RATE_VP);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Flow1EnterKey: ", recdat.data[0]));
-    break;
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => Flow1EnterKey: ", recdat.data[0]);
+        sprintf(RTS_infoBuf, "RTS_Flow_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d flow=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, recdat.data[0]);
+        RTS_Debug_Info();
+      }
+      break;
 
     case TuneCyclesEnterKey:
       if ((RTS_cyclesIcon > 0) && (RTS_cyclesIcon < 7))
@@ -3030,7 +3787,12 @@ void RTSSHOW::RTS_HandleData()
       }
       TuneCycles = recdat.data[0];
       RTS_SndData(TuneCycles, SET_TUNE_CYCLES_VP);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => TuneCyclesEnterKey: ", TuneCycles));
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => TuneCyclesEnterKey: ", TuneCycles);
+        sprintf(RTS_infoBuf, "RTS_Cycles: Last[%d] Cur[%d] waitW=%d waitUsr=%d cycles=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, recdat.data[0]);
+        RTS_Debug_Info();
+      }
     break;
 
     case EStepsAdjustKey:
@@ -3045,8 +3807,12 @@ void RTSSHOW::RTS_HandleData()
         memset(commandbuf, 0, sizeof(commandbuf));
         sprintf_P(commandbuf, PSTR("M92 T0 E%s"), ftostr42_52(ESteps0));
         queue.enqueue_now_P(commandbuf);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => EStepsAdjustKey: ", ESteps0));
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => EStepsAdjustKey: ", ESteps0);
+          SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf);
+          sprintf(RTS_infoBuf, "RTS_Step_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d step=%4.2f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, ESteps0);
+        }
       }
       else if (recdat.data[0] == 2)
       {
@@ -3059,8 +3825,13 @@ void RTSSHOW::RTS_HandleData()
         memset(commandbuf, 0, sizeof(commandbuf));
         sprintf_P(commandbuf, PSTR("M92 T0 E%s"), ftostr42_52(ESteps0));
         queue.enqueue_now_P(commandbuf);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => EStepsAdjustKey: ", ESteps0));
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => EStepsAdjustKey: ", ESteps0);
+          SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf);
+          sprintf(RTS_infoBuf, "RTS_Step_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d step=%4.2f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, ESteps0);
+          RTS_Debug_Info();
+        }
       }
       else if (recdat.data[0] == 3)
       {
@@ -3073,8 +3844,13 @@ void RTSSHOW::RTS_HandleData()
         memset(commandbuf, 0, sizeof(commandbuf));
         sprintf_P(commandbuf, PSTR("M92 T1 E%s"), ftostr42_52(ESteps1));
         queue.enqueue_now_P(commandbuf);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => EStepsAdjustKey: ", ESteps1));
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => EStepsAdjustKey: ", ESteps1);
+          SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf);
+          sprintf(RTS_infoBuf, "RTS_Step_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d step=%4.2f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, ESteps1);
+          RTS_Debug_Info();
+        }
       }
       else if (recdat.data[0] == 4)
       {
@@ -3087,7 +3863,13 @@ void RTSSHOW::RTS_HandleData()
         memset(commandbuf, 0, sizeof(commandbuf));
         sprintf_P(commandbuf, PSTR("M92 T1 E%s"), ftostr42_52(ESteps1));
         queue.enqueue_now_P(commandbuf);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => EStepsAdjustKey: ", ESteps1));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => EStepsAdjustKey: ", ESteps1);
+          SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf);
+          sprintf(RTS_infoBuf, "RTS_Step_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d step=%4.2f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, ESteps1);
+          RTS_Debug_Info();
+        }
       }
 
     break;
@@ -3105,7 +3887,13 @@ void RTSSHOW::RTS_HandleData()
         memset(commandbuf, 0, sizeof(commandbuf));
         sprintf_P(commandbuf, PSTR("M92 T0 E%s"), ftostr42_52(ESteps0));
         queue.enqueue_now_P(commandbuf);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => ESteps0EnterKey: ", ESteps0));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => ESteps0EnterKey: ", ESteps0);
+          SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf);
+          sprintf(RTS_infoBuf, "RTS_Step_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d step=%4.2f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, ESteps0);
+          RTS_Debug_Info();
+        }
         RTS_SndData((uint16_t)ConvertH, HEAD0_E_STEPS_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD0_E_STEPS_VP + 1);
       }
@@ -3128,7 +3916,13 @@ void RTSSHOW::RTS_HandleData()
         memset(commandbuf, 0, sizeof(commandbuf));
         sprintf_P(commandbuf, PSTR("M92 T1 E%s"), ftostr42_52(ESteps1));
         queue.enqueue_now_P(commandbuf);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => ESteps1EnterKey: ", ESteps1));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => ESteps1EnterKey: ", ESteps1);
+          SERIAL_ECHOLNPGM("RTS => Command: ", commandbuf);
+          sprintf(RTS_infoBuf, "RTS_Step_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d step=%4.2f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, ESteps1);
+          RTS_Debug_Info();
+        }
         RTS_SndData((uint16_t)ConvertH, HEAD1_E_STEPS_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD1_E_STEPS_VP + 1);
       }
@@ -3141,13 +3935,23 @@ void RTSSHOW::RTS_HandleData()
     case FeedRateEnterKey:
       EstepFeedRate = (float)recdat.data[0]/10;
       RTS_SndData(EstepFeedRate*10, E_STEPS_FEED_RATE_VP);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => FeedRateEnterKey: ", EstepFeedRate));
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => FeedRateEnterKey: ", EstepFeedRate);
+        sprintf(RTS_infoBuf, "RTS_FeedRate: Last[%d] Cur[%d] waitW=%d waitUsr=%d rate=%4.2f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, EstepFeedRate);
+        RTS_Debug_Info();
+      }
     break;
 
     case FeedDistEnterKey:
       EstepFeedDistance = (float)recdat.data[0]/10;
       RTS_SndData(EstepFeedDistance*10, E_STEPS_FEED_DIST_VP);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => FeedDistEnterKey: ", EstepFeedDistance));
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => FeedDistEnterKey: ", EstepFeedDistance);
+        sprintf(RTS_infoBuf, "RTS_FeedDist: Last[%d] Cur[%d] waitW=%d waitUsr=%d dist=%4.2f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, EstepFeedDistance);
+        RTS_Debug_Info();
+      }
     break;
 
     case FeedKey:
@@ -3159,7 +3963,12 @@ void RTSSHOW::RTS_HandleData()
           if (EstepFeedRate <= 0.0)
           {
             EstepFeedRate = 6.0;
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Set minimum feed rate 6 mm/min"));
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => Set minimum feed rate 6 mm/min");
+              sprintf(RTS_infoBuf, "RTS_minFeedRate: Last[%d] Cur[%d] waitW=%d waitUsr=%d rate=%4.2f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, EstepFeedRate);
+              RTS_Debug_Info();
+            }
             RTS_SndData(StartSoundSet, SoundAddr);
             wait_idle(250);
           }
@@ -3167,22 +3976,39 @@ void RTSSHOW::RTS_HandleData()
           if (EstepFeedDistance <= 0.0)
           {
             EstepFeedDistance = 1.0;
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Set minimum feed distance 1 mm"));
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => Set minimum feed distance 1 mm");
+              sprintf(RTS_infoBuf, "RTS_minFeedDist: Last[%d] Cur[%d] waitW=%d waitUsr=%d dist=%4.2f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, EstepFeedDistance);
+              RTS_Debug_Info();
+            }
             RTS_SndData(StartSoundSet, SoundAddr);
             wait_idle(250);
           }
           //ensure filament is present
           if(READ(FIL_RUNOUT_PIN) == 0) //check if filament is present
           {
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => Runout left extruder");
+              sprintf(RTS_infoBuf, "RTS_Runout_L: Last[%d] Cur[%d]<20 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+              RTS_Debug_Info();
+            }
             RTS_currentScreen = 20;
             RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
           }
           else
           {
             //ensure sufficient nozzle temperature
-            if(thermalManager.temp_hotend[0].celsius < (FILAMENT_CHANGE_TEMPERATURE_0 - 5))
+            if(thermalManager.temp_hotend[0].celsius < last_target_temperature[0])
             {
-              RTS_SndData((uint16_t)FILAMENT_CHANGE_TEMPERATURE_0, TUNE_TARGET_TEMP_VP);
+              if (RTS_presets.debug_enabled)  //get saved debug state
+              {
+                SERIAL_ECHOLNPGM("RTS => Low temperature left nozzle. Current screen #");
+                sprintf(RTS_infoBuf, "RTS_Low_temp_L: Last[%d] Cur[%d]<98 waitW=%d waitUsr=%d target=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, last_target_temperature[0]);
+                RTS_Debug_Info();
+              }
+              RTS_SndData((uint16_t)last_target_temperature[0], TUNE_TARGET_TEMP_VP);
               RTS_currentScreen = 98;
               RTS_SndData(ExchangePageBase + 98, ExchangepageAddr);
             }
@@ -3193,13 +4019,17 @@ void RTSSHOW::RTS_HandleData()
               active_extruder_flag = false;
               active_extruder_font = active_extruder;
               current_position[E_AXIS] += EstepFeedDistance;
-              //RTS_extruder_move(EstepFeedDistance, MMM_TO_MMS(EstepFeedRate));
               RTS_line_to_current(E_AXIS, MMM_TO_MMS(EstepFeedRate));
               RTS_SndData(EstepFeedRate*10, E_STEPS_FEED_RATE_VP);
               RTS_SndData(EstepFeedDistance*10, E_STEPS_FEED_DIST_VP);
-              TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feeding left extruder"));
-              TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Length: ", EstepFeedDistance));
-              TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate));
+              if (RTS_presets.debug_enabled)  //get saved debug state
+              {
+                SERIAL_ECHOLNPGM("RTS => Feeding left extruder");
+                SERIAL_ECHOLNPGM("RTS => Length: ", EstepFeedDistance);
+                SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate);
+                sprintf(RTS_infoBuf, "RTS_Feed_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d length=%4.1f rate=%4.1f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, EstepFeedDistance, EstepFeedRate);
+                RTS_Debug_Info();
+              }
             }
           }
         }
@@ -3207,10 +4037,15 @@ void RTSSHOW::RTS_HandleData()
       else if (recdat.data[0] == 2) // from screen #98: ok to heat up
       {
         //heat up left nozzle
-        thermalManager.temp_hotend[0].target = FILAMENT_CHANGE_TEMPERATURE_0;
+        thermalManager.temp_hotend[0].target = last_target_temperature[0];
         thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Heating up left nozzle to 200°C"));
-        RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_0, CHANGE_FILAMENT0_TEMP_VP);
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Heating up left nozzle to 200°C");
+          sprintf(RTS_infoBuf, "RTS_Heat_L: Last[%d] Cur[%d]<91 waitW=%d waitUsr=%d target=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, last_target_temperature[0]);
+          RTS_Debug_Info();
+        }
+        RTS_SndData(last_target_temperature[0], CHANGE_FILAMENT0_TEMP_VP);
         RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
         RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
         RTS_currentScreen = 91;
@@ -3225,7 +4060,10 @@ void RTSSHOW::RTS_HandleData()
           if (EstepFeedRate <= 0.0)
           {
             EstepFeedRate = 6.0;
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Set minimum feed rate 6 mm/min"));
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => Set minimum feed rate 6 mm/min");
+            }
             RTS_SndData(StartSoundSet, SoundAddr);
             wait_idle(250);
           }
@@ -3233,22 +4071,36 @@ void RTSSHOW::RTS_HandleData()
           if (EstepFeedDistance <= 0.0)
           {
             EstepFeedDistance = 1.0;
-            TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("SRTS => et minimum feed distance 1 mm"));
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => Set minimum feed distance 1 mm");
+            }
             RTS_SndData(StartSoundSet, SoundAddr);
             wait_idle(250);
           }
           //ensure filament is present
           if(READ(FIL_RUNOUT2_PIN) == 0) //check if filament is present
           {
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => Runout right extruder");
+              sprintf(RTS_infoBuf, "RTS_Runout_R: Last[%d] Cur[%d]<20 waitW=%d waitUsr=%d trusted=%d actExtr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, trusted, active_extruder);
+              RTS_Debug_Info();
+            }
             RTS_currentScreen = 20;
             RTS_SndData(ExchangePageBase + 20, ExchangepageAddr);
           }
           else
           {
-            //ensure sufficient nozzle temperature
-            if(thermalManager.temp_hotend[1].celsius < (FILAMENT_CHANGE_TEMPERATURE_1 - 5))
+            if(thermalManager.temp_hotend[1].celsius < last_target_temperature[1])
             {
-              RTS_SndData((uint16_t)FILAMENT_CHANGE_TEMPERATURE_1, TUNE_TARGET_TEMP_VP);
+              if (RTS_presets.debug_enabled)  //get saved debug state
+              {
+                SERIAL_ECHOLNPGM("RTS => Low temperature right nozzle. Current screen #");
+                sprintf(RTS_infoBuf, "RTS_Low_temp_R: Last[%d] Cur[%d]<99 waitW=%d waitUsr=%d target=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, last_target_temperature[1]);
+                RTS_Debug_Info();
+              }
+              RTS_SndData((uint16_t)last_target_temperature[1], TUNE_TARGET_TEMP_VP);
               RTS_currentScreen = 99;
               RTS_SndData(ExchangePageBase + 99, ExchangepageAddr);
             }
@@ -3259,13 +4111,18 @@ void RTSSHOW::RTS_HandleData()
               active_extruder_flag = true;
               active_extruder_font = active_extruder;
               current_position[E_AXIS] += EstepFeedDistance;
-              //RTS_extruder_move(EstepFeedDistance, MMM_TO_MMS(EstepFeedRate));
               RTS_line_to_current(E_AXIS, MMM_TO_MMS(EstepFeedRate));
               RTS_SndData(EstepFeedRate*10, E_STEPS_FEED_RATE_VP);
               RTS_SndData(EstepFeedDistance*10, E_STEPS_FEED_DIST_VP);
-              TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feeding right extruder"));
-              TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Length: ", EstepFeedDistance));
-              TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate));
+              if (RTS_presets.debug_enabled)  //get saved debug state
+              {
+                SERIAL_ECHOLNPGM("RTS => Feeding right extruder");
+                SERIAL_ECHOLNPGM("RTS => Length: ", EstepFeedDistance);
+                SERIAL_ECHOLNPGM("RTS => Feedrate: ", EstepFeedRate);
+                sprintf(RTS_infoBuf, "RTS_Feed_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d length=%4.1f rate=%4.1f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, EstepFeedDistance,
+                EstepFeedRate);
+                RTS_Debug_Info();
+              }
             }
           }
         }
@@ -3273,10 +4130,15 @@ void RTSSHOW::RTS_HandleData()
       else if (recdat.data[0] == 4) // from screen #99: ok to heat up
       {
         //heat up right nozzle
-        thermalManager.temp_hotend[1].target = FILAMENT_CHANGE_TEMPERATURE_1;
+        thermalManager.temp_hotend[1].target = last_target_temperature[1];
         thermalManager.setTargetHotend(thermalManager.temp_hotend[1].target, 1);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Heating up right nozzle to 200°C"));
-        RTS_SndData(FILAMENT_CHANGE_TEMPERATURE_1, CHANGE_FILAMENT1_TEMP_VP);
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Heating up right nozzle to 200°C");
+          sprintf(RTS_infoBuf, "RTS_Heat_R: Last[%d] Cur[%d]<92 waitW=%d waitUsr=%d target=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, last_target_temperature[1]);
+          RTS_Debug_Info();
+        }
+        RTS_SndData(last_target_temperature[1], CHANGE_FILAMENT1_TEMP_VP);
         RTS_SndData(thermalManager.temp_hotend[1].target, HEAD1_SET_TEMP_VP);
         RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD1_CURRENT_TEMP_VP);
         RTS_currentScreen = 92;
@@ -3301,27 +4163,57 @@ void RTSSHOW::RTS_HandleData()
           RTS_SndData(4, SELECT_MODE_ICON_VP);   //SINGLE MODE L icon
         }
         RTS_SndData(fileInfo.currentDisplayFilename, PRINT_FILE_TEXT_VP);
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => PrintFileKey=1. Goto confirm");
+          sprintf(RTS_infoBuf, "RTS_Print: Last[%d] Cur[%d]<56 waitW=%d waitUsr=%d DXC=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, dualXPrintingModeStatus);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 56;
         RTS_SndData(ExchangePageBase + 56, ExchangepageAddr);
       }
       else if (recdat.data[0] == 2)
       {
         //dir back
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => PrintFileKey=2. Dir up");
+          sprintf(RTS_infoBuf, "RTS_Dir_up: Last[%d] Cur[%d] waitW=%d waitUsr=%d DXC=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, dualXPrintingModeStatus);
+          RTS_Debug_Info();
+        }
         card.cdup();
         InitCardList();
       }
       else if(recdat.data[0] == 3)
       {
         //page left
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => PrintFileKey=3. Page left");
+          sprintf(RTS_infoBuf, "RTS_Page_left: Last[%d] Cur[%d] waitW=%d waitUsr=%d DXC=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, dualXPrintingModeStatus);
+          RTS_Debug_Info();
+        }
         ShowFilesOnCardPage(fileInfo.currentPage-1);
       }
       else if(recdat.data[0] == 4)
       {
         //page right
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => PrintFileKey=4. Page right");
+          sprintf(RTS_infoBuf, "RTS_Page_right: Last[%d] Cur[%d] waitW=%d waitUsr=%d DXC=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, dualXPrintingModeStatus);
+          RTS_Debug_Info();
+        }
         ShowFilesOnCardPage(fileInfo.currentPage+1);
       }
       else if (recdat.data[0] == 5)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => PrintFileKey=5. Change text speed");
+          sprintf(RTS_infoBuf, "RTS_Change text speed: Last[%d] Cur[%d] waitW=%d waitUsr=%d scroll=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, FileScrollSpeed);
+          RTS_Debug_Info();
+        }
         //change text scrolling speed simultaniously
         FileScrollSpeed ++;
         if (FileScrollSpeed > 3) {FileScrollSpeed = 0;}
@@ -3346,9 +4238,13 @@ void RTSSHOW::RTS_HandleData()
         strcpy(cmdbuf, cmd);
 
         save_dual_x_carriage_mode = dualXPrintingModeStatus;
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PrintFileKey=11; save_dual_x_carriage_mode=" , save_dual_x_carriage_mode));
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => dualXPrintingModeStatus: ", dualXPrintingModeStatus));
-
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => PrintFileKey=11; save_dual_x_carriage_mode=" , save_dual_x_carriage_mode);
+          SERIAL_ECHOLNPGM("RTS => dualXPrintingModeStatus: ", dualXPrintingModeStatus);
+          sprintf(RTS_infoBuf, "RTS_Print: Last[%d] Cur[%d]<11 waitW=%d waitUsr=%d DXC=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, dualXPrintingModeStatus);
+          RTS_Debug_Info();
+        }
         switch(save_dual_x_carriage_mode)
         {
           case 1:
@@ -3394,6 +4290,12 @@ void RTSSHOW::RTS_HandleData()
       }
       else if(recdat.data[0] == 12)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => PrintFileKey=12. No print");
+          sprintf(RTS_infoBuf, "RTS_No print: Last[%d] Cur[%d]<1 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 1;
         RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
       }
@@ -3443,6 +4345,12 @@ void RTSSHOW::RTS_HandleData()
         hasSelected = true;
 
         RTS_SndData((unsigned int)0x073F, FilenameNature + (recdat.data[0] - 3) * 32);
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => SelectFileKey=11");
+          sprintf(RTS_infoBuf, "RTS_SelFile: Last[%d] Cur[%d]<11 waitW=%d waitUsr=%d index=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, fileInfo.pageFileIndex);
+          RTS_Debug_Info();
+        }
       }
       break;
 
@@ -3454,10 +4362,22 @@ void RTSSHOW::RTS_HandleData()
         RTS_SndData(StartSoundSet, SoundAddr);
         wait_idle(150);
         RTS_SndData(StartSoundSet, SoundAddr);
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Override SaveEEPROM. Still tuning...");
+          sprintf(RTS_infoBuf, "RTS_Override SaveEEPROM: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         break;
       }
       if (recdat.data[0] == 1)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => SaveEEPROM");
+          sprintf(RTS_infoBuf, "RTS_SaveEEPROM: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         settings.save(); //save all settings
         RTS_SndData(StartSoundSet, SoundAddr);
       }
@@ -3468,6 +4388,12 @@ void RTSSHOW::RTS_HandleData()
       {
         if ( !(recdat.data[0] == 7) )
         {
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => AutoTuneEnterKey");
+            sprintf(RTS_infoBuf, "RTS_AutoTune: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+            RTS_Debug_Info();
+          }
           //only abort key will be processed during tuning
           //double beep error notification
           RTS_SndData(StartSoundSet, SoundAddr);
@@ -3491,9 +4417,19 @@ void RTSSHOW::RTS_HandleData()
           BackupKp = thermalManager.temp_hotend[0].pid.Kp;
           BackupKi = thermalManager.temp_hotend[0].pid.Ki;
           BackupKd = thermalManager.temp_hotend[0].pid.Kd;
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Started left extruder autotuning"));
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => Started left extruder autotuning");
+            sprintf(RTS_infoBuf, "RTS_AutoTuning_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+            RTS_Debug_Info();
+          }
           thermalManager.PID_autotune(thermalManager.temp_hotend[0].target, (heater_id_t)H_E0, TuneCycles, true);
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Left extruder autotuning finished"));
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => Left extruder autotuning finished");
+            sprintf(RTS_infoBuf, "RTS_Finished AutoTune_L: Last[%d] Cur[%d]<93 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+            RTS_Debug_Info();
+          }
           BackupPID=0;
           RTS_currentScreen = 93;
           RTS_SndData(ExchangePageBase + 93, ExchangepageAddr);
@@ -3515,9 +4451,19 @@ void RTSSHOW::RTS_HandleData()
           BackupKp = thermalManager.temp_hotend[1].pid.Kp;
           BackupKi = thermalManager.temp_hotend[1].pid.Ki;
           BackupKd = thermalManager.temp_hotend[1].pid.Kd;
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Started right extruder autotuning"));
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => Started right extruder autotuning");
+            sprintf(RTS_infoBuf, "RTS_AutoTuning_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+            RTS_Debug_Info();
+          }
           thermalManager.PID_autotune(thermalManager.temp_hotend[1].target, (heater_id_t)H_E1, TuneCycles, true);
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Right extruder autotuning finished"));
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => Right extruder autotuning finished");
+            sprintf(RTS_infoBuf, "RTS_Finished AutoTune_R: Last[%d] Cur[%d]<94 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+            RTS_Debug_Info();
+          }
           BackupPID=0;
           RTS_currentScreen = 94;
           RTS_SndData(ExchangePageBase + 94, ExchangepageAddr);
@@ -3539,9 +4485,19 @@ void RTSSHOW::RTS_HandleData()
           BackupKp = thermalManager.temp_bed.pid.Kp;
           BackupKi = thermalManager.temp_bed.pid.Ki;
           BackupKd = thermalManager.temp_bed.pid.Kd;
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Started hot.bed autotuning"));
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => Started hot-bed extruder autotuning");
+            sprintf(RTS_infoBuf, "RTS_AutoTuning_Bed: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+            RTS_Debug_Info();
+          }
           thermalManager.PID_autotune(thermalManager.temp_bed.target, (heater_id_t)H_BED, TuneCycles, true);
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Hot-bed autotuning finished"));
+          if (RTS_presets.debug_enabled)  //get saved debug state
+          {
+            SERIAL_ECHOLNPGM("RTS => Hot-bed extruder autotuning finished");
+            sprintf(RTS_infoBuf, "RTS_Finished AutoTune_Bed: Last[%d] Cur[%d]<95 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+            RTS_Debug_Info();
+          }
           BackupPID=0;
           RTS_currentScreen = 95;
           RTS_SndData(ExchangePageBase + 95, ExchangepageAddr);
@@ -3553,7 +4509,12 @@ void RTSSHOW::RTS_HandleData()
         //heat up left nozzle
         thermalManager.temp_hotend[0].target = AutoTuneNozzleLowerLimit;
         thermalManager.setTargetHotend(thermalManager.temp_hotend[0].target, 0);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Set left nozzle target temperature to ", AutoTuneNozzleLowerLimit , " °C"));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Set left nozzle target temperature to ", AutoTuneNozzleLowerLimit , " °C");
+          sprintf(RTS_infoBuf, "RTS_Temp_L: Last[%d] Cur[%d]<93 waitW=%d waitUsr=%d target=%4.1f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, AutoTuneNozzleLowerLimit);
+          RTS_Debug_Info();
+        }
         RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
         RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
         RTS_currentScreen = 93;
@@ -3565,7 +4526,12 @@ void RTSSHOW::RTS_HandleData()
         //heat up right nozzle
         thermalManager.temp_hotend[1].target = AutoTuneNozzleLowerLimit;
         thermalManager.setTargetHotend(thermalManager.temp_hotend[1].target, 1);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Set right nozzle target temperature to ", AutoTuneNozzleLowerLimit , " °C"));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Set right nozzle target temperature to ", AutoTuneNozzleLowerLimit , " °C");
+          sprintf(RTS_infoBuf, "RTS_Temp_R: Last[%d] Cur[%d]<94 waitW=%d waitUsr=%d target=%4.1f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, AutoTuneNozzleLowerLimit);
+          RTS_Debug_Info();
+        }
         RTS_SndData(thermalManager.temp_hotend[1].target, HEAD0_SET_TEMP_VP);
         RTS_SndData(thermalManager.temp_hotend[1].celsius, HEAD0_CURRENT_TEMP_VP);
         RTS_currentScreen = 94;
@@ -3576,7 +4542,12 @@ void RTSSHOW::RTS_HandleData()
       {
         //heat up hot-bed
         thermalManager.setTargetBed(AutoTuneHotBedLowerLimit);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Set hot-bed  nozzle target temperature to ", AutoTuneHotBedLowerLimit , " °C"));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Set hot-bed  nozzle target temperature to ", AutoTuneHotBedLowerLimit , " °C");
+          sprintf(RTS_infoBuf, "RTS_Temp_Bed: Last[%d] Cur[%d]<95 waitW=%d waitUsr=%d target=%4.1f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, AutoTuneHotBedLowerLimit);
+          RTS_Debug_Info();
+        }
         RTS_SndData(thermalManager.temp_bed.target, BED_SET_TEMP_VP);
         RTS_SndData(thermalManager.temp_bed.celsius, BED_CURRENT_TEMP_VP);
         RTS_currentScreen = 95;
@@ -3585,7 +4556,12 @@ void RTSSHOW::RTS_HandleData()
       }
       else if (recdat.data[0] == 7) //abort tuning
       {
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Autotuning aborted. Previous PID parameters restored."));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Autotuning aborted. Previous PID parameters restored.");
+          sprintf(RTS_infoBuf, "RTS_Aborted: Last[%d] Cur[%d]<95 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         //reset Autotuning indicator
         RTS_cyclesIcon = 0;
         //triple beep abort notification
@@ -3640,7 +4616,12 @@ void RTSSHOW::RTS_HandleData()
         TuneCycles--;
         if (TuneCycles < TuneCyclesLowerLimit) {TuneCycles = TuneCyclesLowerLimit;}
         RTS_SndData(TuneCycles, SET_TUNE_CYCLES_VP);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => TuneCycles--: ", TuneCycles));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => TuneCycles-: ", TuneCycles);
+          sprintf(RTS_infoBuf, "RTS_Cycles-: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         break;
       }
       else if (recdat.data[0] == 11) // from screens #93,#94,#95: tuning cycles +
@@ -3648,7 +4629,12 @@ void RTSSHOW::RTS_HandleData()
         TuneCycles++;
         if (TuneCycles > TuneCyclesUpperLimit) {TuneCycles = TuneCyclesUpperLimit;}
         RTS_SndData(TuneCycles, SET_TUNE_CYCLES_VP);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => TuneCycles++: ", TuneCycles));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => TuneCycles++: ", TuneCycles);
+          sprintf(RTS_infoBuf, "RTS_Cycles+: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         break;
       }
       else if (recdat.data[0] == 12) // from screen #93: left nozzle temperature -
@@ -3659,7 +4645,12 @@ void RTSSHOW::RTS_HandleData()
         if (t_temp < NozzleWarningLimit) {RTS_SndData(0, HEAD0_SET_ICON_VP);}
         else {RTS_SndData(1, HEAD0_SET_ICON_VP);}
         RTS_SndData(t_temp, HEAD0_SET_TEMP_VP);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Heater0Temp--: ", t_temp));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Heater0Temp--: ", t_temp);
+          sprintf(RTS_infoBuf, "RTS_Temp_L-: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         break;
       }
       else if (recdat.data[0] == 13) // from screen #93: left nozzle temperature +
@@ -3670,7 +4661,12 @@ void RTSSHOW::RTS_HandleData()
         if (t_temp < NozzleWarningLimit) {RTS_SndData(0, HEAD0_SET_ICON_VP);}
         else {RTS_SndData(1, HEAD0_SET_ICON_VP);}
         RTS_SndData(t_temp, HEAD0_SET_TEMP_VP);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Heater0Temp++: ", t_temp));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Heater0Temp++: ", t_temp);
+          sprintf(RTS_infoBuf, "RTS_Temp_L+: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         break;
       }
       else if (recdat.data[0] == 14) // from screen #94: right nozzle temperature -
@@ -3681,7 +4677,12 @@ void RTSSHOW::RTS_HandleData()
         if (t_temp < NozzleWarningLimit) {RTS_SndData(0, HEAD1_SET_ICON_VP);}
         else {RTS_SndData(1, HEAD1_SET_ICON_VP);}
         RTS_SndData(t_temp, HEAD1_SET_TEMP_VP);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Heater1Temp--: ", t_temp));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Heater1Temp--: ", t_temp);
+          sprintf(RTS_infoBuf, "RTS_Temp_R-: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         break;
       }
       else if (recdat.data[0] == 15) // from screen #94: right nozzle temperature +
@@ -3692,7 +4693,12 @@ void RTSSHOW::RTS_HandleData()
         if (t_temp < NozzleWarningLimit) {RTS_SndData(0, HEAD1_SET_ICON_VP);}
         else {RTS_SndData(1, HEAD1_SET_ICON_VP);}
         RTS_SndData(t_temp, HEAD1_SET_TEMP_VP);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Heater1Temp++: ", t_temp));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Heater1Temp++: ", t_temp);
+          sprintf(RTS_infoBuf, "RTS_Temp_R+: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         break;
       }
       else if (recdat.data[0] == 16) // from screen #95: hot-bed temperature -
@@ -3701,7 +4707,12 @@ void RTSSHOW::RTS_HandleData()
         if (t_temp < BedTempLowerLimit) {t_temp = BedTempLowerLimit;}
         thermalManager.setTargetBed(t_temp);
         RTS_SndData(t_temp, BED_SET_TEMP_VP);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => HotBedTemp--: ", t_temp));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => HotBedTemp--: ", t_temp);
+          sprintf(RTS_infoBuf, "RTS_Temp_Bed-: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         break;
       }
       else if (recdat.data[0] == 17) // from screen #95: hot-bed temperature +
@@ -3710,7 +4721,12 @@ void RTSSHOW::RTS_HandleData()
         if (t_temp > BedTempUpperLimit) {t_temp = BedTempUpperLimit;}
         thermalManager.setTargetBed(t_temp);
         RTS_SndData(t_temp, BED_SET_TEMP_VP);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => HotBedTemp++: ", t_temp));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => HotBedTemp++: ", t_temp);
+          sprintf(RTS_infoBuf, "RTS_Temp_Bed+: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         break;
       }
     break;
@@ -3719,11 +4735,23 @@ void RTSSHOW::RTS_HandleData()
 
       if(recdat.data[0] == 0xF1) //Restart printer now
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => RestartKey=Yes");
+          sprintf(RTS_infoBuf, "RTS_Restart: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_SndData(StartSoundSet, SoundAddr);
         RTS_Restart(); //restart
       }
       else if(recdat.data[0] == 0xF0) //Cancel, switch back to settings screen
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => RestartKey=No");
+          sprintf(RTS_infoBuf, "RTS_Restart_Cancel: Last[%d] Cur[%d]<21 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_currentScreen = 21;
         RTS_SndData(ExchangePageBase + 21, ExchangepageAddr); //call 'settings' screen
       }
@@ -3733,12 +4761,24 @@ void RTSSHOW::RTS_HandleData()
 
       if(recdat.data[0] == 0xF1) //Yes, power off printer now
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => SuicideKey=Yes");
+          sprintf(RTS_infoBuf, "RTS_Suicide: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_SndData(StartSoundSet, SoundAddr);
         autoPowerOffEnabled = true;
         queue.enqueue_now_P(PSTR("M81")); //power off
       }
       else if(recdat.data[0] == 0xF0) //No, switch back to settings screen
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => SuicideKey=No");
+          sprintf(RTS_infoBuf, "RTS_Suicide_Cancel: Last[%d] Cur[%d]<90 waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         if (stepper.is_awake() == true)
         {
           RTS_SndData(0, MOTOR_FREE_ICON_VP); //motors enabled
@@ -3763,7 +4803,12 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKp0 = (float)ConvertLong/100;
         PID_PARAM(Kp, 0) = PIDparamKp0;
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Head0PIDKpEnterKey: ", PIDparamKp0));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Head0PIDKpEnterKey: ", PIDparamKp0);
+          sprintf(RTS_infoBuf, "RTS_PID_Kp_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_SndData((uint16_t)ConvertH, HEAD0_TUNE_KP_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD0_TUNE_KP_VP + 1);
       }
@@ -3784,7 +4829,12 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKi0 = (float)ConvertLong/100;
         PID_PARAM(Ki, 0) = scalePID_i(PIDparamKi0);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Head0PIDKiEnterKey (unscaled): ", PIDparamKi0));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Head0PIDKiEnterKey (unscaled): ", PIDparamKi0);
+          sprintf(RTS_infoBuf, "RTS_PID_Ki_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_SndData((uint16_t)ConvertH, HEAD0_TUNE_KI_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD0_TUNE_KI_VP + 1);
       }
@@ -3805,7 +4855,12 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKd0 = (float)ConvertLong/100;
         PID_PARAM(Kd, 0) = scalePID_d(PIDparamKd0);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Head0PIDKdEnterKey (unscaled): ", PIDparamKd0));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Head0PIDKdEnterKey (unscaled): ", PIDparamKd0);
+          sprintf(RTS_infoBuf, "RTS_PID_Kd_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_SndData((uint16_t)ConvertH, HEAD0_TUNE_KD_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD0_TUNE_KD_VP + 1);
       }
@@ -3826,7 +4881,12 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKp1 = (float)ConvertLong/100;
         PID_PARAM(Kp, 1) = PIDparamKp1;
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Head1PIDKpEnterKey: ", PIDparamKp1));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Head1PIDKpEnterKey: ", PIDparamKp1);
+          sprintf(RTS_infoBuf, "RTS_PID_Kp_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_SndData((uint16_t)ConvertH, HEAD1_TUNE_KP_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD1_TUNE_KP_VP + 1);
       }
@@ -3847,7 +4907,12 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKi1 = (float)ConvertLong/100;
         PID_PARAM(Ki, 1) = scalePID_i(PIDparamKi1);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Head1PIDKiEnterKey (unscaled): ", PIDparamKi1));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Head1PIDKiEnterKey (unscaled): ", PIDparamKi1);
+          sprintf(RTS_infoBuf, "RTS_PID_Ki_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_SndData((uint16_t)ConvertH, HEAD1_TUNE_KI_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD1_TUNE_KI_VP + 1);
       }
@@ -3868,7 +4933,12 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKd1 = (float)ConvertLong/100;
         PID_PARAM(Kd, 1) = scalePID_d(PIDparamKd1);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Head1PIDKdEnterKey (unscaled): ", PIDparamKd1));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Head1PIDKdEnterKey (unscaled): ", PIDparamKd1);
+          sprintf(RTS_infoBuf, "RTS_PID_Kd_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_SndData((uint16_t)ConvertH, HEAD1_TUNE_KD_VP);
         RTS_SndData((uint16_t)ConvertL, HEAD1_TUNE_KD_VP + 1);
       }
@@ -3889,7 +4959,12 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKpB = (float)ConvertLong/100;
         thermalManager.temp_bed.pid.Kp = PIDparamKpB;
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => BedPIDKpEnterKey: ", PIDparamKpB));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => BedPIDKpEnterKey: ", PIDparamKpB);
+          sprintf(RTS_infoBuf, "RTS_PID_Kp_Bed: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_SndData((uint16_t)ConvertH, BED_TUNE_KP_VP);
         RTS_SndData((uint16_t)ConvertL, BED_TUNE_KP_VP + 1);
       }
@@ -3910,7 +4985,12 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKiB = (float)ConvertLong/100;
         thermalManager.temp_bed.pid.Ki = scalePID_i(PIDparamKiB);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => BedPIDKiEnterKey (unscaled): ", PIDparamKiB));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => BedPIDKiEnterKey (unscaled): ", PIDparamKiB);
+          sprintf(RTS_infoBuf, "RTS_PID_Ki_Bed: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_SndData((uint16_t)ConvertH, BED_TUNE_KI_VP);
         RTS_SndData((uint16_t)ConvertL, BED_TUNE_KI_VP + 1);
       }
@@ -3931,7 +5011,12 @@ void RTSSHOW::RTS_HandleData()
         ConvertLong = ConvertLong | ConvertL;
         PIDparamKdB = (float)ConvertLong/100;
         thermalManager.temp_bed.pid.Kd = scalePID_d(PIDparamKdB);
-        TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => BedPIDKdEnterKey (unscaled): ", PIDparamKdB));
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => BedPIDKdEnterKey (unscaled): ", PIDparamKdB);
+          sprintf(RTS_infoBuf, "RTS_PID_Kd_Bed: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
         RTS_SndData((uint16_t)ConvertH, BED_TUNE_KD_VP);
         RTS_SndData((uint16_t)ConvertL, BED_TUNE_KD_VP + 1);
       }
@@ -3951,7 +5036,12 @@ void RTSSHOW::RTS_HandleData()
         RTS_presets.pla_hotend_t = (int16_t)recdat.data[0];
       }
       RTS_SndData((int16_t)RTS_presets.pla_hotend_t, PRESET_PLA_HOTEND_VP);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PresetPlaHotendKey: ", RTS_presets.pla_hotend_t));
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => PresetPlaHotendKey: ", RTS_presets.pla_hotend_t);
+        sprintf(RTS_infoBuf, "RTS_PresetPlaTemp: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+        RTS_Debug_Info();
+      }
     break;
 
     case PresetPlaBedKey:
@@ -3964,8 +5054,13 @@ void RTSSHOW::RTS_HandleData()
         RTS_presets.pla_bed_t = (int16_t)recdat.data[0];
       }
       RTS_SndData((int16_t)RTS_presets.pla_bed_t, PRESET_PLA_BED_VP);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PresetPlaBedKey: ", RTS_presets.pla_bed_t));
-    break;
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => PresetPlaBedKey: ", RTS_presets.pla_bed_t);
+        sprintf(RTS_infoBuf, "RTS_PresetPlaBed: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+        RTS_Debug_Info();
+      }
+      break;
 
     case PresetPetgHotendKey:
       if (recdat.data[0] < 0)
@@ -3977,8 +5072,13 @@ void RTSSHOW::RTS_HandleData()
         RTS_presets.petg_hotend_t = (int16_t)recdat.data[0];
       }
       RTS_SndData((int16_t)RTS_presets.petg_hotend_t, PRESET_PETG_HOTEND_VP);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PresetPetgHotendKey: ", RTS_presets.petg_hotend_t));
-    break;
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => PresetPetgHotendKey: ", RTS_presets.petg_hotend_t);
+        sprintf(RTS_infoBuf, "RTS_PresetPetgTemp: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+        RTS_Debug_Info();
+      }
+      break;
 
     case PresetPetgBedKey:
       if (recdat.data[0] < 0)
@@ -3990,8 +5090,13 @@ void RTSSHOW::RTS_HandleData()
         RTS_presets.petg_bed_t = (int16_t)recdat.data[0];
       }
       RTS_SndData((int16_t)RTS_presets.petg_bed_t, PRESET_PETG_BED_VP);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PresetPetgBedKey: ", RTS_presets.petg_bed_t));
-    break;
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => PresetPetgBedKey: ", RTS_presets.petg_bed_t);
+        sprintf(RTS_infoBuf, "RTS_PresetPetgBed: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+        RTS_Debug_Info();
+      }
+      break;
 
     case PresetMotorHoldKey:
       if (recdat.data[0] < 0)
@@ -4003,28 +5108,71 @@ void RTSSHOW::RTS_HandleData()
         RTS_presets.motor_hold_time = (int16_t)recdat.data[0];
       }
       RTS_SndData((int16_t)RTS_presets.motor_hold_time, PRESET_MOTOR_HOLD_TIME_VP);
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => PresetMotorHoldKey: ", RTS_presets.motor_hold_time));
-    break;
+      break;
 
     case PresetAutoOffKey: //Toggle Auto Power-Off
-      if (RTS_presets.auto_power_off_enable)
+      if (RTS_presets.auto_power_off_enabled)
       {
         RTS_SndData(1, PRESET_AUTO_POWER_OFF_VP);   //Send "Off"-Icon
-        RTS_presets.auto_power_off_enable = false;  //Preset Auto Power-Off is disabled now
+        RTS_presets.auto_power_off_enabled = false;  //Preset Auto Power-Off is disabled now
         RTS_SndData(1, AUTO_POWER_OFF_ICON_VP);     //Send "Off"-Icon
         autoPowerOffEnabled = false;                //Override current Auto Power-Off setting & disable
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => PresetAutoOffKey: Disabled");
+          sprintf(RTS_infoBuf, "RTS_PresetAutoOff_Disabled: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
       }
       else
       {
-        RTS_SndData(0, PRESET_AUTO_POWER_OFF_VP); //Send "On"-Icon
-        RTS_presets.auto_power_off_enable = true; //Preset Auto Power-Off is enabled now
+        RTS_SndData(0, PRESET_AUTO_POWER_OFF_VP);  //Send "On"-Icon
+        RTS_presets.auto_power_off_enabled = true;  //Preset Auto Power-Off is enabled now
         RTS_SndData(0, AUTO_POWER_OFF_ICON_VP);    //Send "On"-Icon
         autoPowerOffEnabled = true;                //Override curent Auto Power-Off setting & enable
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => PresetAutoOffKey: Enabled");
+          sprintf(RTS_infoBuf, "RTS_PresetAutoOff_Enabled: Last[%d] Cur[%d] waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user);
+          RTS_Debug_Info();
+        }
+      }
+    break;
+
+    case PresetDebugKey: //Swap debug enable
+      if (RTS_presets.debug_enabled)
+      {
+        RTS_SndData(1, PRESET_DEBUG_ENABLED_VP);   //Send "Off"-Icon
+        RTS_presets.debug_enabled = false;         //debug disabled
+        SERIAL_ECHOLNPGM("RTS => Debug messages disabled");
+        //clear info display
+        RTS_SndData(RTS_infoBuf0, INFO1_TEXT_VP);
+        RTS_SndData(RTS_infoBuf0, INFO2_TEXT_VP);
+        RTS_SndData(RTS_infoBuf0, INFO3_TEXT_VP);
+        RTS_SndData(RTS_infoBuf0, INFO4_TEXT_VP);
+        RTS_SndData(RTS_infoBuf0, INFO5_TEXT_VP);
+        RTS_SndData(RTS_infoBuf0, INFO6_TEXT_VP);
+        RTS_SndData(RTS_infoBuf0, INFO7_TEXT_VP);
+        RTS_SndData(RTS_infoBuf0, INFO8_TEXT_VP);
+
+      }
+      else
+      {
+        RTS_SndData(0, PRESET_DEBUG_ENABLED_VP);  //Send "On"-Icon
+        RTS_presets.debug_enabled = true;         //debug enabled
+        SERIAL_ECHOLNPGM("RTS => Debug messages enabled");
+        sprintf(RTS_infoBuf, "RTS_Debug enabled: Last[%d] Cur[%d]<40 waitW=%d pauseAct=%d SDpChck=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, pause_action, sd_pause_chck);
+        RTS_Debug_Info();
       }
     break;
 
     case ChangePageKey:
-      TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Change Page: ", change_page_number));
+      if (RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS => Change Page: ", change_page_number);
+        sprintf(RTS_infoBuf, "RTS_changePage: Last[%d] Cur[%d]<%d waitW=%d waitUsr=%d", RTS_lastScreen, RTS_currentScreen, change_page_number, RTS_waitway, wait_user);
+        RTS_Debug_Info();
+      }
       if ((change_page_number == 36) || (change_page_number == 76))
       {
         break;
@@ -4032,7 +5180,7 @@ void RTSSHOW::RTS_HandleData()
       else if (change_page_number == 11)
       {
         RTS_currentScreen = change_page_number;
-        RTS_SndData(change_page_number + ExchangePageBase, ExchangepageAddr);
+        RTS_SndData(ExchangePageBase + change_page_number, ExchangepageAddr);
         if ((dualXPrintingModeStatus != 0) && (dualXPrintingModeStatus != 4))
         {
           RTS_SndData(dualXPrintingModeStatus, PRINT_MODE_ICON_VP);
@@ -4049,7 +5197,7 @@ void RTSSHOW::RTS_HandleData()
       else if (change_page_number == 12)
       {
         RTS_currentScreen = change_page_number;
-        RTS_SndData(change_page_number + ExchangePageBase, ExchangepageAddr);
+        RTS_SndData(ExchangePageBase + change_page_number, ExchangepageAddr);
         if ((dualXPrintingModeStatus != 0) && (dualXPrintingModeStatus != 4))
         {
           RTS_SndData(dualXPrintingModeStatus, PRINT_MODE_ICON_VP);
@@ -4066,7 +5214,7 @@ void RTSSHOW::RTS_HandleData()
       else
       {
         RTS_currentScreen = change_page_number;
-        RTS_SndData(change_page_number + ExchangePageBase, ExchangepageAddr);
+        RTS_SndData(ExchangePageBase + change_page_number, ExchangepageAddr);
         change_page_number = 1;
       }
       if ((dualXPrintingModeStatus != 0) && (dualXPrintingModeStatus != 4))
@@ -4118,7 +5266,7 @@ void RTSSHOW::RTS_HandleData()
       RTS_SndData(MACHINE_NAME, PRINTER_MACHINE_TEXT_VP);
       RTS_SndData(sizeBuf, PRINTER_PRINTSIZE_TEXT_VP);
       RTS_SndData(SOFTVERSION, PRINTER_VERSION_TEXT_VP);
-      RTS_SndData(CORP_WEBSITE, PRINTER_WEBSITE_TEXT_VP);
+      RTS_SndData(EEPROM_VERSION, PRINTER_EEPROM_VERSION_TEXT_VP);
       RTS_SndData(DISPLAY_VERSION, PRINTER_DISPLAY_VERSION_TEXT_VP);
 
       RTS_SndData(thermalManager.fan_speed[0], HEAD0_FAN_SPEED_VP);
@@ -4163,6 +5311,12 @@ void RTSSHOW::RTS_AutoBedLevelPage()
 {
   if(RTS_waitway == 3)
   {
+    if (RTS_presets.debug_enabled)  //get saved debug state
+    {
+      SERIAL_ECHOLNPGM("RTS => AutoBedLevelPage");
+      sprintf(rtscheck.RTS_infoBuf, "RTS_AutoBedLevelPage: Last[%d] Cur[%d]<22 waitW=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway);
+      rtscheck.RTS_Debug_Info();
+    }
     RTS_currentScreen = 22;
     rtscheck.RTS_SndData(ExchangePageBase + 22, ExchangepageAddr);
     RTS_waitway = 0;
@@ -4232,6 +5386,40 @@ void RTSSHOW::RTS_ViewMesh()
     RTS_SndData(ExchangePageBase + 81, ExchangepageAddr); //call 'Mesh view' page
 }
 
+void RTSSHOW::RTS_Debug_Info()
+{
+  //scroll down older debug info, enter new debug info line & display
+  //clear display buffers
+  RTS_SndData(RTS_infoBuf0, INFO1_TEXT_VP);
+  RTS_SndData(RTS_infoBuf0, INFO2_TEXT_VP);
+  RTS_SndData(RTS_infoBuf0, INFO3_TEXT_VP);
+  RTS_SndData(RTS_infoBuf0, INFO4_TEXT_VP);
+  RTS_SndData(RTS_infoBuf0, INFO5_TEXT_VP);
+  RTS_SndData(RTS_infoBuf0, INFO6_TEXT_VP);
+  RTS_SndData(RTS_infoBuf0, INFO7_TEXT_VP);
+  RTS_SndData(RTS_infoBuf0, INFO8_TEXT_VP);
+
+  //write display buffers
+  RTS_SndData(RTS_infoBuf , INFO1_TEXT_VP);
+  RTS_SndData(RTS_infoBuf1, INFO2_TEXT_VP);
+  RTS_SndData(RTS_infoBuf2, INFO3_TEXT_VP);
+  RTS_SndData(RTS_infoBuf3, INFO4_TEXT_VP);
+  RTS_SndData(RTS_infoBuf4, INFO5_TEXT_VP);
+  RTS_SndData(RTS_infoBuf5, INFO6_TEXT_VP);
+  RTS_SndData(RTS_infoBuf6, INFO7_TEXT_VP);
+  RTS_SndData(RTS_infoBuf7, INFO8_TEXT_VP);
+
+  //rotate output buffers
+  memcpy(RTS_infoBuf7, RTS_infoBuf6, 80); //info6 -> info7
+  memcpy(RTS_infoBuf6, RTS_infoBuf5, 80); //info5 -> info6
+  memcpy(RTS_infoBuf5, RTS_infoBuf4, 80); //info4 -> info5
+  memcpy(RTS_infoBuf4, RTS_infoBuf3, 80); //info3 -> info4
+  memcpy(RTS_infoBuf3, RTS_infoBuf2, 80); //info2 -> info3
+  memcpy(RTS_infoBuf2, RTS_infoBuf1, 80); //info1 -> info2
+  memcpy(RTS_infoBuf1, RTS_infoBuf, 80);  //info  -> info1
+  memcpy(RTS_infoBuf, RTS_infoBuf0, 80);  //clear input buffer
+}
+
 int EndsWith(const char *str, const char *suffix)
 {
     if (!str || !suffix)
@@ -4251,7 +5439,7 @@ void EachMomentUpdate()
     // print the file before the power is off.
     if((power_off_type_yes == 0) && lcd_sd_status && (recovery.info.recovery_flag == true))
     {
-      RTS_currentScreen = 0;
+      rtscheck.RTS_currentScreen = 0;
       rtscheck.RTS_SndData(ExchangePageBase, ExchangepageAddr);
       if(startprogress < 100)
       {
@@ -4264,8 +5452,15 @@ void EachMomentUpdate()
         power_off_type_yes = 1;
         #if ENABLED(POWER_LOSS_RECOVERY)
           if (card.jobRecoverFileExists()) {
+            if (RTS_presets.debug_enabled)  //get saved debug state
+            {
+              SERIAL_ECHOLNPGM("RTS => Start; Resume previous print");
+              SERIAL_ECHOLNPGM("RTS => Settings. Screen #36 triggered");
+              sprintf(rtscheck.RTS_infoBuf, "RTS_ResumePrevious: Last[%d] Cur[%d]<36 waitW=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway);
+              rtscheck.RTS_Debug_Info();
+            }
             rtscheck.RTS_SndData(recovery.filename, PRINT_FILE_TEXT_VP);
-            RTS_currentScreen = 36;
+            rtscheck.RTS_currentScreen = 36;
             rtscheck.RTS_SndData(ExchangePageBase + 36, ExchangepageAddr);
           }
         #endif
@@ -4274,7 +5469,7 @@ void EachMomentUpdate()
     }
     else if((power_off_type_yes == 0) && (recovery.info.recovery_flag == false))
     {
-      RTS_currentScreen = 0;
+      rtscheck.RTS_currentScreen = 0;
       rtscheck.RTS_SndData(ExchangePageBase, ExchangepageAddr);
       if(startprogress < 100)
       {
@@ -4283,10 +5478,17 @@ void EachMomentUpdate()
       delay(15);
       if((startprogress += 1) > 100)
       {
+        if (RTS_presets.debug_enabled)  //get saved debug state
+        {
+          SERIAL_ECHOLNPGM("RTS => Start");
+          SERIAL_ECHOLNPGM("RTS => Settings. Screen #1 triggered");
+          sprintf(rtscheck.RTS_infoBuf, "RTS_Start: Last[%d] Cur[%d]<1 chPage=%d waitW=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, change_page_number, RTS_waitway);
+          rtscheck.RTS_Debug_Info();
+        }
         rtscheck.RTS_SndData(StartSoundSet, SoundAddr);
         power_off_type_yes = 1;
         Update_Time_Value = RTS_UPDATE_VALUE;
-        RTS_currentScreen = 1;
+        rtscheck.RTS_currentScreen = 1;
         rtscheck.RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
         change_page_number = 1;
       }
@@ -4382,14 +5584,14 @@ void EachMomentUpdate()
 
       if((thermalManager.temp_hotend[0].celsius >= thermalManager.temp_hotend[0].target) && (RTS_heatway == 1))
       {
-        RTS_currentScreen = 23;
+        rtscheck.RTS_currentScreen = 23;
         rtscheck.RTS_SndData(ExchangePageBase + 23, ExchangepageAddr);
         RTS_heatway = 0;
         rtscheck.RTS_SndData(10 * Filament0LOAD, HEAD0_FILAMENT_LOAD_DATA_VP);
       }
       else if((thermalManager.temp_hotend[1].celsius >= thermalManager.temp_hotend[1].target) && (RTS_heatway == 2))
       {
-        RTS_currentScreen = 23;
+        rtscheck.RTS_currentScreen = 23;
         rtscheck.RTS_SndData(ExchangePageBase + 23, ExchangepageAddr);
         RTS_heatway = 0;
         rtscheck.RTS_SndData(10 * Filament1LOAD, HEAD1_FILAMENT_LOAD_DATA_VP);
@@ -4409,7 +5611,14 @@ void EachMomentUpdate()
 }
 
 void SetExtruderMode(unsigned int mode, bool isDirect) {
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Selected extruder mode: ", mode));
+  uint8_t direct = isDirect ? 1 : 0;
+
+  if (RTS_presets.debug_enabled)  //get saved debug state
+  {
+    SERIAL_ECHOLNPGM("RTS => Selected extruder mode: ", mode);
+    sprintf(RTS_infoBuf, "RTS_setExtrMode: Last[%d] Cur[%d] waitW=%d extrMode=%d isDirect=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, mode, direct);
+    rtscheck.RTS_Debug_Info();
+  }
   if (isDirect && mode == 4)
   {
     mode = 5; //DXC_SINGLE_R_MODE => SINGLE MODE 2
@@ -4418,7 +5627,10 @@ void SetExtruderMode(unsigned int mode, bool isDirect) {
   {
     mode = 4; //DXC_SINGLE_L_MODE => SINGLE MODE 1
   }
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Select new extruder mode: ", mode));
+  if (RTS_presets.debug_enabled)  //get saved debug state
+  {
+    SERIAL_ECHOLNPGM("RTS => Select new extruder mode: ", mode);
+  }
   if (mode == 1)
   {
     //dual mode
@@ -4480,9 +5692,12 @@ void SetExtruderMode(unsigned int mode, bool isDirect) {
   {
     //return key; keep previous print mode
     save_dual_x_carriage_mode = dualXPrintingModeStatus;
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => save_dual_x_carriage_mode: ", save_dual_x_carriage_mode));
+    if (RTS_presets.debug_enabled)  //get saved debug state
+    {
+      SERIAL_ECHOLNPGM("RTS => save_dual_x_carriage_mode: ", save_dual_x_carriage_mode);
+    }
     settings.save();
-    RTS_currentScreen = 1;
+    rtscheck.RTS_currentScreen = 1;
     rtscheck.RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
   }
   if ((mode < 1) || (mode > 6))
@@ -4502,7 +5717,8 @@ void SetExtruderMode(unsigned int mode, bool isDirect) {
 // looping at the loop function
 void RTSUpdate()
 {
-  // Check the status of card
+
+
   rtscheck.RTS_SDCardUpate();
 
   sd_printing = IS_SD_PRINTING();
@@ -4510,7 +5726,7 @@ void RTSUpdate()
 
   if((card_insert_st == false) && (sd_printing == true))
   {
-    RTS_currentScreen = 46;
+    rtscheck.RTS_currentScreen = 46;
     rtscheck.RTS_SndData(ExchangePageBase + 46, ExchangepageAddr);
     rtscheck.RTS_SndData(0, CHANGE_SDCARD_ICON_VP);
     /* Pause printing so that the nozzle can return to zero */
@@ -4539,6 +5755,7 @@ void RTSUpdate()
 
 void RTS_MoveAxisHoming()
 {
+  uint8_t trusted = all_axes_trusted() ? 1 : 0;
   if (RTS_waitway == 4) //moving
   {
     if (all_axes_trusted())
@@ -4553,22 +5770,42 @@ void RTS_MoveAxisHoming()
     }
     if(AxisUnitMode == 4)
     {
-      RTS_currentScreen = 58;
+      if (rtscheck.RTS_presets.debug_enabled)  //get saved debug state
+      {
+        sprintf (rtscheck.RTS_infoBuf, "RTS_MoveAxisHoming: Last[%d] Cur[%d]<58 waitW=%d trusted=%d actExtr=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, trusted, active_extruder);
+        rtscheck.RTS_Debug_Info();
+      }
+      rtscheck.RTS_currentScreen = 58;
       rtscheck.RTS_SndData(ExchangePageBase + 58, ExchangepageAddr);
     }
     else if(AxisUnitMode == 3)
     {
-      RTS_currentScreen = 29;
+      if (rtscheck.RTS_presets.debug_enabled)  //get saved debug state
+      {
+        sprintf (rtscheck.RTS_infoBuf, "RTS_MoveAxisHoming: Last[%d] Cur[%d]<29 waitW=%d trusted=%d actExtr=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, trusted, active_extruder);
+        rtscheck.RTS_Debug_Info();
+      }
+      rtscheck.RTS_currentScreen = 29;
       rtscheck.RTS_SndData(ExchangePageBase + 29, ExchangepageAddr);
     }
     else if(AxisUnitMode == 2)
     {
-      RTS_currentScreen = 30;
+      if (rtscheck.RTS_presets.debug_enabled)  //get saved debug state
+      {
+        sprintf (rtscheck.RTS_infoBuf, "RTS_MoveAxisHoming: Last[%d] Cur[%d]<30 waitW=%d trusted=%d actExtr=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, trusted, active_extruder);
+        rtscheck.RTS_Debug_Info();
+      }
+      rtscheck.RTS_currentScreen = 30;
       rtscheck.RTS_SndData(ExchangePageBase + 30, ExchangepageAddr);
     }
     else if(AxisUnitMode == 1)
     {
-      RTS_currentScreen = 31;
+      if (rtscheck.RTS_presets.debug_enabled)  //get saved debug state
+      {
+        sprintf (rtscheck.RTS_infoBuf, "RTS_MoveAxisHoming: Last[%d] Cur[%d]<31 waitW=%d trusted=%d actExtr=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, trusted, active_extruder);
+        rtscheck.RTS_Debug_Info();
+      }
+      rtscheck.RTS_currentScreen = 31;
       rtscheck.RTS_SndData(ExchangePageBase + 31, ExchangepageAddr);
     }
     RTS_waitway = 0;
@@ -4576,17 +5813,27 @@ void RTS_MoveAxisHoming()
   if (RTS_waitway == 6)
   {
     //leveling
-    RTS_currentScreen = 22;
-    rtscheck.RTS_SndData(ExchangePageBase + 22, ExchangepageAddr);
+    if (rtscheck.RTS_presets.debug_enabled)  //get saved debug state
+    {
+      sprintf (rtscheck.RTS_infoBuf, "RTS_MoveAxisHoming: Last[%d] Cur[%d]<22 waitW=%d trusted=%d actExtr=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, trusted, active_extruder);
+      rtscheck.RTS_Debug_Info();
+    }
     RTS_waitway = 0;
+    rtscheck.RTS_currentScreen = 22;
+    rtscheck.RTS_SndData(ExchangePageBase + 22, ExchangepageAddr);
   }
   if (RTS_waitway == 7)
   {
     // Click Print finish
-    RTS_currentScreen = 1;
-    rtscheck.RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
+    if (rtscheck.RTS_presets.debug_enabled)  //get saved debug state
+    {
+      sprintf (rtscheck.RTS_infoBuf, "RTS_MoveAxisHoming: Last[%d] Cur[%d]<1 waitW=%d trusted=%d actExtr=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, trusted, active_extruder);
+      rtscheck.RTS_Debug_Info();
+    }
     RTS_waitway = 0;
-  }
+    rtscheck.RTS_currentScreen = 1;
+    rtscheck.RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
+   }
   if(active_extruder == 0)
   {
     rtscheck.RTS_SndData(0, EXCHANGE_NOZZLE_ICON_VP);

@@ -91,7 +91,7 @@ extern int power_off_type_yes;
 #define EXCHANGE_NOZZLE_ICON_VP            0x10FC //#28,#29,#30,#31,#58
 #define PRINT_MODE_ICON_VP                 0x10FD //#9,#10,#11,#12,#60,#62
 #define PRINTER_VERSION_TEXT_VP            0x10FE //20_#33
-#define PRINTER_WEBSITE_TEXT_VP            0x1112 //20_#33
+#define PRINTER_EEPROM_VERSION_TEXT_VP     0x1112 //20_#33
 #define COLLISION_HAZARD_ICON_VP           0x1126 //#29,#30,#31,#58
 
 //evolved adjustment screen
@@ -149,13 +149,25 @@ extern int power_off_type_yes;
 #define PRESET_PETG_BED_VP                 0x160C //#97
 #define PRESET_MOTOR_HOLD_TIME_VP          0x160E //#97
 #define PRESET_AUTO_POWER_OFF_VP           0x1612 //#97
+#define PRESET_RUNOUT_SWAPPED_VP           0x1616 //#97
+#define PRESET_DEBUG_ENABLED_VP            0x161A //#97
 
 #define AUTO_BED_LEVEL_1POINT_VP           0x4000 //#81
 //[128] next free 0x4080
 
 //Mesh visualization 0x4100 - 0x417F
 #define MESH_VISUAL_ICON_VP                0x4100 //#81
-//[128] next free 0x4180
+
+
+//Info display
+#define INFO8_TEXT_VP                      0x4A00 //80 #all screens
+#define INFO7_TEXT_VP                      0x4A80 //80 #all screens
+#define INFO6_TEXT_VP                      0x4B00 //80 #all screens
+#define INFO5_TEXT_VP                      0x4B80 //80 #all screens
+#define INFO4_TEXT_VP                      0x4C00 //80 #all screens
+#define INFO3_TEXT_VP                      0x4C80 //80 #all screens
+#define INFO2_TEXT_VP                      0x4D00 //80 #all screens
+#define INFO1_TEXT_VP                      0x4D80 //80 #all screens
 
 //scroll text SP begin                        0x4200
 #define PRINT_FILE_TEXT_SP                 0x4201 //#9,#10,#11,#12,#36,#56
@@ -190,12 +202,13 @@ extern int power_off_type_yes;
 //
 typedef struct
 {
-  celsius_t pla_hotend_t;     //nozzle temperature, type int16_t
-  celsius_t pla_bed_t;        //hot-bed temperature, type int16_t
-  celsius_t petg_hotend_t;    //nozzle temperature, type int16_t
-  celsius_t petg_bed_t;       //hot-bed temperature, type int16_t
-  int16_t motor_hold_time;    //DEFAULT_STEPPER_DEACTIVE_TIME in sec
-  bool auto_power_off_enable; //auto power-off enabled, type boolean
+  celsius_t pla_hotend_t;      //nozzle temperature, type int16_t
+  celsius_t pla_bed_t;         //hot-bed temperature, type int16_t
+  celsius_t petg_hotend_t;     //nozzle temperature, type int16_t
+  celsius_t petg_bed_t;        //hot-bed temperature, type int16_t
+  int16_t motor_hold_time;     //DEFAULT_STEPPER_DEACTIVE_TIME in sec
+  bool auto_power_off_enabled; //auto power-off enabled, type boolean
+  bool debug_enabled;          //debug messages enabled, type boolean
 } RTS_preset_data;
 
 typedef struct DataBuf
@@ -263,10 +276,14 @@ class RTSSHOW
     void RTS_ProcessM25();
     void RTS_AutoBedLevelPage();
     void RTS_ViewMesh();
+    void RTS_Debug_Info();
     FileInfo fileInfo;
     DB recdat;
     DB snddat;
     RTS_preset_data RTS_presets;
+    uint8_t RTS_currentScreen;
+    uint8_t RTS_lastScreen;
+    char RTS_infoBuf[80];
   private:
     unsigned char databuf[SizeofDatabuf];
 };
@@ -277,8 +294,8 @@ extern RTSSHOW rtscheck;
 0x1002  MainPageKey,            #1,#9,#47,#60,#62
 0x1004  AdjustmentKey,          #10,#11,#12,#14
 0x1006  PrintSpeedKey,          #14
-0x1008  StopPrintKey,           #8,10,#11,#12,#39,#46
-0x100A  PausePrintKey,          #11
+0x1008  StopPrintKey,           #8,#10,#11,#12,#39,#46
+0x100A  PausePrintKey,          #11,#69,#70,#73,#74.#82
 0x100C  ResumePrintKey,         #8,#12,#39,#46
 0x102A  HotBedTempEnterKey,     #14,#18,#95
 0x1030  TempScreenKey,          #15
@@ -312,7 +329,7 @@ extern RTSSHOW rtscheck;
 0x113C  ESteps1EnterKey,        #92
 0x1140  FeedRateEnterKey,       #91,#92
 0x1142  FeedDistEnterKey,       #91,#92
-0x1144  FeedKey,                #91,#92
+0x1144  FeedKey,                #91,#92,#98,#99
 0x114A  PrintFileKey,           #2,#3,#47,#56
 0x114C  SelectFileKey,          #3
 0x114E  SaveEEPROM,             #14,#22,#35,#91,#92,#93,#94,#95,#96,#97,#98
@@ -334,6 +351,7 @@ extern RTSSHOW rtscheck;
 0x160C  PresetPetgBedKey,       #97
 0x160E  PresetMotorHoldKey,     #97
 0x1610  PresetAutoOffKey,       #97
+0x1618  PresetDebugKey,         #97
 0x2000  ChangePageKey           UNUSED
 */
 
@@ -399,6 +417,7 @@ enum PROC_COM
   PresetPetgBedKey,
   PresetMotorHoldKey,
   PresetAutoOffKey,
+  PresetDebugKey,
   ChangePageKey
 };
 
@@ -464,6 +483,7 @@ const unsigned long Addrbuf[] =
   0x160C,
   0x160E,
   0x1610,
+  0x1618,
   0x2000,
   0
 };
@@ -482,11 +502,11 @@ extern bool sdcard_pause_check;
 extern char save_dual_x_carriage_mode;
 extern float current_position_x0_axis;
 extern float current_position_x1_axis;
-extern char RTS_cyclesIcon;
-extern uint8_t RTS_currentScreen;
-extern uint8_t RTS_lastScreen;
-extern char RTS_waitway;
-extern char RTS_heatway;
+extern uint8_t RTS_cyclesIcon;
+//extern uint8_t RTS_currentScreen;
+//extern uint8_t RTS_lastScreen;
+extern uint8_t RTS_waitway;
+extern uint8_t RTS_heatway;
 
 void RTS_MoveAxisHoming();
 extern void RTS_Buzz(const uint16_t, const uint16_t);

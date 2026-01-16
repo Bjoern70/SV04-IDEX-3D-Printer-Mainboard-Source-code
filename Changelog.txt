@@ -54,3 +54,9 @@ Modified tramming points & Z-alignment probe points for higher precison.
 
 26 JAN 2025:
 Fixed touchscreen E-step adjustment not recognized bug. Fixed right extruder not moving bug in refuel & extruder E-step adjustment screens.
+
+08 JUN 2025:
+Fixed right extruder crashing into right end stop bug. Default nozzle to probe Z-offset reset to 0.0mm instead of -1.9mm in previous versions.
+
+16 JAN 2026:
+Fixed filament runout dead-end loop. Added advanced pause screens. Added optinal debugging messages.

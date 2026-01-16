@@ -45,7 +45,7 @@
  *                    2 : File browser
  *                    8 :                     Notify filament change
  *                    9 :                     Notify print finished
- *                   11 : Info while printing
+ *                   11 : Print status
  *                   12 : Info while pausing
  *                   14 : Adjustment while printing
  *                   15 : Temperatures
@@ -85,9 +85,25 @@
  *                   56 :                     Query start print
  *                   57 : Tramming
  *                   58 : Move 100mm
+ *                   59 :                     Info wait print pause
  *                   60 :                     Query pause print
  *                   62 :                     Query low temperature
+ *                   63 :                     Info wait nozzle heating
+ *                   64 :                     Info wait hot-bed heating
+ *                   66 :                     Info wait filament unload
+ *                   67 :                     Info wait filament load
+ *                   68 :                     Info wait filament purge
+ *                   69 :                     Query insert filament
+ *                   70 :                     Query heat nozzle
+ *                   71 :                     Info reheating...
+ *                   72 :                     Info reheating done
+ *                   73 :                     Query purge more
+ *                   74 :                     Info wait resume
+ *                   79 :                     Info wait parking
+ *                   80 :                     Info wait filament change
  *                   81 : Mesh view
+ *                   82 :                     Query press button
+ *                   84 :                     Info print paused for filament change
  *                   86 :                     Query restart printer
  *                   88 :                     Query power off
  *                   90 : Extra settings
@@ -105,7 +121,7 @@
  *                  103 :                     Query low temperature hot-bed
  *                  any : Other screens than above will likely freeze RTS display
  *
- * M1901 L<int>   - Set previous displayed RTS screen #
+ * M1901 L<int>   - Set previously displayed RTS screen #
  *
  * M1901 R<bool>   - Force display RTS screen #S & reset screen locks
  *                   S<int>   - Display RTS screen #S as above
@@ -125,27 +141,39 @@
       if (parser.seen('L'))
       {
         const int8_t lastscreen = parser.byteval('L');
-        if ((lastscreen>=0) || (lastscreen<=140)) RTS_lastScreen = RTS_currentScreen;
-        else RTS_lastScreen = RTS_currentScreen;
+        if ((lastscreen>=0) || (lastscreen<=140)) rtscheck.RTS_lastScreen = rtscheck.RTS_currentScreen;
+        else rtscheck.RTS_lastScreen = rtscheck.RTS_currentScreen;
       }
-      else RTS_lastScreen = RTS_currentScreen;
+      else rtscheck.RTS_lastScreen = rtscheck.RTS_currentScreen;
 
       if ((screen>=0) || (screen<=140))
       {
         if (parser.seenval('R'))
         {
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => M1901. Last screen #", RTS_lastScreen));
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Force call screen #",screen));
-          RTS_currentScreen = screen;
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS => M1901. Last screen #", rtscheck.RTS_lastScreen);
+            SERIAL_ECHOLNPGM("RTS => Force call screen #",screen);
+            sprintf(rtscheck.RTS_infoBuf, "M1901_reset: Last[%d] Cur[%d]<%d waitW=0 DXC=%d saveDXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, screen, dualXPrintingModeStatus, save_dual_x_carriage_mode);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = screen;
           RTS_waitway = 0;  //reset screenlock
           RTS_heatway = 0;   //reset screenlock
-          rtscheck.RTS_SndData(ExchangePageBase + screen, ExchangepageAddr);;
+          rtscheck.RTS_SndData(ExchangePageBase + screen, ExchangepageAddr);
         }
         else
         {
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => M1901. Last screen #", RTS_lastScreen));
-          TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Call screen #",screen));
-          RTS_currentScreen = screen;
+          if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+          {
+            //Debug enabled
+            SERIAL_ECHOLNPGM("RTS => M1901. Last screen #", rtscheck.RTS_lastScreen);
+            SERIAL_ECHOLNPGM("RTS => Call screen #",screen);
+            sprintf(rtscheck.RTS_infoBuf, "M1901_set: Last[%d] Cur[%d]<%d waitW=%d DXC=%d saveDXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, screen, RTS_waitway, dualXPrintingModeStatus, save_dual_x_carriage_mode);
+            rtscheck.RTS_Debug_Info();
+          }
+          rtscheck.RTS_currentScreen = screen;
           rtscheck.RTS_SndData(ExchangePageBase + screen, ExchangepageAddr);
         }
       }
@@ -153,8 +181,14 @@
     else
     {
       //Report RTS_currentScreen number
-      SERIAL_ECHOLNPGM("Current RTS screen # is ",RTS_currentScreen);
-      SERIAL_ECHOLNPGM("Last RTS screen # was ",RTS_lastScreen);
+      if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+      {
+        //Debug enabled
+        SERIAL_ECHOLNPGM("RTS => M1901. Current RTS screen # is ",rtscheck.RTS_currentScreen);
+        SERIAL_ECHOLNPGM("RTS => M1901. Last RTS screen # was ",rtscheck.RTS_lastScreen);
+        sprintf(rtscheck.RTS_infoBuf, "M1901_info: Last[%d] Cur[%d] waitW=%d DXC=%d saveDXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus, save_dual_x_carriage_mode);
+        rtscheck.RTS_Debug_Info();
+      }
     }
   }
 #endif

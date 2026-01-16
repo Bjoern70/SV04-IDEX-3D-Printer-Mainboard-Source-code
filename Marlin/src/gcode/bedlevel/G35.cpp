@@ -60,8 +60,14 @@
  **/
 void GcodeSuite::G35() {
   DEBUG_SECTION(log_G35, "G35", DEBUGGING(LEVELING));
-  TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  G35. Last screen #", RTS_currentScreen));
-  RTS_lastScreen = RTS_currentScreen;
+  if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+  {
+    //Debug enabled
+    SERIAL_ECHOLNPGM("RTS =>  G35. Last screen #", rtscheck.RTS_currentScreen);
+    sprintf(rtscheck.RTS_infoBuf, "G35: Last[%d]<Cur[%d] waitW=%d DXC=%d saveDXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus, save_dual_x_carriage_mode);
+    rtscheck.RTS_Debug_Info();
+  }
+  rtscheck.RTS_lastScreen = rtscheck.RTS_currentScreen;
 
   if (DEBUGGING(LEVELING)) log_machine_info();
 
@@ -166,8 +172,14 @@ void GcodeSuite::G35() {
         rtscheck.RTS_SndData(str, addr);
       #endif
     }
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  G35. Screen #57 triggered"));
-    RTS_currentScreen = 57;
+    if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+    {
+      //Debug enabled
+      SERIAL_ECHOLNPGM("RTS =>  G35. Screen #57 triggered");
+      sprintf(rtscheck.RTS_infoBuf, "G35: Last[%d] Cur[%d]<57 waitW=%d DXC=%d saveDXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus, save_dual_x_carriage_mode);
+      rtscheck.RTS_Debug_Info();
+    }
+    rtscheck.RTS_currentScreen = 57;
     rtscheck.RTS_SndData(ExchangePageBase + 57, ExchangepageAddr);
   }
   else

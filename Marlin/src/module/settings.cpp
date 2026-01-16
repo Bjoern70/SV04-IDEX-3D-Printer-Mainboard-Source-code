@@ -36,7 +36,10 @@
  */
 
 // Change EEPROM version if the structure changes
-#define EEPROM_VERSION "V88"
+#ifndef EEPROM_VERSION
+  #define EEPROM_VERSION "V90"
+#endif
+
 #define EEPROM_OFFSET 100
 
 // Check the integrity of data offsets.
@@ -269,13 +272,14 @@ typedef struct SettingsDataStruct {
   //
   // RTS_AVAILABLE
   //
-  #if ENABLED(RTS_AVAILABLE)    // RTS preset data
-    celsius_t rtscheck_rtspresets_pla_hotend_t;     //nozzle temperature, type int16_t
-    celsius_t rtscheck_rtspresets_pla_bed_t;        //hot-bed temperature, type int16_t
-    celsius_t rtscheck_rtspresets_petg_hotend_t;    //nozzle temperature, type int16_t
-    celsius_t rtscheck_rtspresets_petg_bed_t;       //hot-bed temperature, type int16_t
-    int16_t rtscheck_rtspresets_motor_hold_time;    //DEFAULT_STEPPER_DEACTIVE_TIME in sec
-    bool rtscheck_rtspresets_auto_power_off_enable; //auto power-off enabled, type boolean
+  #if ENABLED(RTS_AVAILABLE)                         // RTS preset data
+    celsius_t rtscheck_rtspresets_pla_hotend_t;      //nozzle temperature, type int16_t
+    celsius_t rtscheck_rtspresets_pla_bed_t;         //hot-bed temperature, type int16_t
+    celsius_t rtscheck_rtspresets_petg_hotend_t;     //nozzle temperature, type int16_t
+    celsius_t rtscheck_rtspresets_petg_bed_t;        //hot-bed temperature, type int16_t
+    int16_t rtscheck_rtspresets_motor_hold_time;     //DEFAULT_STEPPER_DEACTIVE_TIME in sec
+    bool rtscheck_rtspresets_auto_power_off_enabled; //auto power-off enabled, type boolean
+    bool rtscheck_rtspresets_debug_enabled;          //debug messages enabled, type boolean
   #endif
 
   //
@@ -864,12 +868,13 @@ void MarlinSettings::postprocess() {
     //
     #if ENABLED(RTS_AVAILABLE)
       _FIELD_TEST(rtscheck_rtspresets_pla_hotend_t);
-      EEPROM_WRITE(rtscheck.RTS_presets.pla_hotend_t);          //1 int16_t
-      EEPROM_WRITE(rtscheck.RTS_presets.pla_bed_t);             //1 int16_t
-      EEPROM_WRITE(rtscheck.RTS_presets.petg_hotend_t);         //1 int16_t
-      EEPROM_WRITE(rtscheck.RTS_presets.petg_bed_t);            //1 int16_t
-      EEPROM_WRITE(rtscheck.RTS_presets.motor_hold_time);       //1 int16_t
-      EEPROM_WRITE(rtscheck.RTS_presets.auto_power_off_enable); //1 boolean
+      EEPROM_WRITE(rtscheck.RTS_presets.pla_hotend_t);           //1 int16_t
+      EEPROM_WRITE(rtscheck.RTS_presets.pla_bed_t);              //1 int16_t
+      EEPROM_WRITE(rtscheck.RTS_presets.petg_hotend_t);          //1 int16_t
+      EEPROM_WRITE(rtscheck.RTS_presets.petg_bed_t);             //1 int16_t
+      EEPROM_WRITE(rtscheck.RTS_presets.motor_hold_time);        //1 int16_t
+      EEPROM_WRITE(rtscheck.RTS_presets.auto_power_off_enabled); //1 boolean
+      EEPROM_WRITE(rtscheck.RTS_presets.debug_enabled);          //1 boolean
     #endif
 
     //
@@ -1752,12 +1757,13 @@ void MarlinSettings::postprocess() {
       //
       #if ENABLED(RTS_AVAILABLE)
         _FIELD_TEST(rtscheck_rtspresets_pla_hotend_t);
-        EEPROM_READ(rtscheck.RTS_presets.pla_hotend_t);          //1 int16_t
-        EEPROM_READ(rtscheck.RTS_presets.pla_bed_t);             //1 int16_t
-        EEPROM_READ(rtscheck.RTS_presets.petg_hotend_t);         //1 int16_t
-        EEPROM_READ(rtscheck.RTS_presets.petg_bed_t);            //1 int16_t
-        EEPROM_READ(rtscheck.RTS_presets.motor_hold_time);       //1 int16_t
-        EEPROM_READ(rtscheck.RTS_presets.auto_power_off_enable); //1 boolean
+        EEPROM_READ(rtscheck.RTS_presets.pla_hotend_t);           //1 int16_t
+        EEPROM_READ(rtscheck.RTS_presets.pla_bed_t);              //1 int16_t
+        EEPROM_READ(rtscheck.RTS_presets.petg_hotend_t);          //1 int16_t
+        EEPROM_READ(rtscheck.RTS_presets.petg_bed_t);             //1 int16_t
+        EEPROM_READ(rtscheck.RTS_presets.motor_hold_time);        //1 int16_t
+        EEPROM_READ(rtscheck.RTS_presets.auto_power_off_enabled); //1 boolean
+        EEPROM_READ(rtscheck.RTS_presets.debug_enabled);          //1 boolean
       #endif
 
       //
@@ -2819,7 +2825,8 @@ void MarlinSettings::reset() {
     rtscheck.RTS_presets.petg_hotend_t = PREHEAT_2_TEMP_HOTEND;           //nozzle temperature, type int16_t
     rtscheck.RTS_presets.petg_bed_t = PREHEAT_2_TEMP_BED;                 //hot-bed temperature, type int16_t
     rtscheck.RTS_presets.motor_hold_time = DEFAULT_STEPPER_DEACTIVE_TIME; //DEFAULT_STEPPER_DEACTIVE_TIME in sec
-    rtscheck.RTS_presets.auto_power_off_enable = true;                    //enable power-off
+    rtscheck.RTS_presets.auto_power_off_enabled = true;                   //enable power-off
+    rtscheck.RTS_presets.debug_enabled = false;                           //debug messages enabled, type boolean
   #endif
 
   //

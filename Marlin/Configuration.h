@@ -75,7 +75,7 @@
 #define MACVERSION      STRING_CONFIG_H_AUTHOR
 #define SOFTVERSION     SHORT_BUILD_VERSION
 #define CORP_WEBSITE    "www.sovol3d.com"
-//#define DISPLAY_VERSION "v1.15.2"
+//#define DISPLAY_VERSION "v1.15.7"
 
 /**
  * *** VENDORS PLEASE READ ***
@@ -1192,7 +1192,7 @@
  *     |    [-]    |
  *     O-- FRONT --+
  */
-#define NOZZLE_TO_PROBE_OFFSET { 0, 25, -1.9 }
+#define NOZZLE_TO_PROBE_OFFSET { 0, 25, 0 }
 
 // Most probes should stay away from the edges of the bed, but
 // with NOZZLE_AS_PROBE this can be negative for a wider probing area.
@@ -2793,9 +2793,6 @@
 //#define DWIN_MARLINUI_PORTRAIT
 //#define DWIN_MARLINUI_LANDSCAPE
 #define RTS_AVAILABLE
-// Enable verbose output from RTS display handler to terminal.
-// Can be disabled for production build.
-//#define RTS_DEBUG
 
 //
 // Touch Screen Settings

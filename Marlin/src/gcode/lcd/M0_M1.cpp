@@ -76,11 +76,17 @@ void GcodeSuite::M0_M1() {
     DWIN_Popup_Confirm(ICON_BLTouch, parser.string_arg ?: GET_TEXT(MSG_STOPPED), GET_TEXT(MSG_USERWAIT));
 
   #elif ENABLED(RTS_AVAILABLE)
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  M125. Last screen #", RTS_currentScreen));
-    RTS_lastScreen = RTS_currentScreen;
+    rtscheck.RTS_lastScreen = rtscheck.RTS_currentScreen;
     //rtscheck.RTS_SDcardStop();
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS =>  Pause screen #60.5 triggered"));
-    RTS_currentScreen = 60; //call pause screen
+    if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+    {
+      //Debug enabled
+      SERIAL_ECHOLNPGM("RTS =>  M0_M1. Last screen #", rtscheck.RTS_currentScreen);
+      SERIAL_ECHOLNPGM("RTS =>  Pause screen #60 triggered");
+      sprintf(rtscheck.RTS_infoBuf, "M0_M1: Last[%d] Goto Cur[%d]<60 waitW=%d DXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus);
+      rtscheck.RTS_Debug_Info();
+    }
+    rtscheck.RTS_currentScreen = 60; //call pause screen
     rtscheck.RTS_SndData(ExchangePageBase + 60, ExchangepageAddr);
     TERN_(HOST_PROMPT_SUPPORT, host_prompt_open(PROMPT_USER_CONTINUE, GET_TEXT(MSG_PRINT_ABORTED), CONTINUE_STR));
     TERN_(HAS_RESUME_CONTINUE, wait_for_user_response(ms));
@@ -92,6 +98,7 @@ void GcodeSuite::M0_M1() {
     TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, parser.codenum ? PSTR("M1 Stop") : PSTR("M0 Stop"), CONTINUE_STR));
     TERN_(HAS_RESUME_CONTINUE, wait_for_user_response(ms));
     TERN_(HAS_LCD_MENU, ui.reset_status());
+
   #endif
 }
 

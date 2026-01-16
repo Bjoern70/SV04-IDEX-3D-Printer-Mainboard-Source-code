@@ -38,7 +38,13 @@
 #if ENABLED(RTS_AVAILABLE)
   void GcodeSuite::M1900() {
     // Check the integrity of data offsets.
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => Restarting printer now..."));
+    if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+    {
+      //Debug enabled
+      SERIAL_ECHOLNPGM("RTS => Restarting printer now...");
+      sprintf(rtscheck.RTS_infoBuf, "M1900: Last[%d] Cur[%d] waitW=%d DXC=%d saveDXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus, save_dual_x_carriage_mode);
+      rtscheck.RTS_Debug_Info();
+    }
     rtscheck.RTS_Restart();
   }
 #endif

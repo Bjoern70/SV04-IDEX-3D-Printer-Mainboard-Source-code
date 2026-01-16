@@ -456,8 +456,14 @@ void GcodeSuite::G28() {
    * IDEX specific commands in it.
    */
   #if ENABLED(DUAL_X_CARRIAGE)
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => dualXPrintingModeStatus: ", dualXPrintingModeStatus));
-    TERN_(RTS_DEBUG, SERIAL_ECHOLNPGM("RTS => save_dual_x_carriage_mode: ", save_dual_x_carriage_mode));
+    if (rtscheck.RTS_presets.debug_enabled)  //get debug state
+    {
+      //Debug enabled
+      SERIAL_ECHOLNPGM("RTS => dualXPrintingModeStatus: ", dualXPrintingModeStatus);
+      SERIAL_ECHOLNPGM("RTS => save_dual_x_carriage_mode: ", save_dual_x_carriage_mode);
+      sprintf(rtscheck.RTS_infoBuf, "G28: Last[%d] Cur[%d] waitW=%d DXC=%d saveDXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus, save_dual_x_carriage_mode);
+      rtscheck.RTS_Debug_Info();
+    }
     // added by John Carlson to fix single mode 2 for parking extruder 1 before printing.
     if (save_dual_x_carriage_mode > 4) {
       save_dual_x_carriage_mode = dualXPrintingModeStatus;
@@ -541,7 +547,7 @@ void GcodeSuite::G28() {
   #endif // HAS_HOMING_CURRENT
 
   //ui.refresh();
-  //RTSUpdate();
+  RTSUpdate();
 
   TERN_(RTS_AVAILABLE, RTS_MoveAxisHoming());
   TERN_(EXTENSIBLE_UI, ExtUI::onHomingComplete());
