@@ -92,29 +92,54 @@ void GcodeSuite::M106() {
 
   // Set speed, with constraint
   thermalManager.set_fan_speed(pfan, speed);
+  if (rtscheck.RTS_presets.debug_enabled)  //get saved debug stat
+  {
+    SERIAL_ECHOLNPGM("RTS =>  M106: idxDupl=1 Fan=%d", pfan);
+    SERIAL_ECHOLNPGM("RTS =>  M106: idxDupl=1 Speed=%d", speed);
+    sprintf(rtscheck.RTS_infoBuf, "M106: Fan=%d Speed=%d", pfan, speed);
+    rtscheck.RTS_Debug_Info();
+  }
+/*
   #if ENABLED(DUAL_X_CARRIAGE)
     if (dxc_is_parked())
     {
       thermalManager.set_fan_speed(0, speed);
       thermalManager.set_fan_speed(1, speed);
+      if (rtscheck.RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS =>  M106: dxc_parked=1 bothFans Speed=%d", speed);
+        sprintf(rtscheck.RTS_infoBuf, "M106: dxc_parked=1 bothFans speed=%d", speed);
+        rtscheck.RTS_Debug_Info();
+      }
     }
   #endif
+*/
   TERN_(LASER_SYNCHRONOUS_M106_M107, planner.buffer_sync_block(BLOCK_FLAG_SYNC_FANS));
 
   if (TERN0(DUAL_X_CARRIAGE, idex_is_duplicating()))  // pfan == 0 when duplicating
+  {
     thermalManager.set_fan_speed(1 - pfan, speed);
+    if (rtscheck.RTS_presets.debug_enabled)  //get saved debug state
+    {
+      SERIAL_ECHOLNPGM("RTS =>  M106: idxDupl=1 Fan=%d", 1-pfan);
+      SERIAL_ECHOLNPGM("RTS =>  M106: idxDupl=1 Speed=%d", speed);
+      sprintf(rtscheck.RTS_infoBuf, "M106: idxDupl=1 Fan=%d Speed=%d", 1-pfan, speed);
+      rtscheck.RTS_Debug_Info();
+    }
+  }
   #if ENABLED(RTS_AVAILABLE)
     if (pfan == 0)
     {
       rtscheck.RTS_SndData(speed, HEAD0_FAN_SPEED_VP);
-    } else {
+    }
+    else {
       rtscheck.RTS_SndData(speed, HEAD1_FAN_SPEED_VP);
     }
     if (rtscheck.RTS_presets.debug_enabled)  //get saved debug state
     {
       SERIAL_ECHOLNPGM("RTS =>  M106. Return to display screen #", rtscheck.RTS_currentScreen);
-        sprintf(rtscheck.RTS_infoBuf, "M106: Last[%d] Goto Cur[%d] waitW=%d DXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus);
-        rtscheck.RTS_Debug_Info();
+      sprintf(rtscheck.RTS_infoBuf, "M106: Last[%d] Goto Cur[%d] waitW=%d DXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus);
+      rtscheck.RTS_Debug_Info();
     }
     rtscheck.RTS_SndData(ExchangePageBase + rtscheck.RTS_currentScreen, ExchangepageAddr);//Display update
   #endif
@@ -131,29 +156,46 @@ void GcodeSuite::M107() {
   #endif
 
   thermalManager.set_fan_speed(pfan, 0);
-  #if ENABLED(DUAL_X_CARRIAGE)
+/*  #if ENABLED(DUAL_X_CARRIAGE)
    if (dxc_is_parked())
     {
       thermalManager.set_fan_speed(0, 0);
       thermalManager.set_fan_speed(1, 0);
+      if (rtscheck.RTS_presets.debug_enabled)  //get saved debug state
+      {
+        SERIAL_ECHOLNPGM("RTS =>  M107: dxc_parked=1 bothFans Speed=0");
+        sprintf(rtscheck.RTS_infoBuf, "M107: dxc_parked=1 bothFans speed=0");
+        rtscheck.RTS_Debug_Info();
+      }
     }
   #endif
+*/
   if (TERN0(DUAL_X_CARRIAGE, idex_is_duplicating()))  // pfan == 0 when duplicating
+  {
     thermalManager.set_fan_speed(1 - pfan, 0);
 
+    if (rtscheck.RTS_presets.debug_enabled)  //get saved debug state
+    {
+      SERIAL_ECHOLNPGM("RTS =>  M107: idxDupl=1 Fan=%d Speed=0", 1-pfan);
+      sprintf(rtscheck.RTS_infoBuf, "M107: idxDupl=1 Fan=%d Speed=0", 1-pfan);
+      rtscheck.RTS_Debug_Info();
+    }
+  }
   TERN_(LASER_SYNCHRONOUS_M106_M107, planner.buffer_sync_block(BLOCK_FLAG_SYNC_FANS));
   #if ENABLED(RTS_AVAILABLE)
     if (pfan == 0)
     {
       rtscheck.RTS_SndData(0, HEAD0_FAN_SPEED_VP);
-    } else {
+    }
+    else
+    {
       rtscheck.RTS_SndData(0, HEAD1_FAN_SPEED_VP);
     }
     if (rtscheck.RTS_presets.debug_enabled)  //get saved debug state
     {
       SERIAL_ECHOLNPGM("RTS =>  M107. Return to display screen #", rtscheck.RTS_currentScreen);
-        sprintf(rtscheck.RTS_infoBuf, "M107: Last[%d] Goto Cur[%d] waitW=%d DXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus);
-        rtscheck.RTS_Debug_Info();
+      sprintf(rtscheck.RTS_infoBuf, "M107: Last[%d] Goto Cur[%d] waitW=%d DXC=%d", rtscheck.RTS_lastScreen, rtscheck.RTS_currentScreen, RTS_waitway, dualXPrintingModeStatus);
+      rtscheck.RTS_Debug_Info();
     }
     rtscheck.RTS_SndData(ExchangePageBase + rtscheck.RTS_currentScreen, ExchangepageAddr);//Display update
   #endif

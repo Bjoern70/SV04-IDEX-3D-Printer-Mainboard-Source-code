@@ -60,3 +60,6 @@ Fixed right extruder crashing into right end stop bug. Default nozzle to probe Z
 
 16 JAN 2026:
 Fixed filament runout dead-end loop. Added advanced pause screens. Added optinal debugging messages.
+
+09 MAR 2026:
+Fixed M106/M107 processing: Both fans recognize independent speed settings, when not in mirror or duplication mode. Added extra M106/M107 debugging messages.
