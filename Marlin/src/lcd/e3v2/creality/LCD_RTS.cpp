@@ -387,14 +387,15 @@ void RTSSHOW::RTS_Init()
   {
     RTS_SndData(0, PRESET_DEBUG_ENABLED_VP);  //on icon
     SERIAL_ECHOLNPGM("RTS => RTS Init; dualXPrintingModeStatus=",dualXPrintingModeStatus);
-    sprintf(RTS_infoBuf, "RTS_Init: Last[%d] Cur[%d] DXC=%d", RTS_lastScreen, RTS_currentScreen, dualXPrintingModeStatus);
+    sprintf(RTS_infoBuf, "RTS_Init: Last[%d]>0 Cur[%d]>0 DXC=%d", RTS_lastScreen, RTS_currentScreen, dualXPrintingModeStatus);
     RTS_Debug_Info();
   }
   else
   {
     RTS_SndData(1, PRESET_DEBUG_ENABLED_VP);  //off icon
   }
-
+  RTS_currentScreen = 0;
+  RTS_lastScreen = 0;
   AxisUnitMode = 3;
 
   #if ENABLED(DUAL_X_CARRIAGE)
@@ -1377,12 +1378,13 @@ void RTSSHOW::RTS_HandleData()
         //return to previous RTS screen
         if (RTS_presets.debug_enabled)  //get saved debug state
         {
-          SERIAL_ECHOLNPGM("RTS => MainPageKey=7. Resume to last screen #", RTS_currentScreen);
+          SERIAL_ECHOLNPGM("RTS => MainPageKey=7. Resume from last screen #", RTS_currentScreen);
           SERIAL_ECHOLNPGM("RTS => Go to last screen #", RTS_lastScreen);
-          sprintf(RTS_infoBuf, "RTS_ResumeKey: Goto [%d] Cur[%d] waitW=%d waitUsr=%d DXC=%d pauseAct=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, dualXPrintingModeStatus, pause_action);
+          sprintf(RTS_infoBuf, "RTS_ResumeKey: Last[%d]>Cur[%d] waitW=%d waitUsr=%d DXC=%d pauseAct=%d", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, dualXPrintingModeStatus, pause_action);
           RTS_Debug_Info();
         }
-        RTS_SndData(ExchangePageBase + RTS_lastScreen, ExchangepageAddr);
+        RTS_currentScreen = RTS_lastScreen;
+        RTS_SndData(ExchangePageBase + RTS_currentScreen, ExchangepageAddr);
       }
       break;
 
