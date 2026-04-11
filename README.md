@@ -43,7 +43,8 @@ Based on the great work of bphillips09 & johncarlson21 and by inspiration of Jye
  - fixed touchscreen E-step adjustment not recognized bug
  - fixed right extruder not moving bug in refuel & extruder E-step adjustment screens
  - fixed filament runout dead-end loop. Added advanced pause screens. Added optinal debugging messages
- - fixed independent fan speed processing.
+ - fixed independent fan speed processing
+ - added missing thermistor lookup table entries above 300°C. Enabled extra options for the M114 "Current Position" report.
 
 
 This SV04 Marlin firmware requires matching touchscreen software v1.15.7 that is available here:
