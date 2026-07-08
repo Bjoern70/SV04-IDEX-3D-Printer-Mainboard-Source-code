@@ -65,4 +65,7 @@ Fixed filament runout dead-end loop. Added advanced pause screens. Added optinal
 Fixed M106/M107 processing: Both fans recognize independent speed settings, when not in mirror or duplication mode. Added extra M106/M107 debugging messages.
 
 11 APR 2026:
-Added missing thermistor lookup table entries above 300°C. Enabled extra options for the M114 "Current Position" report.
+Added missing thermistor lookup table entries above 300°C. Enabled extra options for the M114 "Current Position" report
+
+08 JUL 2026:
+Fixed extruder endstop crash problem after return from filament change.

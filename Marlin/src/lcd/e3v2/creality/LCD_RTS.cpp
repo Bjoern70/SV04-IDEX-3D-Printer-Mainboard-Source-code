@@ -17,6 +17,7 @@
 #include "../../../module/printcounter.h"
 #include "../../../module/motion.h"
 #include "../../../module/planner.h"
+#include "../../../module/tool_change.h"
 #include "../../../gcode/queue.h"
 #include "../../../gcode/gcode.h"
 #include "../../../module/probe.h"
@@ -131,6 +132,7 @@ static bool last_card_insert_st;
 bool card_insert_st;
 bool sd_printing;
 bool sd_printing_autopause;
+uint8_t old_tool_index;
 
 inline void RTS_line_to_current(AxisEnum axis, float manual_feedrate_mms)
 {
@@ -3145,6 +3147,8 @@ void RTSSHOW::RTS_HandleData()
           }
           else
           {
+            //Store active extruder
+            old_tool_index = active_extruder;
             queue.enqueue_now_P(PSTR("T0"));
             active_extruder = 0;
             active_extruder_flag = false;
@@ -3161,6 +3165,8 @@ void RTSSHOW::RTS_HandleData()
               sprintf(RTS_infoBuf, "RTS_Retract_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d length=%4.1f rate=%4.1f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, Filament0LOAD, EstepFeedRate);
               RTS_Debug_Info();
             }
+            //Restore the active tool & do not move
+            tool_change(old_tool_index, true);
           }
         }
       }
@@ -3193,6 +3199,8 @@ void RTSSHOW::RTS_HandleData()
           }
           else
           {
+            //Store active extruder
+            old_tool_index = active_extruder;
             queue.enqueue_now_P(PSTR("T0"));
             active_extruder = 0;
             active_extruder_flag = false;
@@ -3209,6 +3217,8 @@ void RTSSHOW::RTS_HandleData()
               sprintf(RTS_infoBuf, "RTS_Feed_L: Last[%d] Cur[%d] waitW=%d waitUsr=%d length=%4.1f rate=%4.1f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, Filament0LOAD, EstepFeedRate);
               RTS_Debug_Info();
             }
+            //Restore the active tool & do not move
+            tool_change(old_tool_index, true);
           }
         }
       }
@@ -3241,6 +3251,8 @@ void RTSSHOW::RTS_HandleData()
           }
           else
           {
+            //Store active extruder
+            old_tool_index = active_extruder;
             queue.enqueue_now_P(PSTR("T1"));
             active_extruder = 1;
             active_extruder_flag = true;
@@ -3257,6 +3269,8 @@ void RTSSHOW::RTS_HandleData()
               sprintf(RTS_infoBuf, "RTS_Retract_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d length=%4.1f rate=%4.1f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, Filament1LOAD, EstepFeedRate);
               RTS_Debug_Info();
             }
+            //Restore the active tool & do not move
+            tool_change(old_tool_index, true);
           }
         }
       }
@@ -3289,6 +3303,8 @@ void RTSSHOW::RTS_HandleData()
           }
           else
           {
+            //Store active extruder
+            old_tool_index = active_extruder;
             queue.enqueue_now_P(PSTR("T1"));
             active_extruder = 1;
             active_extruder_flag = true;
@@ -3305,6 +3321,8 @@ void RTSSHOW::RTS_HandleData()
               sprintf(RTS_infoBuf, "RTS_Feed_R: Last[%d] Cur[%d] waitW=%d waitUsr=%d length=%4.1f rate=%4.1f", RTS_lastScreen, RTS_currentScreen, RTS_waitway, wait_user, Filament1LOAD, EstepFeedRate);
               RTS_Debug_Info();
             }
+            //Restore the active tool & do not move
+            tool_change(old_tool_index, true);
           }
         }
       }
